@@ -928,6 +928,26 @@ a:hover { color: #8CC3FA; }
 button.stat { cursor: pointer; }
 button.stat { display: block; width: 100%; text-align: left; }
 
+/* --------------------------------- legenda da rosca: nome, % e valor */
+.leg { display: flex; flex-direction: column; gap: 0; margin-top: 16px; }
+.leg li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 2px;
+  font: 400 12px/1.2 var(--sans);
+  color: var(--text-2);
+}
+.leg li + li { border-top: 1px solid var(--glass-line); }
+.leg__dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.leg__nome { font-weight: 500; }
+.leg__meta { font: 400 9.5px/1 var(--mono); color: var(--muted-2); }
+.leg__pct { margin-left: auto; font: 400 11px/1 var(--mono); color: var(--muted); }
+.leg__val { font: 500 13px/1 var(--mono); color: var(--text); min-width: 78px; text-align: right; }
+
+/* abas de tipo de gráfico e a fileira que ocupa a largura do card */
+.chart-tabs--full { margin-top: 14px; }
+.chart-tabs--full button { flex: 1; }
+.chart-tabs button svg { display: block; }
+
 /* ------------------------------------------- lendo o cupom (passo visual) */
 .lendo { margin: 18px var(--pad) 0; }
 

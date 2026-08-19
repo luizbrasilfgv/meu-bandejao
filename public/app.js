@@ -60,7 +60,6 @@ let politicas   = [];                       // regras do RH, por vigência
 let prefs       = { alertaLimite: true, lembreteRecibo: false, tetoMensal: null,
                     matricula: "", cnpjLocal: {} };
 let periodo     = { preset: "atual", inicio: "", fim: "" };
-let verTudo     = false;
 let modoSheet   = "scan";                   // scan | manual | editar
 let editandoId  = "";
 
@@ -282,8 +281,43 @@ function periodoAnterior(ini, fim){
   return { ini: iso(i), fim: iso(f) };
 }
 
-function ordenar(lista){
-  return [...lista].sort((a, b) => String(b.dataHora).localeCompare(String(a.dataHora)));
+function ordenar(lista, modo){
+  const l = [...lista];
+  if (modo === "valor") return l.sort((a, b) => num(b.valor) - num(a.valor));
+  if (modo === "antigo") return l.sort((a, b) => String(a.dataHora).localeCompare(String(b.dataHora)));
+  return l.sort((a, b) => String(b.dataHora).localeCompare(String(a.dataHora)));
+}
+
+/** Tudo que dá para procurar num lançamento, sem acento e em minúsculas. */
+function textoDoLancamento(l){
+  return chave([l.local, l.categoria, l.itens, l.matricula, l.numeroCupom,
+                l.cnpj, l.observacao, paraBR(l.dataHora), brl(l.valor)]
+    .filter(Boolean).join(" "));
+}
+
+/**
+ * Filtro da tela de transações. Cada critério é independente: texto casa em
+ * qualquer campo, e todas as palavras precisam bater — senão buscar "sapore
+ * almoço" não acharia nada.
+ */
+function aplicarFiltro(lista, f){
+  const palavras = chave(f.texto || "").split(/\s+/).filter(Boolean);
+  return lista.filter(l => {
+    if (f.local && l.local !== f.local) return false;
+    if (f.categoria && l.categoria !== f.categoria) return false;
+    if (f.situacao && (l.status || "conferido") !== f.situacao) return false;
+    const v = num(l.valor);
+    if (f.min != null && v < f.min) return false;
+    if (f.max != null && v > f.max) return false;
+    const d = dataDe(l);
+    if (f.ini && d < f.ini) return false;
+    if (f.fim && d > f.fim) return false;
+    if (palavras.length){
+      const alvo = textoDoLancamento(l);
+      if (!palavras.every(p => alvo.includes(p))) return false;
+    }
+    return true;
+  });
 }
 
 function novoId(){
@@ -401,6 +435,7 @@ function pintar(){
 
   pintarHome(doPeriodo, ini, fim);
   pintarLista(doPeriodo);
+  pintarTransacoes();
   pintarEstatisticas(doPeriodo, ini, fim, rotulo);
   pintarConciliar();
   pintarPerfil();
@@ -486,47 +521,40 @@ function pintarHome(lista, ini, fim){
   poe("lgRei", `Rei do Mate R$ ${brl(rei.bruto)}`);
 }
 
+/** A linha de transação, usada na Home e na tela de todas. */
+function linhaTx(l){
+  const sapore = l.local === "Sapore";
+  const revisar = l.status === "revisar";
+  const hora = horaDe(l);
+  const quando = dataDe(l) === hojeIso() ? `HOJE${hora ? " " + hora : ""}` : paraBR(l.dataHora);
+  const meta = [l.categoria, quando].filter(Boolean).join(" · ").toUpperCase();
+  return `<li>
+    <button class="glass tx ${revisar ? "tx--pending" : ""}" type="button" data-editar="${esc(l.id)}">
+      <span class="avatar ${sapore ? "avatar--blue" : ""}">${sapore ? "SA" : "RM"}</span>
+      <span class="tx__body">
+        <span class="tx__name">${esc(l.local)}</span>
+        <span class="tx__meta">${esc(meta)}</span>
+      </span>
+      <span class="tx__side">
+        <span class="tx__value">${brl(l.valor)}</span>
+        <span class="tx__status ${revisar ? "tx__status--pending" : ""}">${revisar ? "REVISAR OCR" : "CONFERIDO"}</span>
+      </span>
+    </button>
+  </li>`;
+}
+
+const VAZIO_TX = `<li class="glass row"><span class="row__body">
+  <span class="row__label">Nenhum lançamento no período</span>
+  <span class="row__hint">TOQUE EM + LANÇAMENTO PARA COMEÇAR</span>
+</span></li>`;
+
 function pintarLista(lista){
-  const alvo = qs(".tx-list");
+  const alvo = qs("#home .tx-list");
   if (!alvo) return;
-
   const ordenada = ordenar(lista);
-  const mostradas = verTudo ? ordenada : ordenada.slice(0, 6);
-
   const btnTudo = el("btnVerTudo");
-  if (btnTudo){
-    btnTudo.hidden = ordenada.length <= 6;
-    btnTudo.textContent = verTudo ? "VER MENOS" : "VER TUDO";
-  }
-
-  if (!mostradas.length){
-    alvo.innerHTML = `<li class="glass row"><span class="row__body">
-      <span class="row__label">Nenhum lançamento no período</span>
-      <span class="row__hint">TOQUE EM ESCANEAR RECIBO OU LANÇAR MANUAL</span>
-    </span></li>`;
-    return;
-  }
-
-  alvo.innerHTML = mostradas.map(l => {
-    const sapore = l.local === "Sapore";
-    const revisar = l.status === "revisar";
-    const hora = horaDe(l);
-    const quando = dataDe(l) === hojeIso() ? `HOJE${hora ? " " + hora : ""}` : paraBR(l.dataHora);
-    const meta = [l.categoria, quando].filter(Boolean).join(" · ").toUpperCase();
-    return `<li>
-      <button class="glass tx ${revisar ? "tx--pending" : ""}" type="button" data-editar="${esc(l.id)}">
-        <span class="avatar ${sapore ? "avatar--blue" : ""}">${sapore ? "SA" : "RM"}</span>
-        <span class="tx__body">
-          <span class="tx__name">${esc(l.local)}</span>
-          <span class="tx__meta">${esc(meta)}</span>
-        </span>
-        <span class="tx__side">
-          <span class="tx__value">${brl(l.valor)}</span>
-          <span class="tx__status ${revisar ? "tx__status--pending" : ""}">${revisar ? "REVISAR OCR" : "CONFERIDO"}</span>
-        </span>
-      </button>
-    </li>`;
-  }).join("");
+  if (btnTudo) btnTudo.hidden = lancamentos.length === 0;
+  alvo.innerHTML = ordenada.length ? ordenada.slice(0, 6).map(linhaTx).join("") : VAZIO_TX;
 }
 
 function pintarEstatisticas(lista, ini, fim, rotulo){
@@ -562,6 +590,59 @@ function pintarEstatisticas(lista, ini, fim, rotulo){
   if (f1 && f2){ f1.style.flex = String(e.ritmoPct); f2.style.flex = String(100 - e.ritmoPct); }
   poe("lgRitmo", `${e.ritmoPct}% do período percorrido`);
   poe("lgRitmoFalta", e.uteisRestantes ? `faltam ${e.uteisRestantes} dias úteis` : "período encerrado");
+}
+
+/* ---------- tela de todas as transações ---------- */
+let filtro = { texto: "", local: "", categoria: "", situacao: "",
+               min: null, max: null, ini: "", fim: "", ordem: "recente" };
+
+function transacoesFiltradas(){
+  return ordenar(aplicarFiltro(lancamentos, filtro), filtro.ordem);
+}
+
+function pintarTransacoes(){
+  const alvo = el("listaTodas");
+  if (!alvo) return;
+
+  const vis = transacoesFiltradas();
+  const r = resumo(vis);
+  const temFiltro = !!(filtro.texto || filtro.local || filtro.categoria || filtro.situacao
+                       || filtro.min != null || filtro.max != null || filtro.ini || filtro.fim);
+
+  poe("txPlacar", vis.length
+    ? `${vis.length} de ${lancamentos.length} lançamento${lancamentos.length === 1 ? "" : "s"} · R$ ${brl(r.bruto)} consumidos · R$ ${brl(r.desconto)} em folha`
+    : lancamentos.length ? "Nada casou com esse filtro" : "Você ainda não lançou nada");
+
+  const limpar = el("btnLimparFiltro");
+  if (limpar) limpar.hidden = !temFiltro;
+
+  alvo.innerHTML = vis.length ? vis.map(linhaTx).join("")
+    : `<li class="glass row"><span class="row__body">
+        <span class="row__label">${temFiltro ? "Nenhum lançamento com esses critérios" : "Nenhum lançamento ainda"}</span>
+        <span class="row__hint">${temFiltro ? "TOQUE EM LIMPAR PARA VER TUDO" : "TOQUE EM + LANÇAMENTO NA TELA INICIAL"}</span>
+      </span></li>`;
+}
+
+function lerFiltroDaTela(){
+  filtro.texto = el("fTexto")?.value || "";
+  filtro.categoria = el("fCategoria")?.value || "";
+  filtro.situacao = el("fSituacao")?.value || "";
+  const mn = paraValor(el("fMin")?.value), mx = paraValor(el("fMax")?.value);
+  filtro.min = isFinite(mn) ? mn : null;
+  filtro.max = isFinite(mx) ? mx : null;
+  filtro.ini = el("fIni")?.value || "";
+  filtro.fim = el("fFim")?.value || "";
+  pintarTransacoes();
+}
+
+function limparFiltro(){
+  filtro = { texto: "", local: "", categoria: "", situacao: "",
+             min: null, max: null, ini: "", fim: "", ordem: filtro.ordem };
+  ["fTexto", "fMin", "fMax", "fIni", "fFim"].forEach(id => { const x = el(id); if (x) x.value = ""; });
+  ["fCategoria", "fSituacao"].forEach(id => { const x = el(id); if (x) x.value = ""; });
+  qsa("#fLocais .chip").forEach(c => c.classList.toggle("is-active", !c.dataset.flocal));
+  pintarTransacoes();
+  aviso("Filtro limpo.");
 }
 
 /** Escreve texto num id. Com o 3º argumento, marca como pendência. */
@@ -664,7 +745,29 @@ function checarAlerta(){
 /* ===========================================================
    4. GRÁFICOS (Chart.js)
    =========================================================== */
-let chartGastos = null, chartLocal = null, escalaGrafico = "dia";
+let chartGastos = null, chartLocal = null;
+let escalaGrafico = "dia";      // dia | mes
+let tipoGrafico = "linha";      // linha | barra
+
+/** Escreve o total no buraco da rosca. Plugin de 15 linhas em vez de dependência. */
+const centroDaRosca = {
+  id: "centroDaRosca",
+  afterDatasetsDraw(chart, _a, opts){
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0);
+    if (!meta || !meta.data || !meta.data[0]) return;
+    const { x, y } = meta.data[0];
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.fillStyle = opts.corRotulo || "#8C9CB2";
+    ctx.font = "400 9px 'IBM Plex Mono', monospace";
+    ctx.fillText("TOTAL", x, y - 12);
+    ctx.fillStyle = opts.corValor || "#F3F7FC";
+    ctx.font = "500 20px 'IBM Plex Mono', monospace";
+    ctx.fillText("R$ " + brl(opts.total || 0), x, y + 11);
+    ctx.restore();
+  }
+};
 
 function pintarGraficos(lista){
   if (typeof Chart === "undefined") return;
@@ -674,6 +777,7 @@ function pintarGraficos(lista){
   const ambar = cor("--amber") || "#FFB84D";
   const grade = "rgba(255,255,255,.07)";
   const texto = cor("--muted-2") || "#6B7B92";
+  const claro = cor("--text-2") || "#C3D0E0";
 
   const serie = escalaGrafico === "mes" ? porMes(lista) : porDia(lista);
   const rotulos = serie.map(p => escalaGrafico === "mes"
@@ -686,24 +790,43 @@ function pintarGraficos(lista){
     if (box) box.classList.toggle("has-data", serie.length > 0);
     if (chartGastos){ chartGastos.destroy(); chartGastos = null; }
     if (serie.length){
+      const linha = tipoGrafico === "linha";
       chartGastos = new Chart(cvGastos, {
-        type: "bar",
+        type: linha ? "line" : "bar",
         data: {
           labels: rotulos,
-          datasets: [
-            { label: "Desconto em folha", data: serie.map(p => p.desconto), backgroundColor: ambar, borderRadius: 4 },
-            { label: "Subsídio FGV", data: serie.map(p => p.bruto - p.desconto), backgroundColor: azul, borderRadius: 4 }
-          ]
+          datasets: linha
+            ? [
+                { label: "Consumo bruto", data: serie.map(p => p.bruto),
+                  borderColor: azul, backgroundColor: "rgba(46,123,212,.18)",
+                  borderWidth: 2, tension: .35, fill: true,
+                  pointRadius: 2.5, pointBackgroundColor: azul },
+                { label: "Desconto em folha", data: serie.map(p => p.desconto),
+                  borderColor: ambar, backgroundColor: "rgba(255,184,77,.14)",
+                  borderWidth: 2, tension: .35, fill: true,
+                  pointRadius: 2.5, pointBackgroundColor: ambar }
+              ]
+            : [
+                { label: "Desconto em folha", data: serie.map(p => p.desconto),
+                  backgroundColor: ambar, borderRadius: 4 },
+                { label: "Subsídio FGV", data: serie.map(p => p.bruto - p.desconto),
+                  backgroundColor: azul, borderRadius: 4 }
+              ]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
           plugins: {
-            legend: { display: false },
+            legend: { position: "bottom",
+                      labels: { color: claro, boxWidth: 9, boxHeight: 9,
+                                usePointStyle: true, pointStyle: "circle",
+                                font: { size: 10 } } },
             tooltip: { callbacks: { label: c => `${c.dataset.label}: R$ ${brl(c.parsed.y)}` } }
           },
           scales: {
-            x: { stacked: true, grid: { display: false }, ticks: { color: texto, font: { size: 9 } } },
-            y: { stacked: true, grid: { color: grade },
+            x: { stacked: !linha, grid: { display: false },
+                 ticks: { color: texto, font: { size: 9 } } },
+            y: { stacked: !linha, beginAtZero: true, grid: { color: grade },
                  ticks: { color: texto, font: { size: 9 }, callback: v => brl(v) } }
           }
         }
@@ -724,18 +847,42 @@ function pintarGraficos(lista){
           labels: LOCAIS,
           datasets: [{
             data: LOCAIS.map(n => (r.porLocal[n] || { bruto: 0 }).bruto),
-            backgroundColor: [azul, ambar], borderWidth: 0
+            backgroundColor: [azul, ambar], borderWidth: 0, hoverOffset: 6
           }]
         },
         options: {
-          responsive: true, maintainAspectRatio: false, cutout: "62%",
+          responsive: true, maintainAspectRatio: false, cutout: "66%",
           plugins: {
-            legend: { position: "bottom", labels: { color: texto, boxWidth: 10, font: { size: 10 } } },
-            tooltip: { callbacks: { label: c => `${c.label}: R$ ${brl(c.parsed)}` } }
+            legend: { display: false },   // a legenda com valor e % está no HTML
+            centroDaRosca: { total: r.bruto, corRotulo: texto, corValor: cor("--text") || "#F3F7FC" },
+            tooltip: { callbacks: {
+              label: c => {
+                const pct = r.bruto ? (c.parsed / r.bruto) * 100 : 0;
+                return `${c.label}: R$ ${brl(c.parsed)} · ${pct.toFixed(1).replace(".", ",")}%`;
+              }
+            } }
           }
-        }
+        },
+        plugins: [centroDaRosca]
       });
     }
+  }
+
+  // legenda da rosca: nome, valor e percentual, que o gráfico sozinho não diz
+  const leg = el("legendaLocal");
+  if (leg){
+    const cores = { "Sapore": azul, "Rei do Mate": ambar };
+    leg.innerHTML = LOCAIS.map(nome => {
+      const d = r.porLocal[nome] || { bruto: 0, n: 0, desconto: 0 };
+      const pct = r.bruto ? (d.bruto / r.bruto) * 100 : 0;
+      return `<li>
+        <span class="leg__dot" style="background:${cores[nome]}"></span>
+        <span class="leg__nome">${esc(nome)}</span>
+        <span class="leg__meta">${d.n} lanç.</span>
+        <span class="leg__pct">${pct.toFixed(1).replace(".", ",")}%</span>
+        <b class="leg__val">R$ ${brl(d.bruto)}</b>
+      </li>`;
+    }).join("");
   }
 }
 
@@ -1537,10 +1684,34 @@ document.addEventListener("click", e => {
     return pintarGraficos(noPeriodo(lancamentos, ini, fim));
   }
 
-  if (achar("data-vertudo")){
-    verTudo = !verTudo;
+  const tipoG = achar("data-tipo-grafico");
+  if (tipoG){
+    tipoGrafico = tipoG.dataset.tipoGrafico;
+    qsa("#chartTipos button").forEach(b => b.classList.toggle("is-active", b === tipoG));
     const { ini, fim } = limitesPeriodo();
-    return pintarLista(noPeriodo(lancamentos, ini, fim));
+    return pintarGraficos(noPeriodo(lancamentos, ini, fim));
+  }
+
+  const chipLocal = achar("data-flocal");
+  if (chipLocal){
+    filtro.local = chipLocal.dataset.flocal || "";
+    qsa("#fLocais .chip").forEach(c => c.classList.toggle("is-active", c === chipLocal));
+    return pintarTransacoes();
+  }
+
+  const ordem = achar("data-ordem");
+  if (ordem){
+    filtro.ordem = ordem.dataset.ordem;
+    qsa("#fOrdem button").forEach(b => b.classList.toggle("is-active", b === ordem));
+    return pintarTransacoes();
+  }
+
+  if (achar("data-limpar-filtro")) return limparFiltro();
+
+  if (achar("data-exportar-filtrado")){
+    const vis = transacoesFiltradas();
+    if (!vis.length) return aviso("Nada para exportar com esse filtro.");
+    return baixarCSV(vis, "filtrado");
   }
 
   const pref = achar("data-pref");
@@ -1673,18 +1844,26 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") fecharSheet(
 /* busca do painel de acessos */
 el("q-ac")?.addEventListener("input", e => { qAc = e.target.value; pintarAc(); });
 
-function exportarCSV(){
-  const { ini, fim } = limitesPeriodo();
-  const lista = noPeriodo(lancamentos, ini, fim);
-  if (!lista.length) return aviso("Nada para exportar neste período.");
+/* filtro da tela de transações: digitar já filtra, sem botão de "buscar" */
+["fTexto", "fMin", "fMax"].forEach(id => el(id)?.addEventListener("input", lerFiltroDaTela));
+["fCategoria", "fSituacao", "fIni", "fFim"].forEach(id => el(id)?.addEventListener("change", lerFiltroDaTela));
+
+function baixarCSV(lista, sufixo){
   const csv = "﻿" + paraCSV(lista);
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `meu-bandejao-${ini}-a-${fim}.csv`;
+  a.download = `meu-bandejao-${sufixo}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
   aviso(`${lista.length} lançamento${lista.length === 1 ? "" : "s"} no arquivo.`);
+}
+
+function exportarCSV(){
+  const { ini, fim } = limitesPeriodo();
+  const lista = noPeriodo(lancamentos, ini, fim);
+  if (!lista.length) return aviso("Nada para exportar neste período.");
+  baixarCSV(lista, `${ini}-a-${fim}`);
 }
 
 function sair(){

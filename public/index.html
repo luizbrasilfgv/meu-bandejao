@@ -14,7 +14,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=7">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -149,12 +149,95 @@
 
     <div class="section-head">
       <h2>Transações recentes</h2>
-      <button class="link" type="button" id="btnVerTudo" data-vertudo hidden>VER TUDO</button>
+      <button class="link" type="button" id="btnVerTudo" data-sub="transacoes" hidden>VER TUDO</button>
     </div>
 
     <ul class="tx-list">
       <!-- Injetado por JS -->
     </ul>
+  </section>
+
+  <!-- ============================================ TODAS AS TRANSAÇÕES -->
+  <section class="screen" id="transacoes" data-screen="transacoes">
+    <div class="page-title">
+      <h1>Transações</h1>
+      <button class="link-btn" type="button" data-nav="home">‹ Início</button>
+    </div>
+
+    <!-- filtro: texto, lanchonete, categoria, situação, valor e data -->
+    <div class="period">
+      <div class="range is-open">
+        <label>
+          <span>BUSCAR EM TUDO</span>
+          <input type="search" id="fTexto" placeholder="local, item, cupom, CNPJ, observação…">
+        </label>
+      </div>
+
+      <div class="period__row" id="fLocais" style="margin-top:10px">
+        <button class="chip is-active" type="button" data-flocal="">Todas</button>
+        <button class="chip" type="button" data-flocal="Sapore">Sapore</button>
+        <button class="chip" type="button" data-flocal="Rei do Mate">Rei do Mate</button>
+      </div>
+
+      <div class="range is-open" style="margin-top:10px">
+        <label>
+          <span>CATEGORIA</span>
+          <select id="fCategoria">
+            <option value="">Todas</option>
+            <option>Refeição — almoço</option>
+            <option>Refeição — jantar</option>
+            <option>Café / lanche</option>
+            <option>Outro</option>
+          </select>
+        </label>
+        <label>
+          <span>SITUAÇÃO</span>
+          <select id="fSituacao">
+            <option value="">Todas</option>
+            <option value="conferido">Conferido</option>
+            <option value="revisar">Revisar OCR</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="range is-open" style="margin-top:10px">
+        <label>
+          <span>VALOR DE (R$)</span>
+          <input type="text" inputmode="decimal" id="fMin" placeholder="0,00">
+        </label>
+        <label>
+          <span>ATÉ (R$)</span>
+          <input type="text" inputmode="decimal" id="fMax" placeholder="sem limite">
+        </label>
+      </div>
+
+      <div class="range is-open" style="margin-top:10px">
+        <label>
+          <span>DATA DE</span>
+          <input type="date" id="fIni">
+        </label>
+        <label>
+          <span>ATÉ</span>
+          <input type="date" id="fFim">
+        </label>
+      </div>
+
+      <div class="period__row" id="fOrdem" style="margin-top:10px">
+        <button class="chip is-active" type="button" data-ordem="recente">Mais recentes</button>
+        <button class="chip" type="button" data-ordem="antigo">Mais antigos</button>
+        <button class="chip" type="button" data-ordem="valor">Maior valor</button>
+      </div>
+    </div>
+
+    <p class="wip__text" style="margin:14px var(--pad) 0" id="txPlacar">—</p>
+
+    <div class="btn-row" style="margin:12px var(--pad) 0">
+      <button class="btn btn--ghost btn--sm" type="button" id="btnLimparFiltro" data-limpar-filtro hidden>Limpar filtro</button>
+      <button class="btn btn--ghost btn--sm" type="button" data-exportar-filtrado>Exportar em CSV</button>
+    </div>
+
+    <div class="section-head"><h2>Resultado</h2></div>
+    <ul class="tx-list" id="listaTodas"><!-- Injetado por JS --></ul>
   </section>
 
   <!-- ====================================================== ESTATÍSTICAS -->
@@ -191,14 +274,22 @@
     <section class="glass card">
       <div class="card__head">
         <span class="card__title">Evolução do gasto</span>
-        <div class="chart-tabs" id="chartTabs">
-          <button class="is-active" type="button" data-chart="dia">Por dia</button>
-          <button type="button" data-chart="mes">Por mês</button>
+        <div class="chart-tabs" id="chartTipos">
+          <button class="is-active" type="button" data-tipo-grafico="linha" aria-label="Ver em linhas">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-6 4 3 6-8"></path></svg>
+          </button>
+          <button type="button" data-tipo-grafico="barra" aria-label="Ver em colunas">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 19V11M12 19V5M19 19v-6"></path></svg>
+          </button>
         </div>
+      </div>
+      <div class="chart-tabs chart-tabs--full" id="chartTabs">
+        <button class="is-active" type="button" data-chart="dia">Por dia</button>
+        <button type="button" data-chart="mes">Por mês</button>
       </div>
       <div class="chart-box" id="chartBox">
         <canvas id="chartGastos" role="img" aria-label="Evolução do gasto no período"></canvas>
-        <div class="chart-empty">SEM LANÇAMENTOS NO PERÍODO<br>ÂMBAR = DESCONTO · AZUL = SUBSÍDIO</div>
+        <div class="chart-empty">SEM LANÇAMENTOS NO PERÍODO</div>
       </div>
     </section>
 
@@ -211,6 +302,7 @@
         <canvas id="chartPorLocal" role="img" aria-label="Divisão do gasto por lanchonete"></canvas>
         <div class="chart-empty">SEM LANÇAMENTOS NO PERÍODO</div>
       </div>
+      <ul class="leg" id="legendaLocal"><!-- Injetado por JS --></ul>
     </section>
 
     <div class="grid-2">
@@ -808,6 +900,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

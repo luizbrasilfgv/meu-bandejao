@@ -4,6 +4,8 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
+    "//0": "target 'app' = os dois sites (meu-bandejao e meu-vale). O Project ID é imutável; só o endereço muda.",
+    "target": "app",
     "public": "public",
 
     "//": "só o que está em public/ sobe. *.md fica de fora de propósito.",

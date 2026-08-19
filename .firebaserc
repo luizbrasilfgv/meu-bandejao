@@ -1,1 +1,16 @@
-﻿{ "projects": { "default": "meu-vale" } }
+{
+  "projects": {
+    "default": "meu-vale"
+  },
+  "targets": {
+    "meu-vale": {
+      "hosting": {
+        "app": [
+          "meu-bandejao",
+          "meu-vale"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

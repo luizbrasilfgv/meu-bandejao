@@ -6,12 +6,12 @@
 
 /* SUBA ESTE NÚMERO A CADA PUBLICAÇÃO. É ele que descarta o
    cache antigo — sem isso a pessoa fica presa numa versão. */
-const VERSAO = "app-v7";
+const VERSAO = "app-v8";
 
 /* O casco: sem estes arquivos o app não abre. */
 const CASCO = [
   "./", "./index.html", "./styles.css", "./app.js",
-  "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon.svg"
+  "./manifest.json", "./icon-192-v2.png", "./icon-512-v2.png", "./icon-v2.svg"
 ];
 
 /* Domínios que NUNCA podem vir do cache: precisam de rede de

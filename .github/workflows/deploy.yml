@@ -87,8 +87,6 @@ jobs:
       - name: Confere o que subiu, lendo do servidor
         if: steps.guarda.outputs.tem_credencial == 'true'
         run: |
-          for site in meu-bandejao meu-vale; do
-            echo "--- https://$site.web.app ---"
-            curl -sS -o /dev/null -w 'index  %{http_code}\n' "https://$site.web.app/"
-            curl -sSI "https://$site.web.app/sw.js" | grep -i 'cache-control' || true
-          done
+          echo "--- https://meu-bandejao.web.app ---"
+          curl -sSf -o /dev/null -w 'index  %{http_code}\n' "https://meu-bandejao.web.app/"
+          curl -sSI "https://meu-bandejao.web.app/sw.js" | grep -i 'cache-control' || true

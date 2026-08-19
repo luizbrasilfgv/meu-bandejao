@@ -927,3 +927,26 @@ a:hover { color: #8CC3FA; }
 .row[data-sub], .row[data-exportar], .row[data-sair], .row[data-matricula],
 button.stat { cursor: pointer; }
 button.stat { display: block; width: 100%; text-align: left; }
+
+/* -------------------------------- diagnóstico da leitura do cupom */
+.ocr-diag { margin: 14px var(--pad) 0; }
+.ocr-diag summary { min-height: 46px; font-size: 12px; }
+.ocr-cru {
+  max-height: 240px;
+  margin: 0;
+  padding: 0 16px 12px;
+  overflow: auto;
+  font: 400 10.5px/1.5 var(--mono);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.ocr-diag__pe {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 0 16px 14px;
+  font: 400 9.5px/1.4 var(--mono);
+  letter-spacing: .04em;
+  color: var(--muted-2);
+}

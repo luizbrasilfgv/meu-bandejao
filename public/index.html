@@ -14,7 +14,32 @@
 </head>
 <body>
 
-<main class="app">
+<!-- ============================================================== LOGIN GATE -->
+<div id="gate" style="position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;justify-content:center;align-items:center;padding:24px;">
+  <div style="text-align:center;margin-bottom:48px;">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="var(--blue)" stroke-width="4" stroke-linecap="round"><rect x="7" y="15" width="50" height="34" rx="11"></rect><circle cx="23" cy="32" r="7"></circle><path d="M37 40v-6M44 40v-12M51 40v-18"></path></svg>
+    <h1 style="color:var(--text);font-family:'Archivo',sans-serif;margin-top:24px;font-size:24px;">Meu Bandejão</h1>
+    <p style="color:var(--text-muted);font-family:'Archivo',sans-serif;margin-top:8px;">Controle de uso do refeitório</p>
+  </div>
+  <div id="gateLoad" style="color:var(--blue);font-family:'IBM Plex Mono',monospace;font-size:14px;">Iniciando conexão segura...</div>
+  <div id="gateBtn" style="display:none;width:100%;max-width:320px;">
+    <button id="btnLogin" class="glass" style="width:100%;padding:16px;color:var(--text);font-family:'Archivo',sans-serif;font-weight:600;font-size:16px;border:1px solid var(--stroke);border-radius:16px;display:flex;justify-content:center;align-items:center;gap:12px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z"/></svg>
+      Entrar com Google
+    </button>
+  </div>
+</div>
+
+<div id="espera" style="position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;justify-content:center;align-items:center;padding:24px;text-align:center;">
+  <div style="font-size:48px;margin-bottom:24px;">🔒</div>
+  <h2 id="espTit" style="color:var(--text);margin-bottom:8px;">Aguardando liberação</h2>
+  <p id="espTxt" style="color:var(--text-muted);margin-bottom:24px;max-width:300px;">Seu pedido chegou. Assim que liberarem o seu acesso, você poderá entrar.</p>
+  <p id="espMail" style="color:var(--blue);font-family:'IBM Plex Mono',monospace;margin-bottom:32px;"></p>
+  <button id="espRecarregar" class="glass" style="padding:12px 24px;border-radius:12px;color:var(--text);margin-bottom:12px;">Já fui liberado</button>
+  <button id="espSair" style="background:none;border:none;color:var(--text-muted);text-decoration:underline;padding:12px;">Sair com outra conta</button>
+</div>
+
+<main class="app" id="app">
 
   <div class="demo-flag">DADOS DE EXEMPLO · AGUARDANDO SEU RELATÓRIO DE CONSUMO</div>
 
@@ -96,69 +121,8 @@
     </div>
 
     <ul class="tx-list">
-      <li>
-        <button class="glass tx" type="button">
-          <span class="avatar avatar--blue">SA</span>
-          <span class="tx__body">
-            <span class="tx__name">Sapore</span>
-            <span class="tx__meta">ALMOÇO EXECUTIVO · HOJE 12:34</span>
-          </span>
-          <span class="tx__side">
-            <span class="tx__value">28,90</span>
-            <span class="tx__status">CONFERIDO</span>
-          </span>
-        </button>
-      </li>
-      <li>
-        <button class="glass tx tx--pending" type="button">
-          <span class="avatar">RM</span>
-          <span class="tx__body">
-            <span class="tx__name">Rei do Mate</span>
-            <span class="tx__meta">CAFÉ + PÃO DE QUEIJO · HOJE 09:12</span>
-          </span>
-          <span class="tx__side">
-            <span class="tx__value">12,50</span>
-            <span class="tx__status tx__status--pending">REVISAR OCR</span>
-          </span>
-        </button>
-      </li>
-      <li>
-        <button class="glass tx" type="button">
-          <span class="avatar avatar--blue">SA</span>
-          <span class="tx__body">
-            <span class="tx__name">Sapore</span>
-            <span class="tx__meta">PRATO DO DIA · TER 12:20</span>
-          </span>
-          <span class="tx__side">
-            <span class="tx__value">26,40</span>
-            <span class="tx__status">CONFERIDO</span>
-          </span>
-        </button>
-      </li>
-      <li>
-        <button class="glass tx" type="button">
-          <span class="avatar">RM</span>
-          <span class="tx__body">
-            <span class="tx__name">Rei do Mate</span>
-            <span class="tx__meta">CHÁ MATE GELADO · SEG 15:40</span>
-          </span>
-          <span class="tx__side">
-            <span class="tx__value">9,00</span>
-            <span class="tx__status">CONFERIDO</span>
-          </span>
-        </button>
-      </li>
+      <!-- Injetado por JS -->
     </ul>
-
-    <section class="glass wip">
-      <span class="wip__icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h7v12H4zM13 6h7v12h-7M8 12h8"></path></svg>
-      </span>
-      <div class="wip__body">
-        <div class="wip__title">Chega em duas linhas na folha</div>
-        <p class="wip__text">As lanchonetes enviam o consumo por quinzena, então o contracheque traz a linha da quinzena anterior somada à da atual. O app separa as duas para você comparar.</p>
-      </div>
-    </section>
   </section>
 
   <!-- ====================================================== ESTATÍSTICAS -->

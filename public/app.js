@@ -196,7 +196,18 @@ function pintarRelatorios(){
     }
   });
 
+  // Esconder a flag de dados de exemplo
+  const demoFlag = document.querySelector(".demo-flag");
+  if (demoFlag) demoFlag.style.display = "none";
+
   // Atualizar Dashboard
+  const meta = document.querySelector(".brand__meta");
+  if (meta) {
+    const mesAtual = new Date().toLocaleString('pt-BR', { month: 'long' }).toUpperCase();
+    const anoAtual = new Date().getFullYear();
+    meta.textContent = `${mesAtual} ${anoAtual} · ${despesas.length} LANÇAMENTO${despesas.length === 1 ? '' : 'S'}`;
+  }
+
   const elDesconto = document.querySelector(".hero__amount");
   if (elDesconto) elDesconto.innerHTML = `R$&thinsp;${totalDescontado.toFixed(2).replace('.', ',')}`;
 
@@ -206,9 +217,14 @@ function pintarRelatorios(){
   if (legendaRei) legendaRei.textContent = `Rei do Mate R$ ${reiVal.toFixed(2).replace('.', ',')}`;
   
   const fills = document.querySelectorAll(".meter .fill, .meter .fill--amber");
-  if (fills.length >= 2 && totalConsumido > 0) {
-    fills[0].style.flex = (saporeVal / totalConsumido) * 100;
-    fills[1].style.flex = (reiVal / totalConsumido) * 100;
+  if (fills.length >= 2) {
+    if (totalConsumido > 0) {
+      fills[0].style.flex = (saporeVal / totalConsumido) * 100;
+      fills[1].style.flex = (reiVal / totalConsumido) * 100;
+    } else {
+      fills[0].style.flex = 0;
+      fills[1].style.flex = 0;
+    }
   }
 }
 

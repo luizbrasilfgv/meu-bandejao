@@ -453,9 +453,10 @@ async function iniciar(){
 
   onAuthStateChanged(auth, async u => {
     if (!u){
-      el("gateLoad").style.display = "none";
-      el("gateBtn").style.display = "block";
-      el("gate").classList.add("on"); el("app").style.display = "none";
+      const gLoad = el("gateLoad"); if (gLoad) gLoad.style.display = "none";
+      const gBtn = el("gateBtn"); if (gBtn) gBtn.style.display = "block";
+      const gate = el("gate"); if (gate) gate.style.display = "flex";
+      const appEl = el("app"); if (appEl) appEl.style.display = "none";
       return;
     }
 
@@ -500,9 +501,9 @@ async function iniciar(){
 }
 
 function mostrarEspera(u, st){
-  el("gate").classList.remove("on");
-  el("app").style.display = "none";
-  el("espera").classList.add("on");
+  const gate = el("gate"); if (gate) gate.style.display = "none";
+  const appEl = el("app"); if (appEl) appEl.style.display = "none";
+  const espera = el("espera"); if (espera) espera.style.display = "flex";
   el("espMail").textContent = u.email || "";
   el("espTit").textContent  = st === "negado" ? "Acesso não liberado" : "Aguardando liberação";
   el("espTxt").textContent  = st === "negado"
@@ -512,8 +513,8 @@ function mostrarEspera(u, st){
 
 function entrar(u, roles){
   usuario = u; papeis = roles;
-  const gate = el("gate"); if (gate) gate.classList.remove("on");
-  const espera = el("espera"); if (espera) espera.classList.remove("on");
+  const gate = el("gate"); if (gate) gate.style.display = "none";
+  const espera = el("espera"); if (espera) espera.style.display = "none";
   const appEl = el("app"); if (appEl) appEl.style.display = "block";
 
   const foto = u.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";

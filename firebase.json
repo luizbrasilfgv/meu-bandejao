@@ -12,16 +12,33 @@
     "cleanUrls": true,
     "rewrites": [{ "source": "**", "destination": "/index.html" }],
 
+    "//1": "A ORDEM IMPORTA: quando dois padrões casam, vale o último.",
+    "//2": "Começa fechando tudo em no-cache e depois libera só o que é versionado por URL.",
+    "//3": "O contrário disso é o erro clássico: uma regra **/*.js pega o sw.js e você perde o app.",
     "headers": [
       {
-        "//": "index.html nunca em cache: é ele que aponta pra versão nova dos assets.",
-        "source": "/index.html",
+        "//": "padrão seguro: nada em cache. Pega o / e o index.html, que são o que aponta pra versão nova.",
+        "source": "**",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
         ]
       },
       {
-        "//": "sw.js e manifest nunca em cache: são eles que anunciam a versão nova.",
+        "//": "assets versionados na URL (app.js?v=N) podem ficar um ano. O !(sw) é o que salva o service worker.",
+        "source": "**/!(sw).@(js|css)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "//": "ícones mudam pouco e não têm ?v=. Uma semana é um meio-termo honesto.",
+        "source": "**/*.@(png|svg|ico|webp)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=604800" }
+        ]
+      },
+      {
+        "//": "por último para vencer qualquer regra acima: são eles que anunciam a versão nova.",
         "source": "/@(sw.js|manifest.json)",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
@@ -29,13 +46,7 @@
         ]
       },
       {
-        "//": "ATENÇÃO: o !(sw) é o que impede o service worker de cair no cache de 1 ano. Não simplifique para **/*.js.",
-        "source": "!(sw).@(js|css)",
-        "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-        ]
-      },
-      {
+        "//": "chaves diferentes de Cache-Control: não conflitam com as regras acima.",
         "source": "**",
         "headers": [
           { "key": "X-Content-Type-Options", "value": "nosniff" },

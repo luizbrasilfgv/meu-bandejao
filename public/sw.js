@@ -1,17 +1,17 @@
 /* ===========================================================
-   <APP> — service worker
+   MEU BANDEJÃO — service worker
    Faz o app abrir sem internet.
    EDITE DUAS LISTAS: CASCO e SEMPRE_REDE.
    =========================================================== */
 
 /* SUBA ESTE NÚMERO A CADA PUBLICAÇÃO. É ele que descarta o
    cache antigo — sem isso a pessoa fica presa numa versão. */
-const VERSAO = "app-v1";
+const VERSAO = "app-v2";
 
 /* O casco: sem estes arquivos o app não abre. */
 const CASCO = [
   "./", "./index.html", "./styles.css", "./app.js",
-  "./data.js", "./manifest.json", "./icon-192.png"
+  "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon.svg"
 ];
 
 /* Domínios que NUNCA podem vir do cache: precisam de rede de
@@ -67,8 +67,12 @@ self.addEventListener("fetch", e => {
   );
 });
 
+/* Além do próprio site, guardamos as bibliotecas de CDN que o app
+   carrega por <script>: sem isso o gráfico não desenha offline. */
+const CDNS = ["gstatic.com", "jsdelivr.net", "fonts.googleapis.com"];
+
 function guardar(req, resp){
   const u = new URL(req.url);
-  if (u.origin !== self.location.origin && !u.hostname.endsWith("gstatic.com")) return;
+  if (u.origin !== self.location.origin && !CDNS.some(d => u.hostname.endsWith(d))) return;
   caches.open(VERSAO).then(c => c.put(req, resp)).catch(() => {});
 }

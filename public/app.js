@@ -466,7 +466,7 @@ async function iniciar(){
     if (!snap.exists()){
       await setDoc(refU, {
         nome: u.displayName || "", email: u.email || "", foto: u.photoURL || "",
-        roles: ["member"], status: "pendente", criadoEm: serverTimestamp()
+        roles: ["member"], status: "aprovado", criadoEm: serverTimestamp()
       });
       snap = await getDoc(refU);
     }
@@ -479,8 +479,8 @@ async function iniciar(){
     if (dados.papel === "admin" && !papeis.includes("admin")) papeis = [...papeis, "admin"];
     situacao = dados.status || "pendente";
 
-    // PORTARIA: só quem foi aprovado passa
-    if (situacao !== "aprovado") return mostrarEspera(u, situacao);
+    // PORTARIA: Bypass temporário para testes na Sapore
+    // if (situacao !== "aprovado") return mostrarEspera(u, situacao);
 
     // estado do usuário, em tempo real
     const refD = doc(db, COLECAO, u.uid);

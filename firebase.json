@@ -1,0 +1,48 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "public",
+
+    "//": "só o que está em public/ sobe. *.md fica de fora de propósito.",
+    "ignore": ["**/.*", "**/node_modules/**", "**/*.md"],
+
+    "cleanUrls": true,
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+
+    "headers": [
+      {
+        "//": "index.html nunca em cache: é ele que aponta pra versão nova dos assets.",
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "//": "sw.js e manifest nunca em cache: são eles que anunciam a versão nova.",
+        "source": "/@(sw.js|manifest.json)",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+          { "key": "Service-Worker-Allowed", "value": "/" }
+        ]
+      },
+      {
+        "//": "ATENÇÃO: o !(sw) é o que impede o service worker de cair no cache de 1 ano. Não simplifique para **/*.js.",
+        "source": "!(sw).@(js|css)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
+        ]
+      }
+    ]
+  }
+}

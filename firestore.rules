@@ -1,0 +1,56 @@
+rules_version = '2';
+
+/* ===========================================================
+   TODA a segurança do app mora aqui. O firebaseConfig no
+   app.js é público: ele identifica o projeto, não autoriza.
+   Princípio: o cliente NÃO PODE SE PROMOVER.
+   Troque <COLECAO> pelo nome da sua coleção de dados.
+   =========================================================== */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado()  { return request.auth != null; }
+    function eu(uid)   { return logado() && request.auth.uid == uid; }
+    function meuDoc()  { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+
+    // admin pode vir pelo array roles OU pelo campo string papel.
+    // A string existe porque criar array pelo console é chato:
+    // é o atalho para promover o primeiro administrador na mão.
+    function ehAdmin() { return logado() && (meuDoc().roles.hasAny(['admin'])
+                                             || meuDoc().get('papel','') == 'admin'); }
+    function aprovado(){ return logado() && meuDoc().status == 'aprovado'; }
+
+    match /users/{uid} {
+      allow get:  if eu(uid) || ehAdmin();
+      allow list: if ehAdmin();                       // ninguém enumera a base
+
+      allow create: if eu(uid)
+                    && request.resource.data.roles == ['member']
+                    && request.resource.data.status == 'pendente'
+                    && !('papel' in request.resource.data)
+                    && request.resource.data.keys().hasOnly(
+                         ['nome','email','foto','roles','status','criadoEm','tema']);
+
+      allow update: if ehAdmin()
+                    || (eu(uid)
+                        && request.resource.data.roles  == resource.data.roles
+                        && request.resource.data.status == resource.data.status
+                        && request.resource.data.get('papel', '')
+                             == resource.data.get('papel', ''));
+
+      allow delete: if ehAdmin();
+    }
+
+    // O estado de cada usuário. Só grava quem já foi aprovado.
+    // Valide SEMPRE forma e tamanho, senão qualquer aprovado
+    // pode inflar o seu banco.
+    match /dados/{uid} {
+      allow read:  if eu(uid) || ehAdmin();
+      allow write: if eu(uid) && aprovado()
+                   && request.resource.data.ids is list
+                   && request.resource.data.ids.size() <= 300;
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

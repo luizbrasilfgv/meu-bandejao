@@ -445,11 +445,11 @@ async function iniciar(){
   auth = getAuth(app); db = getFirestore(app);
   await setPersistence(auth, browserLocalPersistence);
 
-  el("btnLogin").addEventListener("click", async () => {
+  el("btnLogin")?.addEventListener("click", async () => {
     try { await signInWithPopup(auth, new GoogleAuthProvider()); }
     catch(e){ aviso("Não deu pra entrar: " + e.code); }
   });
-  el("btnLogout").addEventListener("click", () => signOut(auth).then(() => location.reload()));
+  el("btnLogout")?.addEventListener("click", () => signOut(auth).then(() => location.reload()));
 
   onAuthStateChanged(auth, async u => {
     if (!u){

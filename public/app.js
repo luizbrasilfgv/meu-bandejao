@@ -392,15 +392,15 @@ if (btnSalvarPolitica) {
   });
 }
 
-el("scrim").addEventListener("click", fecharSheet);
-el("btnTema").addEventListener("click", () => aplicarTema(tema === "claro" ? "escuro" : "claro", true));
-el("shBtn").addEventListener("click", () => { if (idSheet){ alternar(idSheet); abrirSheet(idSheet); } });
-el("q").addEventListener("input", pintarLista);
-el("qLimpa").addEventListener("click", () => { el("q").value = ""; pintarLista(); el("q").focus(); });
+el("scrim")?.addEventListener("click", fecharSheet);
+el("btnTema")?.addEventListener("click", () => aplicarTema(tema === "claro" ? "escuro" : "claro", true));
+el("shBtn")?.addEventListener("click", () => { if (idSheet){ alternar(idSheet); abrirSheet(idSheet); } });
+el("q")?.addEventListener("input", pintarLista);
+el("qLimpa")?.addEventListener("click", () => { const q = el("q"); if (q) { q.value = ""; pintarLista(); q.focus(); } });
 el("btnAcessos")?.addEventListener("click", () => {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  el("scr-acessos").classList.add("active");
-  el("ctxLabel").textContent = "Gerenciar acessos";
+  const scr = el("scr-acessos"); if (scr) scr.classList.add("active");
+  const ctx = el("ctxLabel"); if (ctx) ctx.textContent = "Gerenciar acessos";
   window.scrollTo({ top:0 });
   listarPedidos();
 });
@@ -408,12 +408,13 @@ el("acVoltar")?.addEventListener("click", () => document.querySelector('#nav [da
 el("segAc")?.addEventListener("click", e => {
   const b = e.target.closest("button[data-st]"); if (!b) return;
   stAc = b.dataset.st; selAc.clear();
-  [...el("segAc").children].forEach(x => x.classList.toggle("on", x === b));
+  const segAc = el("segAc");
+  if (segAc) [...segAc.children].forEach(x => x.classList.toggle("on", x === b));
   pintarAc();
 });
 el("q-ac")?.addEventListener("input", e => { qAc = e.target.value; pintarAc(); });
-el("espRecarregar").addEventListener("click", () => location.reload());
-el("espSair").addEventListener("click", () => auth ? auth.signOut().then(() => location.reload()) : location.reload());
+el("espRecarregar")?.addEventListener("click", () => location.reload());
+el("espSair")?.addEventListener("click", () => auth ? auth.signOut().then(() => location.reload()) : location.reload());
 
 
 /* ===========================================================
@@ -511,22 +512,27 @@ function mostrarEspera(u, st){
 
 function entrar(u, roles){
   usuario = u; papeis = roles;
-  el("gate").classList.remove("on");
-  el("espera").classList.remove("on");
-  el("app").style.display = "block";
+  const gate = el("gate"); if (gate) gate.classList.remove("on");
+  const espera = el("espera"); if (espera) espera.classList.remove("on");
+  const appEl = el("app"); if (appEl) appEl.style.display = "block";
 
   const foto = u.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
-  el("avatar").src = foto; el("pAvatar").src = foto;
-  el("pNome").textContent = u.displayName || "—";
-  el("pMail").textContent = u.email || "—";
-  el("pRoles").innerHTML = roles.map(r =>
+  
+  const avatar = el("avatar"); if (avatar) avatar.src = foto;
+  const pAvatar = el("pAvatar"); if (pAvatar) pAvatar.src = foto;
+  const pNome = el("pNome"); if (pNome) pNome.textContent = u.displayName || "—";
+  const pMail = el("pMail"); if (pMail) pMail.textContent = u.email || "—";
+  const pRoles = el("pRoles"); if (pRoles) pRoles.innerHTML = roles.map(r =>
     `<span class="role ${r === "admin" ? "admin" : ""}">${esc(r)}</span>`).join("");
 
-  // hub por papéis: a ferramenta nem é renderizada para quem não tem o papel
-  el("painelAcesso").style.display = roles.includes("admin") ? "block" : "none";
-  el("syncMsg").textContent = CONFIGURADO
+  const painel = el("painelAcesso");
+  if (painel) painel.style.display = roles.includes("admin") ? "block" : "none";
+  
+  const syncMsg = el("syncMsg");
+  if (syncMsg) syncMsg.textContent = CONFIGURADO
     ? "Ligado à nuvem. O que você marcar aparece igual em qualquer aparelho."
     : "Modo local: salvo só neste navegador.";
+    
   aplicarTema(tema, false);
   pintar();
 }
@@ -734,37 +740,39 @@ iniciar();
     el.addEventListener('click', function () { openSheet(el.dataset.open); });
   });
 
-  sheet.addEventListener('click', function (e) {
-    if (e.target === sheet || e.target.closest('[data-close]')) { closeSheet(); return; }
-    var step = e.target.closest('[data-step]');
-    if (step) showStep(step.dataset.step);
-    
-    // Conectar botão de salvar do Claude com o nosso salvarDespesa
-    if (e.target.textContent === 'Salvar lançamento') {
-      const dataStr = document.getElementById('campoData').value.split(' ')[0]; // "19/08/2026"
-      const dataIso = dataStr.split('/').reverse().join('-'); // "2026-08-19"
+  if (sheet) {
+    sheet.addEventListener('click', function (e) {
+      if (e.target === sheet || e.target.closest('[data-close]')) { closeSheet(); return; }
+      var step = e.target.closest('[data-step]');
+      if (step) showStep(step.dataset.step);
       
-      const btnAtivo = document.querySelector('.toggle-group button.is-active');
-      const local = btnAtivo ? btnAtivo.textContent : "Sapore";
-      
-      let valorStr = document.getElementById('campoValor').value.replace(',', '.');
-      const valor = parseFloat(valorStr) || 0;
-      
-      if (!dataIso || !valor) return aviso("Preencha data e valor.");
-      
-      salvarDespesa({
-        id: "",
-        data: dataIso,
-        local: local,
-        tipo: document.querySelector('select[aria-label="Categoria"]').value,
-        peso: 0,
-        valor: valor
-      });
-      
-      closeSheet();
-      aviso("Lançamento salvo com sucesso!");
-    }
-  });
+      // Conectar botão de salvar do Claude com o nosso salvarDespesa
+      if (e.target.textContent === 'Salvar lançamento') {
+        const dataStr = document.getElementById('campoData').value.split(' ')[0]; // "19/08/2026"
+        const dataIso = dataStr.split('/').reverse().join('-'); // "2026-08-19"
+        
+        const btnAtivo = document.querySelector('.toggle-group button.is-active');
+        const local = btnAtivo ? btnAtivo.textContent : "Sapore";
+        
+        let valorStr = document.getElementById('campoValor').value.replace(',', '.');
+        const valor = parseFloat(valorStr) || 0;
+        
+        if (!dataIso || !valor) return aviso("Preencha data e valor.");
+        
+        salvarDespesa({
+          id: "",
+          data: dataIso,
+          local: local,
+          tipo: document.querySelector('select[aria-label="Categoria"]').value,
+          peso: 0,
+          valor: valor
+        });
+        
+        closeSheet();
+        aviso("Lançamento salvo com sucesso!");
+      }
+    });
+  }
   
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
 
@@ -773,26 +781,33 @@ iniciar();
   var range = document.getElementById('rangeFields');
   var label = document.getElementById('periodoLabel');
 
-  chips.addEventListener('click', function (e) {
-    var btn = e.target.closest('.chip');
-    if (!btn) return;
-    chips.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('is-active'); });
-    btn.classList.add('is-active');
-    range.classList.toggle('is-open', btn.dataset.period === 'custom');
-    if (btn.dataset.period === 'atual') label.textContent = '01 – 31 AGO 2026';
-    if (btn.dataset.period === 'anterior') label.textContent = '01 – 31 JUL 2026';
-  });
+  if (chips) {
+    chips.addEventListener('click', function (e) {
+      var btn = e.target.closest('.chip');
+      if (!btn) return;
+      chips.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      if (range) range.classList.toggle('is-open', btn.dataset.period === 'custom');
+      if (label) {
+        if (btn.dataset.period === 'atual') label.textContent = '01 – 31 AGO 2026';
+        if (btn.dataset.period === 'anterior') label.textContent = '01 – 31 JUL 2026';
+      }
+    });
+  }
 
   function fmt(value) {
     var p = value.split('-');
     return p[2] + '/' + p[1];
   }
   ['dataInicio', 'dataFim'].forEach(function (id) {
-    document.getElementById(id).addEventListener('change', function () {
-      var a = document.getElementById('dataInicio').value;
-      var b = document.getElementById('dataFim').value;
-      if (a && b) label.textContent = fmt(a) + ' – ' + fmt(b);
-    });
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', function () {
+        var a = document.getElementById('dataInicio').value;
+        var b = document.getElementById('dataFim').value;
+        if (a && b && label) label.textContent = fmt(a) + ' – ' + fmt(b);
+      });
+    }
   });
 
   /* --------------------------------- grupos de seleção (abas, toggle simples) */

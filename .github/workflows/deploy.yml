@@ -1,0 +1,94 @@
+name: Deploy to Firebase
+
+# Só no main. Push em branch e Pull Request não publicam nada.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Dois merges seguidos não brigam pelo mesmo release.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 2   # precisa do commit anterior para conferir o versionamento
+
+      # O workflow antigo apontava para um segredo que nunca existiu e falhava
+      # a cada push, gerando e-mail de falha. Aqui a ausência do segredo é um
+      # aviso e o job termina em verde — ninguém recebe alarme falso.
+      - name: Confere se a credencial existe
+        id: guarda
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "tem_credencial=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Segredo FIREBASE_SERVICE_ACCOUNT ausente. Deploy pulado (sem erro de propósito). Configure em Settings > Secrets and variables > Actions."
+          else
+            echo "tem_credencial=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A disciplina do PADRAO.md que ninguém lembra de cumprir: mexeu nos
+      # assets, suba o ?v=N do index.html E o VERSAO do sw.js. Sem isso o
+      # index.html vem fresco mas aponta para um app.js em cache de um ano —
+      # funciona na sua máquina e as outras pessoas ficam na versão velha.
+      - name: Confere o versionamento dos assets
+        if: steps.guarda.outputs.tem_credencial == 'true'
+        run: |
+          if ! git rev-parse HEAD^ >/dev/null 2>&1; then
+            echo "Sem commit anterior para comparar. Seguindo."
+            exit 0
+          fi
+          alterados=$(git diff --name-only HEAD^ HEAD -- public/app.js public/styles.css public/index.html)
+          if [ -z "$alterados" ]; then
+            echo "Nenhum asset alterado. Nada a versionar."
+            exit 0
+          fi
+          echo "Assets alterados:"; echo "$alterados"
+          antes_v=$(git show HEAD^:public/index.html 2>/dev/null | grep -o 'app\.js?v=[0-9]*' || true)
+          agora_v=$(grep -o 'app\.js?v=[0-9]*' public/index.html || true)
+          antes_sw=$(git show HEAD^:public/sw.js 2>/dev/null | grep -o 'VERSAO = "[^"]*"' || true)
+          agora_sw=$(grep -o 'VERSAO = "[^"]*"' public/sw.js || true)
+          erro=0
+          if [ "$antes_v" = "$agora_v" ]; then
+            echo "::error::O ?v= do app.js no index.html não subiu ($agora_v). Assets têm cache de 1 ano: sem subir a versão, ninguém recebe o código novo."
+            erro=1
+          fi
+          if [ "$antes_sw" = "$agora_sw" ]; then
+            echo "::error::O VERSAO do sw.js não subiu ($agora_sw). Sem isso o service worker serve o cache antigo."
+            erro=1
+          fi
+          exit $erro
+
+      - name: Grava a credencial no runner
+        if: steps.guarda.outputs.tem_credencial == 'true'
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+
+      # Rules e hosting no MESMO deploy: publicar uma sem a outra é o que
+      # produz o sintoma "sumiu tudo". Sobe para os dois sites do projeto.
+      - name: Publica Rules e Hosting
+        if: steps.guarda.outputs.tem_credencial == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@15 deploy --only firestore:rules,hosting --project meu-vale --non-interactive
+
+      - name: Confere o que subiu, lendo do servidor
+        if: steps.guarda.outputs.tem_credencial == 'true'
+        run: |
+          for site in meu-bandejao meu-vale; do
+            echo "--- https://$site.web.app ---"
+            curl -sS -o /dev/null -w 'index  %{http_code}\n' "https://$site.web.app/"
+            curl -sSI "https://$site.web.app/sw.js" | grep -i 'cache-control' || true
+          done

@@ -14,10 +14,20 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=6">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
+    /* Quando um service worker novo assume o controle, ele já apagou o cache
+       da versão anterior — mas ESTA página ainda está rodando com os assets
+       velhos que o worker antigo entregou. Recarregar uma vez, aqui, é o que
+       evita a combinação HTML novo + JS velho. Uma vez só, com trava. */
+    var jaRecarregou = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (jaRecarregou) return;
+      jaRecarregou = true;
+      location.reload();
+    });
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("sw.js").catch(function () {});
     });
@@ -798,6 +808,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

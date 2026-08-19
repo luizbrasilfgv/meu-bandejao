@@ -927,3 +927,138 @@ a:hover { color: #8CC3FA; }
 .row[data-sub], .row[data-exportar], .row[data-sair], .row[data-matricula],
 button.stat { cursor: pointer; }
 button.stat { display: block; width: 100%; text-align: left; }
+
+/* --------------------------------- legenda da rosca: nome, % e valor */
+.leg { display: flex; flex-direction: column; gap: 0; margin-top: 16px; }
+.leg li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 2px;
+  font: 400 12px/1.2 var(--sans);
+  color: var(--text-2);
+}
+.leg li + li { border-top: 1px solid var(--glass-line); }
+.leg__dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.leg__nome { font-weight: 500; }
+.leg__meta { font: 400 9.5px/1 var(--mono); color: var(--muted-2); }
+.leg__pct { margin-left: auto; font: 400 11px/1 var(--mono); color: var(--muted); }
+.leg__val { font: 500 13px/1 var(--mono); color: var(--text); min-width: 78px; text-align: right; }
+
+/* abas de tipo de gráfico e a fileira que ocupa a largura do card */
+.chart-tabs--full { margin-top: 14px; }
+.chart-tabs--full button { flex: 1; }
+.chart-tabs button svg { display: block; }
+
+/* ------------------------------------------- lendo o cupom (passo visual) */
+.lendo { margin: 18px var(--pad) 0; }
+
+.lendo__foto {
+  position: relative;
+  height: 260px;
+  display: grid; place-items: center;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid var(--glass-line-2);
+  border-radius: var(--r-lg);
+}
+.lendo__foto img { width: 100%; height: 100%; object-fit: contain; }
+
+/* a linha que varre a foto: é ela que comunica "estou lendo isto agora" */
+.lendo__varredura {
+  position: absolute; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+  box-shadow: 0 0 18px 6px rgba(255, 184, 77, .35);
+  animation: varre 1.9s cubic-bezier(.45, 0, .55, 1) infinite;
+}
+@keyframes varre { 0% { top: 4%; } 50% { top: 94%; } 100% { top: 4%; } }
+@media (prefers-reduced-motion: reduce) {
+  .lendo__varredura { animation: none; top: 50%; opacity: .5; }
+}
+
+.lendo__topo {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-top: 18px;
+}
+.lendo__fase { font: 500 13px/1.3 var(--sans); color: var(--text); }
+.lendo__pct { font: 500 15px/1 var(--mono); color: var(--amber); }
+
+.lendo__barra {
+  height: 6px;
+  margin-top: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, .10);
+  border-radius: 99px;
+}
+.lendo__barra span {
+  display: block; width: 0; height: 100%;
+  background: var(--grad-amber);
+  border-radius: 99px;
+  transition: width .35s ease;
+}
+
+.lendo__passos { display: flex; flex-direction: column; gap: 11px; margin-top: 20px; }
+.lendo__passos li {
+  display: flex; align-items: center; gap: 11px;
+  font: 400 12.5px/1.35 var(--sans);
+  color: var(--muted-2);
+}
+.lendo__marca {
+  position: relative;
+  width: 18px; height: 18px;
+  border: 2px solid var(--glass-line-2);
+  border-radius: 50%;
+  flex: none;
+}
+.lendo__passos li.is-doing { color: var(--text); }
+.lendo__passos li.is-doing .lendo__marca {
+  border-color: var(--amber);
+  border-top-color: transparent;
+  animation: gira .8s linear infinite;
+}
+@keyframes gira { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .lendo__passos li.is-doing .lendo__marca { animation: none; } }
+
+.lendo__passos li.is-done { color: var(--text-2); }
+.lendo__passos li.is-done .lendo__marca { border-color: var(--green); background: var(--green); }
+.lendo__passos li.is-done .lendo__marca::after {
+  content: ''; position: absolute; left: 4px; top: 1px;
+  width: 5px; height: 9px;
+  border-right: 2px solid #06101F; border-bottom: 2px solid #06101F;
+  transform: rotate(45deg);
+}
+.lendo__passos li.is-fail { color: var(--muted); }
+.lendo__passos li.is-fail .lendo__marca { border-color: var(--muted-2); }
+.lendo__passos li.is-fail .lendo__marca::after {
+  content: '–'; position: absolute; left: 3px; top: -5px;
+  font: 600 13px/1 var(--mono); color: var(--muted);
+}
+
+.lendo__nota {
+  margin: 18px 0 0;
+  font: 400 10.5px/1.5 var(--mono);
+  letter-spacing: .03em;
+  color: var(--muted-2);
+  text-wrap: pretty;
+}
+
+/* -------------------------------- diagnóstico da leitura do cupom */
+.ocr-diag { margin: 14px var(--pad) 0; }
+.ocr-diag summary { min-height: 46px; font-size: 12px; }
+.ocr-cru {
+  max-height: 240px;
+  margin: 0;
+  padding: 0 16px 12px;
+  overflow: auto;
+  font: 400 10.5px/1.5 var(--mono);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.ocr-diag__pe {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 0 16px 14px;
+  font: 400 9.5px/1.4 var(--mono);
+  letter-spacing: .04em;
+  color: var(--muted-2);
+}

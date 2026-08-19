@@ -57,9 +57,9 @@ let papeis      = [];
 let situacao    = "pendente";
 let lancamentos = [];                       // o estado do app
 let politicas   = [];                       // regras do RH, por vigência
-let prefs       = { alertaLimite: true, lembreteRecibo: false, tetoMensal: null, matricula: "" };
+let prefs       = { alertaLimite: true, lembreteRecibo: false, tetoMensal: null,
+                    matricula: "", cnpjLocal: {} };
 let periodo     = { preset: "atual", inicio: "", fim: "" };
-let verTudo     = false;
 let modoSheet   = "scan";                   // scan | manual | editar
 let editandoId  = "";
 
@@ -281,8 +281,43 @@ function periodoAnterior(ini, fim){
   return { ini: iso(i), fim: iso(f) };
 }
 
-function ordenar(lista){
-  return [...lista].sort((a, b) => String(b.dataHora).localeCompare(String(a.dataHora)));
+function ordenar(lista, modo){
+  const l = [...lista];
+  if (modo === "valor") return l.sort((a, b) => num(b.valor) - num(a.valor));
+  if (modo === "antigo") return l.sort((a, b) => String(a.dataHora).localeCompare(String(b.dataHora)));
+  return l.sort((a, b) => String(b.dataHora).localeCompare(String(a.dataHora)));
+}
+
+/** Tudo que dá para procurar num lançamento, sem acento e em minúsculas. */
+function textoDoLancamento(l){
+  return chave([l.local, l.categoria, l.itens, l.matricula, l.numeroCupom,
+                l.cnpj, l.observacao, paraBR(l.dataHora), brl(l.valor)]
+    .filter(Boolean).join(" "));
+}
+
+/**
+ * Filtro da tela de transações. Cada critério é independente: texto casa em
+ * qualquer campo, e todas as palavras precisam bater — senão buscar "sapore
+ * almoço" não acharia nada.
+ */
+function aplicarFiltro(lista, f){
+  const palavras = chave(f.texto || "").split(/\s+/).filter(Boolean);
+  return lista.filter(l => {
+    if (f.local && l.local !== f.local) return false;
+    if (f.categoria && l.categoria !== f.categoria) return false;
+    if (f.situacao && (l.status || "conferido") !== f.situacao) return false;
+    const v = num(l.valor);
+    if (f.min != null && v < f.min) return false;
+    if (f.max != null && v > f.max) return false;
+    const d = dataDe(l);
+    if (f.ini && d < f.ini) return false;
+    if (f.fim && d > f.fim) return false;
+    if (palavras.length){
+      const alvo = textoDoLancamento(l);
+      if (!palavras.every(p => alvo.includes(p))) return false;
+    }
+    return true;
+  });
 }
 
 function novoId(){
@@ -400,18 +435,12 @@ function pintar(){
 
   pintarHome(doPeriodo, ini, fim);
   pintarLista(doPeriodo);
+  pintarTransacoes();
   pintarEstatisticas(doPeriodo, ini, fim, rotulo);
   pintarConciliar();
   pintarPerfil();
   pintarPoliticas();
   pintarGraficos(doPeriodo);
-  pintarAvisoExemplo();
-}
-
-/** A faixa de exemplo só sai quando existe dado real. Regra 4 do handoff. */
-function pintarAvisoExemplo(){
-  const faixa = qs(".demo-flag");
-  if (faixa) faixa.hidden = lancamentos.length > 0;
 }
 
 function pintarHome(lista, ini, fim){
@@ -492,47 +521,40 @@ function pintarHome(lista, ini, fim){
   poe("lgRei", `Rei do Mate R$ ${brl(rei.bruto)}`);
 }
 
+/** A linha de transação, usada na Home e na tela de todas. */
+function linhaTx(l){
+  const sapore = l.local === "Sapore";
+  const revisar = l.status === "revisar";
+  const hora = horaDe(l);
+  const quando = dataDe(l) === hojeIso() ? `HOJE${hora ? " " + hora : ""}` : paraBR(l.dataHora);
+  const meta = [l.categoria, quando].filter(Boolean).join(" · ").toUpperCase();
+  return `<li>
+    <button class="glass tx ${revisar ? "tx--pending" : ""}" type="button" data-editar="${esc(l.id)}">
+      <span class="avatar ${sapore ? "avatar--blue" : ""}">${sapore ? "SA" : "RM"}</span>
+      <span class="tx__body">
+        <span class="tx__name">${esc(l.local)}</span>
+        <span class="tx__meta">${esc(meta)}</span>
+      </span>
+      <span class="tx__side">
+        <span class="tx__value">${brl(l.valor)}</span>
+        <span class="tx__status ${revisar ? "tx__status--pending" : ""}">${revisar ? "REVISAR OCR" : "CONFERIDO"}</span>
+      </span>
+    </button>
+  </li>`;
+}
+
+const VAZIO_TX = `<li class="glass row"><span class="row__body">
+  <span class="row__label">Nenhum lançamento no período</span>
+  <span class="row__hint">TOQUE EM + LANÇAMENTO PARA COMEÇAR</span>
+</span></li>`;
+
 function pintarLista(lista){
-  const alvo = qs(".tx-list");
+  const alvo = qs("#home .tx-list");
   if (!alvo) return;
-
   const ordenada = ordenar(lista);
-  const mostradas = verTudo ? ordenada : ordenada.slice(0, 6);
-
   const btnTudo = el("btnVerTudo");
-  if (btnTudo){
-    btnTudo.hidden = ordenada.length <= 6;
-    btnTudo.textContent = verTudo ? "VER MENOS" : "VER TUDO";
-  }
-
-  if (!mostradas.length){
-    alvo.innerHTML = `<li class="glass row"><span class="row__body">
-      <span class="row__label">Nenhum lançamento no período</span>
-      <span class="row__hint">TOQUE EM ESCANEAR RECIBO OU LANÇAR MANUAL</span>
-    </span></li>`;
-    return;
-  }
-
-  alvo.innerHTML = mostradas.map(l => {
-    const sapore = l.local === "Sapore";
-    const revisar = l.status === "revisar";
-    const hora = horaDe(l);
-    const quando = dataDe(l) === hojeIso() ? `HOJE${hora ? " " + hora : ""}` : paraBR(l.dataHora);
-    const meta = [l.categoria, quando].filter(Boolean).join(" · ").toUpperCase();
-    return `<li>
-      <button class="glass tx ${revisar ? "tx--pending" : ""}" type="button" data-editar="${esc(l.id)}">
-        <span class="avatar ${sapore ? "avatar--blue" : ""}">${sapore ? "SA" : "RM"}</span>
-        <span class="tx__body">
-          <span class="tx__name">${esc(l.local)}</span>
-          <span class="tx__meta">${esc(meta)}</span>
-        </span>
-        <span class="tx__side">
-          <span class="tx__value">${brl(l.valor)}</span>
-          <span class="tx__status ${revisar ? "tx__status--pending" : ""}">${revisar ? "REVISAR OCR" : "CONFERIDO"}</span>
-        </span>
-      </button>
-    </li>`;
-  }).join("");
+  if (btnTudo) btnTudo.hidden = lancamentos.length === 0;
+  alvo.innerHTML = ordenada.length ? ordenada.slice(0, 6).map(linhaTx).join("") : VAZIO_TX;
 }
 
 function pintarEstatisticas(lista, ini, fim, rotulo){
@@ -568,6 +590,59 @@ function pintarEstatisticas(lista, ini, fim, rotulo){
   if (f1 && f2){ f1.style.flex = String(e.ritmoPct); f2.style.flex = String(100 - e.ritmoPct); }
   poe("lgRitmo", `${e.ritmoPct}% do período percorrido`);
   poe("lgRitmoFalta", e.uteisRestantes ? `faltam ${e.uteisRestantes} dias úteis` : "período encerrado");
+}
+
+/* ---------- tela de todas as transações ---------- */
+let filtro = { texto: "", local: "", categoria: "", situacao: "",
+               min: null, max: null, ini: "", fim: "", ordem: "recente" };
+
+function transacoesFiltradas(){
+  return ordenar(aplicarFiltro(lancamentos, filtro), filtro.ordem);
+}
+
+function pintarTransacoes(){
+  const alvo = el("listaTodas");
+  if (!alvo) return;
+
+  const vis = transacoesFiltradas();
+  const r = resumo(vis);
+  const temFiltro = !!(filtro.texto || filtro.local || filtro.categoria || filtro.situacao
+                       || filtro.min != null || filtro.max != null || filtro.ini || filtro.fim);
+
+  poe("txPlacar", vis.length
+    ? `${vis.length} de ${lancamentos.length} lançamento${lancamentos.length === 1 ? "" : "s"} · R$ ${brl(r.bruto)} consumidos · R$ ${brl(r.desconto)} em folha`
+    : lancamentos.length ? "Nada casou com esse filtro" : "Você ainda não lançou nada");
+
+  const limpar = el("btnLimparFiltro");
+  if (limpar) limpar.hidden = !temFiltro;
+
+  alvo.innerHTML = vis.length ? vis.map(linhaTx).join("")
+    : `<li class="glass row"><span class="row__body">
+        <span class="row__label">${temFiltro ? "Nenhum lançamento com esses critérios" : "Nenhum lançamento ainda"}</span>
+        <span class="row__hint">${temFiltro ? "TOQUE EM LIMPAR PARA VER TUDO" : "TOQUE EM + LANÇAMENTO NA TELA INICIAL"}</span>
+      </span></li>`;
+}
+
+function lerFiltroDaTela(){
+  filtro.texto = el("fTexto")?.value || "";
+  filtro.categoria = el("fCategoria")?.value || "";
+  filtro.situacao = el("fSituacao")?.value || "";
+  const mn = paraValor(el("fMin")?.value), mx = paraValor(el("fMax")?.value);
+  filtro.min = isFinite(mn) ? mn : null;
+  filtro.max = isFinite(mx) ? mx : null;
+  filtro.ini = el("fIni")?.value || "";
+  filtro.fim = el("fFim")?.value || "";
+  pintarTransacoes();
+}
+
+function limparFiltro(){
+  filtro = { texto: "", local: "", categoria: "", situacao: "",
+             min: null, max: null, ini: "", fim: "", ordem: filtro.ordem };
+  ["fTexto", "fMin", "fMax", "fIni", "fFim"].forEach(id => { const x = el(id); if (x) x.value = ""; });
+  ["fCategoria", "fSituacao"].forEach(id => { const x = el(id); if (x) x.value = ""; });
+  qsa("#fLocais .chip").forEach(c => c.classList.toggle("is-active", !c.dataset.flocal));
+  pintarTransacoes();
+  aviso("Filtro limpo.");
 }
 
 /** Escreve texto num id. Com o 3º argumento, marca como pendência. */
@@ -670,7 +745,29 @@ function checarAlerta(){
 /* ===========================================================
    4. GRÁFICOS (Chart.js)
    =========================================================== */
-let chartGastos = null, chartLocal = null, escalaGrafico = "dia";
+let chartGastos = null, chartLocal = null;
+let escalaGrafico = "dia";      // dia | mes
+let tipoGrafico = "linha";      // linha | barra
+
+/** Escreve o total no buraco da rosca. Plugin de 15 linhas em vez de dependência. */
+const centroDaRosca = {
+  id: "centroDaRosca",
+  afterDatasetsDraw(chart, _a, opts){
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0);
+    if (!meta || !meta.data || !meta.data[0]) return;
+    const { x, y } = meta.data[0];
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.fillStyle = opts.corRotulo || "#8C9CB2";
+    ctx.font = "400 9px 'IBM Plex Mono', monospace";
+    ctx.fillText("TOTAL", x, y - 12);
+    ctx.fillStyle = opts.corValor || "#F3F7FC";
+    ctx.font = "500 20px 'IBM Plex Mono', monospace";
+    ctx.fillText("R$ " + brl(opts.total || 0), x, y + 11);
+    ctx.restore();
+  }
+};
 
 function pintarGraficos(lista){
   if (typeof Chart === "undefined") return;
@@ -680,6 +777,7 @@ function pintarGraficos(lista){
   const ambar = cor("--amber") || "#FFB84D";
   const grade = "rgba(255,255,255,.07)";
   const texto = cor("--muted-2") || "#6B7B92";
+  const claro = cor("--text-2") || "#C3D0E0";
 
   const serie = escalaGrafico === "mes" ? porMes(lista) : porDia(lista);
   const rotulos = serie.map(p => escalaGrafico === "mes"
@@ -692,24 +790,43 @@ function pintarGraficos(lista){
     if (box) box.classList.toggle("has-data", serie.length > 0);
     if (chartGastos){ chartGastos.destroy(); chartGastos = null; }
     if (serie.length){
+      const linha = tipoGrafico === "linha";
       chartGastos = new Chart(cvGastos, {
-        type: "bar",
+        type: linha ? "line" : "bar",
         data: {
           labels: rotulos,
-          datasets: [
-            { label: "Desconto em folha", data: serie.map(p => p.desconto), backgroundColor: ambar, borderRadius: 4 },
-            { label: "Subsídio FGV", data: serie.map(p => p.bruto - p.desconto), backgroundColor: azul, borderRadius: 4 }
-          ]
+          datasets: linha
+            ? [
+                { label: "Consumo bruto", data: serie.map(p => p.bruto),
+                  borderColor: azul, backgroundColor: "rgba(46,123,212,.18)",
+                  borderWidth: 2, tension: .35, fill: true,
+                  pointRadius: 2.5, pointBackgroundColor: azul },
+                { label: "Desconto em folha", data: serie.map(p => p.desconto),
+                  borderColor: ambar, backgroundColor: "rgba(255,184,77,.14)",
+                  borderWidth: 2, tension: .35, fill: true,
+                  pointRadius: 2.5, pointBackgroundColor: ambar }
+              ]
+            : [
+                { label: "Desconto em folha", data: serie.map(p => p.desconto),
+                  backgroundColor: ambar, borderRadius: 4 },
+                { label: "Subsídio FGV", data: serie.map(p => p.bruto - p.desconto),
+                  backgroundColor: azul, borderRadius: 4 }
+              ]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
           plugins: {
-            legend: { display: false },
+            legend: { position: "bottom",
+                      labels: { color: claro, boxWidth: 9, boxHeight: 9,
+                                usePointStyle: true, pointStyle: "circle",
+                                font: { size: 10 } } },
             tooltip: { callbacks: { label: c => `${c.dataset.label}: R$ ${brl(c.parsed.y)}` } }
           },
           scales: {
-            x: { stacked: true, grid: { display: false }, ticks: { color: texto, font: { size: 9 } } },
-            y: { stacked: true, grid: { color: grade },
+            x: { stacked: !linha, grid: { display: false },
+                 ticks: { color: texto, font: { size: 9 } } },
+            y: { stacked: !linha, beginAtZero: true, grid: { color: grade },
                  ticks: { color: texto, font: { size: 9 }, callback: v => brl(v) } }
           }
         }
@@ -730,18 +847,42 @@ function pintarGraficos(lista){
           labels: LOCAIS,
           datasets: [{
             data: LOCAIS.map(n => (r.porLocal[n] || { bruto: 0 }).bruto),
-            backgroundColor: [azul, ambar], borderWidth: 0
+            backgroundColor: [azul, ambar], borderWidth: 0, hoverOffset: 6
           }]
         },
         options: {
-          responsive: true, maintainAspectRatio: false, cutout: "62%",
+          responsive: true, maintainAspectRatio: false, cutout: "66%",
           plugins: {
-            legend: { position: "bottom", labels: { color: texto, boxWidth: 10, font: { size: 10 } } },
-            tooltip: { callbacks: { label: c => `${c.label}: R$ ${brl(c.parsed)}` } }
+            legend: { display: false },   // a legenda com valor e % está no HTML
+            centroDaRosca: { total: r.bruto, corRotulo: texto, corValor: cor("--text") || "#F3F7FC" },
+            tooltip: { callbacks: {
+              label: c => {
+                const pct = r.bruto ? (c.parsed / r.bruto) * 100 : 0;
+                return `${c.label}: R$ ${brl(c.parsed)} · ${pct.toFixed(1).replace(".", ",")}%`;
+              }
+            } }
           }
-        }
+        },
+        plugins: [centroDaRosca]
       });
     }
+  }
+
+  // legenda da rosca: nome, valor e percentual, que o gráfico sozinho não diz
+  const leg = el("legendaLocal");
+  if (leg){
+    const cores = { "Sapore": azul, "Rei do Mate": ambar };
+    leg.innerHTML = LOCAIS.map(nome => {
+      const d = r.porLocal[nome] || { bruto: 0, n: 0, desconto: 0 };
+      const pct = r.bruto ? (d.bruto / r.bruto) * 100 : 0;
+      return `<li>
+        <span class="leg__dot" style="background:${cores[nome]}"></span>
+        <span class="leg__nome">${esc(nome)}</span>
+        <span class="leg__meta">${d.n} lanç.</span>
+        <span class="leg__pct">${pct.toFixed(1).replace(".", ",")}%</span>
+        <b class="leg__val">R$ ${brl(d.bruto)}</b>
+      </li>`;
+    }).join("");
   }
 }
 
@@ -798,52 +939,95 @@ function pedirCampo(titulo, rotulo, valor, tipo, acao){
 /* ===========================================================
    6. NAVEGAÇÃO E MODAL DE LANÇAMENTO
    =========================================================== */
-function irPara(nome){
+/** Só troca a tela. A barra de baixo fica sempre visível. */
+function mostrarTela(nome){
   const alvo = qs(`.screen[data-screen="${nome}"]`);
-  if (!alvo) return;
+  if (!alvo) return false;
   qsa(".screen").forEach(s => s.classList.toggle("is-active", s === alvo));
-  qsa(".tabbar [data-nav]").forEach(t => t.classList.toggle("is-active", t.dataset.nav === nome));
-  const fab = qs(".fab");
-  if (fab) fab.hidden = false;
   window.scrollTo(0, 0);
+  return true;
+}
+
+/** Tela de aba: acende a aba correspondente. */
+function irPara(nome){
+  if (!mostrarTela(nome)) return;
+  qsa(".tabbar [data-nav]").forEach(t => t.classList.toggle("is-active", t.dataset.nav === nome));
   if (nome === "estatisticas"){
     const { ini, fim } = limitesPeriodo();
     pintarGraficos(noPeriodo(lancamentos, ini, fim));
   }
 }
 
+/** Sub-tela (acessos, políticas, lançamento): alcançada de dentro de uma aba,
+    com "voltar" no topo. A aba de origem continua acesa na barra de baixo. */
+let telaAnterior = "home";
 function irParaSub(nome){
-  const alvo = qs(`.screen[data-screen="${nome}"]`);
-  if (!alvo) return;
-  qsa(".screen").forEach(s => s.classList.toggle("is-active", s === alvo));
-  const fab = qs(".fab");
-  if (fab) fab.hidden = true;
-  window.scrollTo(0, 0);
+  const atual = qs(".screen.is-active");
+  if (atual && atual.dataset.screen !== nome) telaAnterior = atual.dataset.screen;
+  mostrarTela(nome);
+}
+function voltar(){
+  const destino = telaAnterior && qs(`.screen[data-screen="${telaAnterior}"]`) ? telaAnterior : "home";
+  if (qs(`.tabbar [data-nav="${destino}"]`)) irPara(destino);
+  else mostrarTela(destino);
 }
 
 function mostrarPasso(passo){
-  const revisao = passo !== "scan";
-  el("stepScan")?.classList.toggle("is-active", !revisao);
-  el("stepReview")?.classList.toggle("is-active", revisao);
+  el("stepScan")?.classList.toggle("is-active", passo === "scan");
+  el("stepLendo")?.classList.toggle("is-active", passo === "lendo");
+  el("stepReview")?.classList.toggle("is-active", passo === "review");
 }
+
+/* ---------- estado visual da leitura do cupom ---------- */
+function leituraProgresso(pct, fase){
+  const f = el("lendoFill");
+  if (f) f.style.width = clamp0a100(pct) + "%";
+  poe("lendoPct", clamp0a100(pct) + "%");
+  if (fase) poe("lendoFase", fase);
+}
+const clamp0a100 = n => Math.max(0, Math.min(100, Math.round(n)));
+
+function leituraPasso(id, estado, texto){
+  const li = el(id);
+  if (!li) return;
+  li.classList.remove("is-doing", "is-done", "is-fail");
+  if (estado) li.classList.add("is-" + estado);
+  if (texto){
+    const t = li.querySelector(".txt");
+    if (t) t.textContent = texto;
+  }
+}
+
+function leituraReset(url){
+  const img = el("lendoImg");
+  if (img && url) img.src = url;
+  leituraProgresso(0, "Preparando a imagem");
+  leituraPasso("pQR", "", "Procurando o QR code da nota");
+  leituraPasso("pOCR", "", "Lendo o texto do cupom");
+  leituraPasso("pCampos", "", "Preenchendo os campos");
+}
+
+const espera = ms => new Promise(r => setTimeout(r, ms));
 
 function abrirLancamento(modo, id){
   modoSheet = modo;
   editandoId = id || "";
   rascunhoOCR = { confianca: null };
+  fecharSheet("sheetNovo");
 
   const manual  = modo === "manual";
   const editar  = modo === "editar";
   const revisao = manual || editar;
 
-  poe("sheetTitle", editar ? "Editar lançamento" : manual ? "Lançamento manual" : "Novo recibo");
-  poe("sheetSub", editar ? "Corrija o que estiver errado e salve."
-                : manual ? "Digite os dados do lançamento."
-                : "A leitura é feita a partir da foto do cupom.");
+  poe("lancTitulo", editar ? "Editar lançamento" : manual ? "Lançar à mão" : "Escanear cupom");
+  poe("lancSub", editar ? "Mude o que precisar e salve. O botão de excluir está no fim."
+                : manual ? "Preencha valor e data. O resto é opcional."
+                : "Tire a foto do cupom com o QR code visível.");
 
   const ocrBar = el("ocrBar"), thumb = el("thumbRow");
   if (ocrBar) ocrBar.hidden = revisao;
   if (thumb)  thumb.hidden  = revisao;
+  mostrarDiagnostico("", "");
 
   const wrap = el("campoDataWrap");
   if (wrap){
@@ -852,17 +1036,17 @@ function abrirLancamento(modo, id){
     if (em) em.hidden = revisao;
   }
 
-  const rodape = el("sheetFooter");
+  const rodape = el("lancFooter");
   if (rodape){
     rodape.innerHTML = editar
       ? `<button class="btn btn--ghost" type="button" data-excluir="${esc(editandoId)}">Excluir</button>
-         <button class="btn" type="button" data-salvar="lancamento">Salvar lançamento</button>`
-      : `<button class="btn btn--ghost" type="button" data-close>Descartar</button>
+         <button class="btn" type="button" data-salvar="lancamento">Salvar alterações</button>`
+      : `<button class="btn btn--ghost" type="button" data-voltar>Descartar</button>
          <button class="btn" type="button" data-salvar="lancamento">Salvar lançamento</button>`;
   }
 
   preencherFormulario(editar ? lancamentos.find(l => l.id === id) : null, manual);
-  abrirSheet("sheetRecibo");
+  irParaSub("lancamento");
   mostrarPasso(revisao ? "review" : "scan");
 }
 
@@ -926,26 +1110,185 @@ function lerFormulario(){
 
 
 /* ===========================================================
-   7. OCR — Tesseract.js no navegador
+   7. LEITURA DO CUPOM — QR da NFC-e primeiro, OCR depois
    A imagem é processada em memória e descartada. Nada de foto
    no banco: é requisito de privacidade da spec.
+   -----------------------------------------------------------
+   Por que o QR vem antes: o cupom é uma NFC-e e traz um QR com
+   a chave de acesso de 44 dígitos. Dela saem CNPJ e número do
+   cupom com CERTEZA, e na versão 1 do QR vêm também valor e
+   data/hora. OCR em papel térmico é palpite; QR é dado.
+   Reserva: a chave impressa em grupos de 4 dígitos, que o OCR
+   acerta muito melhor do que texto corrido.
    =========================================================== */
 const OCR_CDN = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
-let ocrPronto = null;
-let rascunhoOCR = { confianca: null };
+const QR_CDN  = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
 
-function carregarTesseract(){
-  if (typeof Tesseract !== "undefined") return Promise.resolve();
-  if (ocrPronto) return ocrPronto;
-  ocrPronto = new Promise((ok, falha) => {
+let rascunhoOCR = { confianca: null };
+const scriptsPedidos = {};
+
+function carregarScript(src, global){
+  if (self[global]) return Promise.resolve();
+  if (scriptsPedidos[src]) return scriptsPedidos[src];
+  scriptsPedidos[src] = new Promise((ok, falha) => {
     const s = document.createElement("script");
-    s.src = OCR_CDN;
+    s.src = src;
     s.onload = () => ok();
-    s.onerror = () => { ocrPronto = null; falha(new Error("sem rede para baixar o leitor")); };
+    s.onerror = () => { delete scriptsPedidos[src]; falha(new Error("sem rede para baixar " + global)); };
     document.head.appendChild(s);
   });
-  return ocrPronto;
+  return scriptsPedidos[src];
 }
+const carregarTesseract = () => carregarScript(OCR_CDN, "Tesseract");
+const carregarJsQR = () => carregarScript(QR_CDN, "jsQR");
+
+
+/* ---------- CNPJ é a identidade confiável da lanchonete ----------
+   Começa vazio de propósito: eu não vou chutar um CNPJ lido de foto.
+   O nome impresso resolve o primeiro cupom, e ao salvar o app grava o
+   par CNPJ→lanchonete nas suas preferências. Do segundo em diante o
+   reconhecimento é por CNPJ, que não tem erro de leitura. */
+const CNPJ_LOCAL = {};
+
+function localPorCnpj(cnpj){
+  const d = String(cnpj || "").replace(/\D/g, "");
+  if (d.length !== 14) return "";
+  return (prefs.cnpjLocal && prefs.cnpjLocal[d]) || CNPJ_LOCAL[d] || "";
+}
+
+/** Você corrigiu a lanchonete de um CNPJ? O app aprende e não erra de novo. */
+function aprenderCnpj(cnpj, local){
+  const d = String(cnpj || "").replace(/\D/g, "");
+  if (d.length !== 14 || !local || CNPJ_LOCAL[d] === local) return;
+  prefs.cnpjLocal = prefs.cnpjLocal || {};
+  if (prefs.cnpjLocal[d] === local) return;
+  prefs.cnpjLocal[d] = local;
+  gravarPrefs();
+}
+
+
+/**
+ * Pré-processamento. É o passo que mais muda o resultado: cupom térmico é o
+ * pior caso do OCR — contraste baixo, papel curvo, letra pequena. Amplia para
+ * ~1800px na maior dimensão, converte para cinza e estica o contraste jogando
+ * fora 2% de cada ponta do histograma.
+ */
+async function prepararImagem(file){
+  let fonte;
+  if (self.createImageBitmap){
+    fonte = await createImageBitmap(file);
+  } else {
+    const urlTmp = URL.createObjectURL(file);
+    try {
+      fonte = await new Promise((ok, falha) => {
+        const i = new Image();
+        i.onload = () => ok(i);
+        i.onerror = () => falha(new Error("não deu para abrir a imagem"));
+        i.src = urlTmp;
+      });
+    } finally { URL.revokeObjectURL(urlTmp); }
+  }
+
+  const maior = Math.max(fonte.width, fonte.height) || 1;
+  const escala = Math.min(2.5, Math.max(1, 1800 / maior));
+  const w = Math.round(fonte.width * escala), h = Math.round(fonte.height * escala);
+
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const g = cv.getContext("2d", { willReadFrequently: true });
+  g.imageSmoothingQuality = "high";
+  g.drawImage(fonte, 0, 0, w, h);
+  if (fonte.close) fonte.close();
+
+  const img = g.getImageData(0, 0, w, h);
+  const d = img.data;
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < d.length; i += 4){
+    const y = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+    d[i] = d[i + 1] = d[i + 2] = y;
+    hist[y]++;
+  }
+  const corte = (w * h) * 0.02;
+  let acc = 0, min = 0, max = 255;
+  for (let v = 0; v < 256; v++){ acc += hist[v]; if (acc > corte){ min = v; break; } }
+  acc = 0;
+  for (let v = 255; v >= 0; v--){ acc += hist[v]; if (acc > corte){ max = v; break; } }
+  const faixa = Math.max(1, max - min);
+  for (let i = 0; i < d.length; i += 4){
+    let y = ((d[i] - min) / faixa) * 255;
+    d[i] = d[i + 1] = d[i + 2] = y < 0 ? 0 : y > 255 ? 255 : y;
+  }
+  g.putImageData(img, 0, 0);
+  return cv;
+}
+
+
+/* ---------- QR code ---------- */
+
+async function lerQR(cv){
+  // 1) detector nativo, quando o navegador tem (Chrome no Android tem)
+  try {
+    if (self.BarcodeDetector){
+      const det = new BarcodeDetector({ formats: ["qr_code"] });
+      const achados = await det.detect(cv);
+      if (achados && achados.length) return achados[0].rawValue || "";
+    }
+  } catch(e){}
+  // 2) jsQR, que roda em qualquer navegador
+  try {
+    await carregarJsQR();
+    const g = cv.getContext("2d", { willReadFrequently: true });
+    const img = g.getImageData(0, 0, cv.width, cv.height);
+    const r = jsQR(img.data, img.width, img.height, { inversionAttempts: "attemptBoth" });
+    return (r && r.data) || "";
+  } catch(e){ return ""; }
+}
+
+/**
+ * A chave de acesso da NFC-e tem 44 dígitos com posição fixa:
+ * cUF(2) AAMM(4) CNPJ(14) mod(2) serie(3) nNF(9) tpEmis(1) cNF(8) cDV(1)
+ * Ou seja: CNPJ e número do cupom saem daqui sem chute nenhum.
+ */
+function camposDaChave(chave){
+  const d = String(chave || "").replace(/\D/g, "");
+  if (d.length !== 44) return {};
+  const cnpj = d.slice(6, 20);
+  return {
+    cnpj: formataCnpj(cnpj),
+    numeroCupom: d.slice(25, 34),
+    local: localPorCnpj(cnpj)
+  };
+}
+
+/**
+ * QR da NFC-e. Versão 1 traz o conteúdo separado por "|":
+ * chNFe | nVersao | tpAmb | cDest | dhEmi | vNF | vICMS | digVal | cIdToken | cHash
+ * Versão 2 traz só chave, versão, ambiente e token — daí valor e data ficam
+ * para o OCR.
+ */
+function camposDoQR(texto){
+  const t = String(texto || "");
+  if (!t) return {};
+  const out = {};
+
+  const mch = t.match(/\d{44}/);
+  if (mch) Object.assign(out, camposDaChave(mch[0]));
+
+  const mp = t.match(/[?&]p=([^&\s]+)/i);
+  let bruto = t;
+  if (mp){ try { bruto = decodeURIComponent(mp[1]); } catch(e){ bruto = mp[1]; } }
+  const partes = bruto.split("|");
+  if (partes.length >= 7){
+    const v = parseFloat(String(partes[5]).replace(",", "."));
+    if (isFinite(v) && v > 0 && v < 5000) out.valor = v;
+    const md = String(partes[4]).match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (md) out.dataHora = `${md[1]}-${md[2]}-${md[3]}T${md[4]}:${md[5]}`;
+  }
+  return out;
+}
+
+
+/* ---------- o fluxo ---------- */
 
 async function lerCupom(file){
   const url = URL.createObjectURL(file);
@@ -955,22 +1298,82 @@ async function lerCupom(file){
   if (icone) icone.hidden = true;
 
   poe("thumbNome", file.name || "cupom.jpg");
-  poe("thumbMeta", "LENDO… O LEITOR BAIXA UMA VEZ E FICA NO APARELHO");
-  mostrarPasso("review");
+  poe("thumbMeta", "");
+  leituraReset(url);
+  mostrarPasso("lendo");
   const ocrBar = el("ocrBar"), thumb = el("thumbRow");
   if (ocrBar) ocrBar.hidden = false;
   if (thumb)  thumb.hidden  = false;
+  mostrarDiagnostico("", "");
 
   const t0 = Date.now();
+  let worker = null, fonteQR = "", textoOCR = "", conf = 0;
+  let campos = { valor: null, dataHora: "", local: "", itens: "",
+                 matricula: "", numeroCupom: "", cnpj: "" };
   try {
-    await carregarTesseract();
-    const worker = await Tesseract.createWorker("por");
-    const ret = await worker.recognize(file);
-    await worker.terminate();
+    leituraProgresso(8, "Preparando a imagem");
+    const tela = await prepararImagem(file);
+    leituraProgresso(16, "Preparando a imagem");
 
-    const conf = Math.round(ret.data.confidence || 0);
-    const campos = extrairCampos(ret.data.text || "");
-    rascunhoOCR = { confianca: conf };
+    // ---- 1. QR: rápido e exato ----
+    leituraPasso("pQR", "doing");
+    leituraProgresso(22, "Procurando o QR code");
+    fonteQR = await lerQR(tela);
+    const doQR = camposDoQR(fonteQR);
+    campos = mesclarCampos(campos, doQR);
+    leituraPasso("pQR", fonteQR ? "done" : "fail",
+      fonteQR ? "QR code lido — dados exatos da nota" : "Sem QR legível nesta foto");
+    leituraProgresso(30, fonteQR ? "QR code lido" : "Vamos pelo texto");
+
+    // ---- 2. OCR: preenche o que o QR não deu ----
+    const faltaAlgo = campos.valor == null || !campos.dataHora || !campos.itens
+                      || !campos.matricula || !campos.local;
+    if (faltaAlgo){
+      leituraPasso("pOCR", "doing", "Baixando o leitor (só na primeira vez)");
+      leituraProgresso(34, "Preparando o leitor de texto");
+      await carregarTesseract();
+      leituraPasso("pOCR", "doing", "Lendo o texto do cupom");
+      worker = await Tesseract.createWorker("por", 1, {
+        logger: m => {
+          if (m.status === "recognizing text"){
+            leituraProgresso(38 + (m.progress || 0) * 52, "Lendo o texto do cupom");
+          }
+        }
+      });
+      // PSM 4 = uma coluna de texto com tamanhos variados: o formato do cupom.
+      await worker.setParameters({ tessedit_pageseg_mode: "4", preserve_interword_spaces: "1" });
+      let ret = await worker.recognize(tela);
+      textoOCR = ret.data.text || "";
+      conf = Math.round(ret.data.confidence || 0);
+      let doOCR = extrairCampos(textoOCR);
+
+      // Não achou o valor? Segunda tentativa tratando o cupom como bloco único.
+      if (doOCR.valor == null && campos.valor == null){
+        leituraPasso("pOCR", "doing", "Segunda tentativa de leitura");
+        await worker.setParameters({ tessedit_pageseg_mode: "6" });
+        const ret2 = await worker.recognize(tela);
+        const doOCR2 = extrairCampos(ret2.data.text || "");
+        if (doOCR2.valor != null){
+          textoOCR = ret2.data.text || "";
+          conf = Math.round(ret2.data.confidence || 0);
+          doOCR = doOCR2;
+        } else {
+          textoOCR += "\n----- segunda tentativa -----\n" + (ret2.data.text || "");
+        }
+      }
+      // o QR ganha de qualquer coisa que o OCR ache
+      campos = mesclarCampos(doOCR, campos);
+      leituraPasso("pOCR", "done", `Texto lido — confiança ${conf}%`);
+    } else {
+      leituraPasso("pOCR", "done", "O QR já trouxe tudo — nem precisou do texto");
+    }
+    leituraProgresso(92, "Preenchendo os campos");
+    leituraPasso("pCampos", "doing");
+
+    if (!campos.local) campos.local = localPorCnpj(campos.cnpj);
+
+    rascunhoOCR = { confianca: fonteQR ? 100 : conf };
+    mostrarDiagnostico(fonteQR, textoOCR);
 
     const põe = (id, v) => { const x = el(id); if (x && v) x.value = v; };
     põe("campoValor", campos.valor != null ? brl(campos.valor) : "");
@@ -981,69 +1384,211 @@ async function lerCupom(file){
     põe("campoCnpj", campos.cnpj);
     if (campos.local) marcarLocal(campos.local);
 
-    const baixa = conf < 75 || campos.valor == null;
-    poe("thumbMeta", `LEITURA EM ${((Date.now() - t0) / 1000).toFixed(1).replace(".", ",")} S · CONFIANÇA ${conf}%`);
+    // Dizer o que entrou e o que faltou é mais útil que "confiança 62%".
+    const rotulos = { valor: "valor", dataHora: "data", local: "lanchonete",
+                      itens: "itens", matricula: "matrícula",
+                      numeroCupom: "nº do cupom", cnpj: "CNPJ" };
+    const chaves = Object.keys(rotulos);
+    const achou = chaves.filter(k => campos[k] !== "" && campos[k] != null);
+    const faltou = chaves.filter(k => achou.indexOf(k) < 0);
+    const baixa = campos.valor == null || (!fonteQR && conf < 75);
+
+    poe("thumbMeta", `${((Date.now() - t0) / 1000).toFixed(1).replace(".", ",")} S · `
+      + (fonteQR ? "QR CODE LIDO" : `OCR ${conf}%`) + ` · ${achou.length} DE 7 CAMPOS`);
+
     const wrap = el("campoDataWrap");
     if (wrap){
       wrap.classList.toggle("field--check", baixa);
       const em = wrap.querySelector("em"); if (em) em.hidden = !baixa;
     }
-    aviso(baixa ? "Leitura com baixa confiança. Confira tudo antes de salvar."
-                : "Cupom lido. Confira e salve.");
+
+    leituraPasso("pCampos", "done", `${achou.length} de 7 campos preenchidos`);
+    leituraProgresso(100, faltou.length ? "Confira o que faltou" : "Cupom lido inteiro");
+    await espera(650);            // deixa o 100% aparecer antes de trocar de tela
+    mostrarPasso("review");
+
+    aviso(faltou.length
+      ? `Leu ${achou.length ? achou.map(k => rotulos[k]).join(", ") : "quase nada"}. Faltou ${faltou.map(k => rotulos[k]).join(", ")} — preencha à mão.`
+      : "Cupom lido inteiro. Confira e salve.");
   } catch(err){
     console.error(err);
     poe("thumbMeta", "LEITURA FALHOU · PREENCHA À MÃO");
+    leituraPasso("pCampos", "fail", "Não deu para ler — preencha à mão");
+    leituraProgresso(100, "Leitura falhou");
+    mostrarDiagnostico(fonteQR, textoOCR);
+    await espera(500);
+    mostrarPasso("review");
     aviso("Não deu para ler o cupom (" + (err.message || "erro no leitor") + "). Preencha à mão.");
     const d = el("campoData");
     if (d && !d.value) d.value = paraBR(agoraIso());
   } finally {
+    if (worker){ try { await worker.terminate(); } catch(e){} }
     URL.revokeObjectURL(url);   // a imagem morre aqui
   }
 }
 
-/** Extrai do texto do cupom os campos que o handoff pede. */
+/** O que veio de cada fonte, na tela. Sem isto, "não reconheceu nada" é palpite. */
+function mostrarDiagnostico(qr, ocr){
+  const bloco = el("ocrDiag");
+  const pre = el("ocrTexto");
+  if (!bloco || !pre) return;
+  const partes = [];
+  if (qr)  partes.push("=== QR CODE ===\n" + qr);
+  if (ocr) partes.push("=== TEXTO LIDO PELO OCR ===\n" + ocr);
+  if (!qr && !ocr) partes.push("");
+  // CPF do cupom não interessa a ninguém, muito menos numa tela que você copia
+  const texto = partes.join("\n\n").replace(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g, "***.***.***-**");
+  bloco.hidden = !texto.trim();
+  pre.textContent = texto;
+  if (!texto.trim()) bloco.removeAttribute("open");
+}
+
+/** Junta duas leituras: o que já existe em `base` só é sobrescrito por `extra`. */
+function mesclarCampos(base, extra){
+  const out = { ...base };
+  for (const k of Object.keys(extra || {})){
+    const v = extra[k];
+    if (v === "" || v == null) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+
+/* ---------- extração a partir do texto ---------- */
+
+/** OCR de cupom quebra número em pedaços. Junta antes de tentar casar. */
+function normalizarOCR(t){
+  return String(t)
+    .replace(/[   ]/g, " ")
+    .replace(/[|¦]/g, " ")
+    .replace(/R\s*[$Ss5]\s*(?=[\d.,])/gi, "R$ ")           // R$, RS, R5 -> R$
+    .replace(/(\d)\s+([.,])\s*(\d{2})(?!\d)/g, "$1$2$3")   // "44 ,40" -> "44,40"
+    .replace(/(\d)[oO](?=\d)/g, "$10")                     // "1o,50" -> "10,50"
+    .replace(/(\d)\s+(\d{3})(?!\d)/g, "$1$2");             // "1 234,00" -> "1234,00"
+}
+
+const RE_APAGAR    = /a\s*p\s*a\s*g\s*a\s*r/i;
+const RE_TOTAL     = /t\s*[o0]\s*t\s*[a4]\s*[li1]/i;          // TOTAL, T0TAL, TOTAI
+const RE_SUBTOTAL  = /s\s*u\s*b\s*-?\s*t\s*[o0]/i;
+const RE_PAGAMENTO = /troco|dinheiro|cart[ãa]o|cr[eé]dito|d[eé]bito|\bpix\b|recebido|valor\s*pago|entregue|forma\s*(de\s*)?pag/i;
+// linhas com número que NUNCA são o valor da compra
+const RE_RUIDO = /trib|aprox|federal|estadual|\blei\b\s*\d|procon|fone|icms|pis|cofins|\bcep\b|chave|acesso|aut\s*[:.]|consulte|nfc\s*-?\s*e|cpf|cnpj|\bqtde\b|aliq/i;
+
+/** Todos os valores monetários de um texto. */
+function valoresDe(s){
+  const out = [];
+  const re = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+|\d+)\s*[.,](\d{2})(?!\d)/g;
+  let m;
+  while ((m = re.exec(String(s)))){
+    const v = parseFloat(m[1].replace(/\./g, "") + "." + m[2]);
+    if (isFinite(v) && v > 0 && v < 5000) out.push(v);
+  }
+  return out;
+}
+
+function formataCnpj(d){
+  const s = String(d || "").replace(/\D/g, "");
+  return s.length === 14
+    ? `${s.slice(0,2)}.${s.slice(2,5)}.${s.slice(5,8)}/${s.slice(8,12)}-${s.slice(12)}`
+    : String(d || "");
+}
+
+/** Extrai do texto do cupom os 7 campos que o handoff pede. Tolerante de propósito. */
 function extrairCampos(texto){
-  const t = String(texto).replace(/ /g, " ");
+  const t = normalizarOCR(texto);
   const linhas = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const plano = chave(t);
   const out = { valor: null, dataHora: "", local: "", itens: "",
                 matricula: "", numeroCupom: "", cnpj: "" };
 
-  // valor: prioriza a linha do total; senão, o maior monetário do cupom
-  const monetarios = s => (String(s).match(/\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}|\d+\.\d{2}/g) || [])
-    .map(x => paraValor(x)).filter(v => isFinite(v) && v > 0 && v < 10000);
-  const linhaTotal = linhas.find(l => /total/i.test(l) && /\d/.test(l));
-  const doTotal = linhaTotal ? monetarios(linhaTotal) : [];
-  const todos = monetarios(t);
-  if (doTotal.length) out.valor = Math.max(...doTotal);
-  else if (todos.length) out.valor = Math.max(...todos);
-
-  // data e hora
-  const md = t.match(/(\d{2})[\/.-](\d{2})[\/.-](\d{2,4})(?:[^\d]{0,6}(\d{1,2}):(\d{2}))?/);
-  if (md){
-    const ano = md[3].length === 2 ? "20" + md[3] : md[3];
-    const cand = `${ano}-${md[2]}-${md[1]}` + (md[4] ? `T${pad2(md[4])}:${md[5]}` : "T12:00");
-    if (/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T/.test(cand)) out.dataHora = cand;
+  /* --- a chave de acesso impressa vale mais que tudo: 44 dígitos em grupos
+         de 4, que o OCR acerta bem. Dela saem CNPJ e nº do cupom.
+         O cupom quebra a chave em duas linhas quando é estreito, então
+         procuramos primeiro na região depois do rótulo, sem os separadores. --- */
+  const iCh = t.search(/chave\s*de\s*acesso|chave/i);
+  if (iCh >= 0){
+    const d = t.slice(iCh, iCh + 260).replace(/\D/g, "");
+    if (d.length >= 44) Object.assign(out, camposDaChave(d.slice(0, 44)));
+  }
+  if (!out.cnpj){
+    for (const bloco of (t.match(/\d[\d\s.]{48,74}\d/g) || [])){
+      const d = bloco.replace(/\D/g, "");
+      if (d.length === 44){ Object.assign(out, camposDaChave(d)); break; }
+    }
   }
 
-  // lanchonete
-  if (/sapore/.test(plano)) out.local = "Sapore";
-  else if (/rei do mate|reidomate/.test(plano)) out.local = "Rei do Mate";
+  /* --- valor: "A PAGAR" manda, depois "TOTAL", depois o maior valor limpo --- */
+  const util = l => !RE_PAGAMENTO.test(l) && !RE_RUIDO.test(l);
+  const primeiro = (filtro) => {
+    const cands = linhas.filter(l => filtro(l) && util(l)).flatMap(valoresDe);
+    return cands.length ? Math.max(...cands) : null;
+  };
+  out.valor = primeiro(l => RE_APAGAR.test(l));
+  if (out.valor == null) out.valor = primeiro(l => RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l));
+  if (out.valor == null) out.valor = primeiro(l => RE_SUBTOTAL.test(l));
+  if (out.valor == null) out.valor = primeiro(() => true);
 
-  const mc = t.match(/(\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2})/);
-  if (mc) out.cnpj = mc[1].trim();
+  /* --- data e hora --- */
+  const md = t.match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})(?:[^\d\n]{0,8}(\d{1,2})\s*[:.h]\s*(\d{2}))?/);
+  if (md){
+    const ano = md[3].length === 2 ? "20" + md[3] : md[3];
+    const cand = `${ano}-${pad2(md[2])}-${pad2(md[1])}`
+               + (md[4] ? `T${pad2(md[4])}:${md[5]}` : "T12:00");
+    if (/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d$/.test(cand)) out.dataHora = cand;
+  }
 
-  const mm = t.match(/matr[íi]cula[^\d]{0,6}([\d.\-]{4,12})/i);
-  if (mm) out.matricula = mm[1].trim();
+  /* --- CNPJ: junta os dígitos depois do rótulo; senão qualquer bloco de 14 --- */
+  if (!out.cnpj){
+    const iCnpj = t.search(/c\s*n\s*p\s*j/i);
+    if (iCnpj >= 0){
+      const digitos = t.slice(iCnpj, iCnpj + 45).replace(/\D/g, "");
+      if (digitos.length >= 14) out.cnpj = formataCnpj(digitos.slice(0, 14));
+    }
+  }
+  if (!out.cnpj){
+    const m = t.match(/(\d{2})[.\s]?(\d{3})[.\s]?(\d{3})\s*[\/\s]\s*(\d{4})\s*[-\s]\s*(\d{2})/);
+    if (m) out.cnpj = formataCnpj(m.slice(1).join(""));
+  }
 
-  const mn = t.match(/(?:cupom|ccf|coo|extrato)[^\d]{0,8}(\d{3,9})/i);
-  if (mn) out.numeroCupom = mn[1];
+  /* --- lanchonete: pelo CNPJ; se não der, pelo nome, tolerando erro de OCR --- */
+  out.local = localPorCnpj(out.cnpj);
+  if (!out.local){
+    if (/sap[o0]r|s4p[o0]r|apore/.test(plano)) out.local = "Sapore";
+    else if (/rei\s*d[o0]\s*mate|reid[o0]mate/.test(plano)) out.local = "Rei do Mate";
+    else if (/\brei\b/.test(plano) && /mate/.test(plano)) out.local = "Rei do Mate";
+    else if (/mate/.test(plano) && !/tomate/.test(plano)) out.local = "Rei do Mate";
+  }
 
-  // itens: linhas com descrição e valor, sem totais e cabeçalhos
+  /* --- matrícula: exige rótulo com dois-pontos, para não pegar valor solto.
+         O CPF do cupom é ignorado de propósito. --- */
+  const mMat = t.match(/(?:matr[íi]?cula|cracha|crach[áa]|chapa|consumidor|cliente|colaborador)\s*:?\s*n?[ºo°]?\s*([0-9][0-9.\-]{2,11}[0-9])/i);
+  if (mMat && !/^\d{3}\.\d{3}\.\d{3}/.test(mMat[1])) out.matricula = mMat[1].replace(/[-.]+$/, "");
+
+  /* --- número do cupom: preferir o da chave; senão COO/CCF/NFC-e/CUPOM --- */
+  if (!out.numeroCupom){
+    const iCup = t.search(/c\s*o\s*o\b|c\s*c\s*f\b|cupom|extrato|nfc\s*-?\s*e|n[ºo°]\s*fisc/i);
+    if (iCup >= 0){
+      const m = t.slice(iCup, iCup + 35).match(/(\d{3,9})/);
+      if (m) out.numeroCupom = m[1];
+    }
+  }
+
+  /* --- itens: linhas com valor que não são total, pagamento nem ruído --- */
   out.itens = linhas
-    .filter(l => /\d+,\d{2}/.test(l) && !/total|troco|dinheiro|cart[ãa]o|cnpj|cpf|desconto/i.test(l))
-    .map(l => l.replace(/\s{2,}/g, " ").replace(/[\d.,]+$/, "").trim())
-    .filter(l => l.length > 2).slice(0, 6).join(", ");
+    .filter(l => valoresDe(l).length)
+    .filter(l => !RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l) && !RE_APAGAR.test(l))
+    .filter(util)
+    .map(l => l
+      .replace(/^\s*\d{1,3}\s*[-.)]?\s+/, "")               // nº do item
+      .replace(/^\s*\d{5,}\s*/, "")                          // código do produto
+      .replace(/(?:R\$\s*)?\b[\d.]*\d[.,]\d{2,}\b/g, "")     // valores (com dígito extra do OCR)
+      .replace(/\b(un|kg|g|ml|l|pc|cx|dz)\b/gi, "")          // unidades soltas
+      .replace(/[\s\d.,]+$/, "")                             // sobra numérica no fim
+      .replace(/\s{2,}/g, " ").trim())
+    .filter(l => l.length > 2 && /[a-zà-ú]{3}/i.test(l))
+    .slice(0, 6)
+    .join(", ");
 
   return out;
 }
@@ -1070,20 +1615,23 @@ document.addEventListener("click", e => {
     return;
   }
 
+  if (achar("data-novo")) return abrirSheet("sheetNovo");
+
   const abrir = achar("data-open");
   if (abrir) return abrirLancamento(abrir.dataset.open);
 
   const editar = achar("data-editar");
   if (editar) return abrirLancamento("editar", editar.dataset.editar);
 
+  if (achar("data-voltar")) return voltar();
+
   const excluir = achar("data-excluir");
   if (excluir){
     const id = excluir.dataset.excluir;
     const l = lancamentos.find(x => x.id === id);
-    fecharSheet("sheetRecibo");
     return confirmar("Excluir lançamento",
       l ? `${l.local} · ${paraBR(l.dataHora)} · R$ ${brl(l.valor)}. Isso não volta.` : "Isso não volta.",
-      "Excluir", () => { excluirLancamento(id); aviso("Lançamento excluído."); });
+      "Excluir", () => { excluirLancamento(id); voltar(); aviso("Lançamento excluído."); });
   }
 
   const okConf = achar("data-confirmar");
@@ -1136,10 +1684,34 @@ document.addEventListener("click", e => {
     return pintarGraficos(noPeriodo(lancamentos, ini, fim));
   }
 
-  if (achar("data-vertudo")){
-    verTudo = !verTudo;
+  const tipoG = achar("data-tipo-grafico");
+  if (tipoG){
+    tipoGrafico = tipoG.dataset.tipoGrafico;
+    qsa("#chartTipos button").forEach(b => b.classList.toggle("is-active", b === tipoG));
     const { ini, fim } = limitesPeriodo();
-    return pintarLista(noPeriodo(lancamentos, ini, fim));
+    return pintarGraficos(noPeriodo(lancamentos, ini, fim));
+  }
+
+  const chipLocal = achar("data-flocal");
+  if (chipLocal){
+    filtro.local = chipLocal.dataset.flocal || "";
+    qsa("#fLocais .chip").forEach(c => c.classList.toggle("is-active", c === chipLocal));
+    return pintarTransacoes();
+  }
+
+  const ordem = achar("data-ordem");
+  if (ordem){
+    filtro.ordem = ordem.dataset.ordem;
+    qsa("#fOrdem button").forEach(b => b.classList.toggle("is-active", b === ordem));
+    return pintarTransacoes();
+  }
+
+  if (achar("data-limpar-filtro")) return limparFiltro();
+
+  if (achar("data-exportar-filtrado")){
+    const vis = transacoesFiltradas();
+    if (!vis.length) return aviso("Nada para exportar com esse filtro.");
+    return baixarCSV(vis, "filtrado");
   }
 
   const pref = achar("data-pref");
@@ -1174,6 +1746,19 @@ document.addEventListener("click", e => {
 
   if (achar("data-exportar")) return exportarCSV();
   if (achar("data-sair")) return sair();
+
+  if (achar("data-copiar-ocr")){
+    const txt = el("ocrTexto")?.textContent || "";
+    if (!txt) return aviso("Nada lido ainda.");
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt)
+        .then(() => aviso("Texto da leitura copiado."))
+        .catch(() => aviso("Não deu para copiar. Selecione o texto à mão."));
+    } else {
+      aviso("Seu navegador não deixa copiar daqui. Selecione o texto à mão.");
+    }
+    return;
+  }
 
   if (achar("data-nova-politica")){
     const d = el("polVigencia"); if (d) d.value = hojeIso();
@@ -1219,10 +1804,11 @@ function acaoSalvar(qual){
   const { item, erro } = lerFormulario();
   if (erro) return aviso(erro);
   const editando = !!editandoId;
+  aprenderCnpj(item.cnpj, item.local);   // corrigiu a lanchonete? não erra de novo
   salvarLancamento(item);
   rascunhoOCR = { confianca: null };
   editandoId = "";
-  fecharSheet("sheetRecibo");
+  voltar();
   aviso(editando ? "Lançamento atualizado." : "Lançamento salvo.");
 }
 
@@ -1248,7 +1834,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") fecharSheet(
   const file = e.target.files && e.target.files[0];
   e.target.value = "";
   if (!file) return;
-  if (!el("sheetRecibo")?.classList.contains("is-open")) abrirLancamento("scan");
+  if (!el("lancamento")?.classList.contains("is-active")) abrirLancamento("scan");
   modoSheet = "scan";
   editandoId = "";
   preencherFormulario(null, false);
@@ -1258,18 +1844,26 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") fecharSheet(
 /* busca do painel de acessos */
 el("q-ac")?.addEventListener("input", e => { qAc = e.target.value; pintarAc(); });
 
-function exportarCSV(){
-  const { ini, fim } = limitesPeriodo();
-  const lista = noPeriodo(lancamentos, ini, fim);
-  if (!lista.length) return aviso("Nada para exportar neste período.");
+/* filtro da tela de transações: digitar já filtra, sem botão de "buscar" */
+["fTexto", "fMin", "fMax"].forEach(id => el(id)?.addEventListener("input", lerFiltroDaTela));
+["fCategoria", "fSituacao", "fIni", "fFim"].forEach(id => el(id)?.addEventListener("change", lerFiltroDaTela));
+
+function baixarCSV(lista, sufixo){
   const csv = "﻿" + paraCSV(lista);
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `meu-bandejao-${ini}-a-${fim}.csv`;
+  a.download = `meu-bandejao-${sufixo}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
   aviso(`${lista.length} lançamento${lista.length === 1 ? "" : "s"} no arquivo.`);
+}
+
+function exportarCSV(){
+  const { ini, fim } = limitesPeriodo();
+  const lista = noPeriodo(lancamentos, ini, fim);
+  if (!lista.length) return aviso("Nada para exportar neste período.");
+  baixarCSV(lista, `${ini}-a-${fim}`);
 }
 
 function sair(){

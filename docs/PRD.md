@@ -1,7 +1,7 @@
-# PRD - Meu Vale FGV
+# PRD - Meu Bandejão
 
 ## 1. Visão Geral e Objetivo
-O **Meu Vale FGV** é um assistente digital focado no controle, gestão e conciliação dos gastos de vale-refeição, desenvolvido especificamente para mapear os consumos nos estabelecimentos Rei do Mate e Sapore. O objetivo é dar ao usuário total visibilidade sobre o quanto está gastando, o quanto está sendo subsidiado e o impacto disso no orçamento.
+O **Meu Bandejão** é um assistente digital focado no controle, gestão e conciliação dos gastos de vale-refeição, desenvolvido especificamente para mapear os consumos nos estabelecimentos Rei do Mate e Sapore. O objetivo é dar ao usuário total visibilidade sobre o quanto está gastando, o quanto está sendo subsidiado e o impacto disso no orçamento.
 O aplicativo nasce como uma Prova de Conceito (POC) para uso e controle estritamente pessoal, sem integração via API com sistemas da instituição.
 
 ## 2. Perfis de Usuário

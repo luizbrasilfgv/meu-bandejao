@@ -1,293 +1,656 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
-<meta name="theme-color" content="#0a0d12">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title><!-- APP --> Meu Vale FGV</title>
-
-<link rel="manifest" href="manifest.json?v=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070E19">
+<title>Meu Bandejão</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-
-<!-- Tema aplicado ANTES do CSS: sem isto a tela pisca branco ao abrir.
-     Este bloco precisa continuar aqui, inline, antes do <link>. -->
-<script>try{document.documentElement.setAttribute("data-tema",localStorage.getItem("app_tema")||"escuro")}catch(e){}</script>
-<link rel="stylesheet" href="styles.css?v=1">
-
-<!-- Service worker: faz o app abrir sem internet.
-     Se der problema, apague sw.js e este bloco — nada depende deles. -->
-<script>
-if ("serviceWorker" in navigator){
-  const tinha = !!navigator.serviceWorker.controller;
-  let recarregou = false;
-  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!tinha || recarregou) return;      // não recarrega na primeira instalação
-    recarregou = true; location.reload();
-  });
-}
-</script>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- ====================== GATE: LOGIN ====================== -->
-<div class="gate on" id="gate">
-  <div class="in">
-    <h1>Meu <em>Vale</em> FGV</h1>
-    <p>Controle pessoal do Vale-Refeição.</p>
-    <div id="gateLoad"><div class="spin"></div></div>
-    <div id="gateBtn" style="display:none">
-      <button class="btn g" id="btnLogin">
-        <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-2.7-.4-4H24v7.3h12.1c-.2 2-1.6 5-4.5 7l-.1.3 6.5 5 .5.1c4.1-3.8 6.6-9.4 6.6-15.7"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.4c-1.9 1.3-4.4 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-.3.1-6.7 5.2-.1.3C7.9 41 15.4 46 24 46"/><path fill="#FBBC05" d="M11.5 28.4c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4v-.3l-6.8-5.3-.2.1C2.9 17.1 2 20.4 2 24s.9 6.9 2.5 9.9z"/><path fill="#EB4335" d="M24 10.2c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 4.1 29.9 2 24 2 15.4 2 7.9 7 4.5 14.1l7 5.5c1.8-5.3 6.7-9.4 12.5-9.4"/></svg>
-        Entrar com Google
+<main class="app">
+
+  <div class="demo-flag">DADOS DE EXEMPLO · AGUARDANDO SEU RELATÓRIO DE CONSUMO</div>
+
+  <!-- ============================================================== HOME -->
+  <section class="screen is-active" id="home" data-screen="home">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand__mark">
+          <svg width="23" height="23" viewBox="0 0 64 64" fill="none" stroke="#06101F" stroke-width="5" stroke-linecap="round" aria-hidden="true"><rect x="7" y="15" width="50" height="34" rx="11"></rect><circle cx="23" cy="32" r="7"></circle><path d="M37 40v-6M44 40v-12M51 40v-18"></path></svg>
+        </span>
+        <div>
+          <div class="brand__name">Meu Bandejão</div>
+          <div class="brand__meta">AGOSTO 2026 · 18 LANÇAMENTOS</div>
+        </div>
+      </div>
+      <button class="icon-btn" type="button" aria-label="Notificações">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 8.5a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16s-2-1.5-2-6.5M10 18.5a2.2 2.2 0 0 0 4 0"></path></svg>
+        <span class="icon-btn__dot"></span>
       </button>
-      <div class="sub" id="offMsg" style="display:none"></div>
+    </header>
+
+    <!-- resumo do período -->
+    <section class="glass hero">
+      <div class="hero__head">
+        <span class="label">DESCONTO PREVISTO EM FOLHA <span class="label__ast">*</span></span>
+        <span class="delta">−8,4%</span>
+      </div>
+      <div class="hero__amount">R$&thinsp;412,80</div>
+      <p class="hero__note">01 a 31/08 · 18 lançamentos · soma dos consumos registrados.</p>
+
+      <div class="disclaimer">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6v.2"></path></svg>
+        <p>Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
+      </div>
+
+      <div class="split">
+        <div class="split__col">
+          <span class="label">1ª QUINZENA · 01–15</span>
+          <div class="split__val split__val--pending">—</div>
+        </div>
+        <div class="split__col">
+          <span class="label">2ª QUINZENA · 16–31</span>
+          <div class="split__val split__val--pending">—</div>
+        </div>
+      </div>
+
+      <div class="meter" aria-hidden="true">
+        <span class="fill" style="flex: 77"></span>
+        <span class="fill--amber" style="flex: 23"></span>
+      </div>
+      <div class="meter-legend">
+        <span>Sapore R$ 318,40</span>
+        <b>Rei do Mate R$ 94,40</b>
+      </div>
+    </section>
+
+    <!-- atalhos de lançamento -->
+    <div class="quick">
+      <button class="glass quick__btn" type="button" data-open="scan">
+        <span class="quick__icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06101F" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3.2L8.6 6h6.8l1.4 2.5H20v10H4z"></path><circle cx="12" cy="13.2" r="3.1"></circle></svg>
+        </span>
+        <span class="quick__label">Escanear recibo</span>
+        <span class="quick__hint">FOTO + LEITURA OCR</span>
+      </button>
+      <button class="glass quick__btn" type="button" data-open="manual">
+        <span class="quick__icon quick__icon--blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F4F9FF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        </span>
+        <span class="quick__label">Lançar manual</span>
+        <span class="quick__hint">DIGITAR VALOR E DATA</span>
+      </button>
     </div>
-  </div>
-</div>
 
-<!-- ====================== GATE: AGUARDANDO LIBERAÇÃO ====================== -->
-<div class="gate" id="espera">
-  <div class="in">
-    <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warn);margin-bottom:16px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    <h1 id="espTit">Aguardando liberação</h1>
-    <p id="espTxt"></p>
-    <div class="panel" style="text-align:left;margin-bottom:16px">
-      <h4>Pedido enviado por</h4>
-      <div style="font-size:var(--fs-2)" id="espMail"></div>
+    <div class="section-head">
+      <h2>Transações recentes</h2>
+      <button class="link" type="button">VER TUDO</button>
     </div>
-    <button class="btn" id="espRecarregar">Já fui liberado</button>
-    <button class="btn d" id="espSair">Entrar com outra conta</button>
-  </div>
-</div>
 
-<!-- ====================== APP ====================== -->
-<div class="app" id="app" style="display:none">
-
-  <header class="top">
-    <div class="top-row">
-      <div class="brand">Meu <em>Vale</em><small id="ctxLabel">Início</small></div>
-      <div class="topAcoes">
-        <button class="temaBtn" id="btnTema" aria-label="Mudar tema">
-          <svg class="ico-sol" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/></svg>
-          <svg class="ico-lua" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.3A8.5 8.5 0 1 1 9.7 3.5a6.8 6.8 0 0 0 10.8 10.8z"/></svg>
+    <ul class="tx-list">
+      <li>
+        <button class="glass tx" type="button">
+          <span class="avatar avatar--blue">SA</span>
+          <span class="tx__body">
+            <span class="tx__name">Sapore</span>
+            <span class="tx__meta">ALMOÇO EXECUTIVO · HOJE 12:34</span>
+          </span>
+          <span class="tx__side">
+            <span class="tx__value">28,90</span>
+            <span class="tx__status">CONFERIDO</span>
+          </span>
         </button>
-        <img class="avatar" id="avatar" alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
+      </li>
+      <li>
+        <button class="glass tx tx--pending" type="button">
+          <span class="avatar">RM</span>
+          <span class="tx__body">
+            <span class="tx__name">Rei do Mate</span>
+            <span class="tx__meta">CAFÉ + PÃO DE QUEIJO · HOJE 09:12</span>
+          </span>
+          <span class="tx__side">
+            <span class="tx__value">12,50</span>
+            <span class="tx__status tx__status--pending">REVISAR OCR</span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button class="glass tx" type="button">
+          <span class="avatar avatar--blue">SA</span>
+          <span class="tx__body">
+            <span class="tx__name">Sapore</span>
+            <span class="tx__meta">PRATO DO DIA · TER 12:20</span>
+          </span>
+          <span class="tx__side">
+            <span class="tx__value">26,40</span>
+            <span class="tx__status">CONFERIDO</span>
+          </span>
+        </button>
+      </li>
+      <li>
+        <button class="glass tx" type="button">
+          <span class="avatar">RM</span>
+          <span class="tx__body">
+            <span class="tx__name">Rei do Mate</span>
+            <span class="tx__meta">CHÁ MATE GELADO · SEG 15:40</span>
+          </span>
+          <span class="tx__side">
+            <span class="tx__value">9,00</span>
+            <span class="tx__status">CONFERIDO</span>
+          </span>
+        </button>
+      </li>
+    </ul>
+
+    <section class="glass wip">
+      <span class="wip__icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h7v12H4zM13 6h7v12h-7M8 12h8"></path></svg>
+      </span>
+      <div class="wip__body">
+        <div class="wip__title">Chega em duas linhas na folha</div>
+        <p class="wip__text">As lanchonetes enviam o consumo por quinzena, então o contracheque traz a linha da quinzena anterior somada à da atual. O app separa as duas para você comparar.</p>
+      </div>
+    </section>
+  </section>
+
+  <!-- ====================================================== ESTATÍSTICAS -->
+  <section class="screen" id="estatisticas" data-screen="estatisticas">
+
+    <div class="page-title">
+      <h1>Estatísticas</h1>
+      <span class="page-title__meta" id="periodoLabel">01 – 31 AGO 2026</span>
+    </div>
+
+    <!-- período: mês civil por padrão, com intervalo livre -->
+    <div class="period">
+      <div class="period__row" id="periodChips">
+        <button class="chip is-active" type="button" data-period="atual">Mês atual</button>
+        <button class="chip" type="button" data-period="anterior">Mês anterior</button>
+        <button class="chip" type="button" data-period="custom">
+          <svg class="chip__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3.5v3M16 3.5v3"></path></svg>
+          Escolher datas
+        </button>
+      </div>
+      <div class="range" id="rangeFields">
+        <label>
+          <span>DATA INÍCIO</span>
+          <input type="date" id="dataInicio" value="2026-08-01">
+        </label>
+        <label>
+          <span>DATA FIM</span>
+          <input type="date" id="dataFim" value="2026-08-31">
+        </label>
       </div>
     </div>
-  </header>
 
-  <!-- ===== TELA 1 — Lançamentos ===== -->
-  <main class="screen active" id="scr-inicio">
-    <div style="padding: 16px;">
-      <button class="btn p" data-abrir="sheet-ocr">Ler Nota Fiscal (OCR)</button>
-      <button class="btn" data-abrir="sheet-lancamento" style="margin-top: 8px;">Lançamento Manual</button>
-    </div>
-    <div class="busca">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.7" y2="16.7"/></svg>
-      <input id="q" type="search" placeholder="Buscar lançamentos…" autocomplete="off">
-      <button id="qLimpa" aria-label="Limpar" style="display:none">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div id="listaLancamentos"></div>
-  </main>
-
-  <!-- ===== TELA 2 - Relatórios ===== -->
-  <main class="screen" id="scr-relatorios">
-    <div id="unlockDashboard" class="panel" style="margin: 16px;">
-      <h4>Acesso Restrito</h4>
-      <p class="desc">Para calcular o desconto da Sapore, insira seu PIN para descriptografar seu Salário Base:</p>
-      <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <input type="password" id="inputPinDashboard" placeholder="PIN" inputmode="numeric" style="flex:1;">
-        <button class="btn" id="btnUnlockDashboard">Desbloquear</button>
+    <!-- ================= GRÁFICOS: alvo do Chart.js =================
+         Canvas prontos e responsivos. Nenhum dado é injetado aqui.
+         #chartGastos    — evolução no período (linha ou barra)
+         #chartPorLocal  — divisão Sapore x Rei do Mate (rosca)
+         Ao plotar, adicione .has-data no .chart-box para esconder o aviso.
+    ============================================================== -->
+    <section class="glass card">
+      <div class="card__head">
+        <span class="card__title">Evolução do gasto</span>
+        <div class="chart-tabs" id="chartTabs">
+          <button class="is-active" type="button" data-chart="dia">Por dia</button>
+          <button type="button" data-chart="mes">Por mês</button>
+        </div>
       </div>
-      <div class="sub" id="msgUnlockDashboard" style="color:var(--warn)"></div>
-    </div>
-    
-    <div id="contentDashboard" style="display:none;">
-      <div style="padding: 16px;">
-        <canvas id="graficoDashboard"></canvas>
+      <div class="chart-box" id="chartBox">
+        <canvas id="chartGastos" role="img" aria-label="Evolução do gasto no período"></canvas>
+        <div class="chart-empty">AGUARDANDO CHART.JS<br>#chartGastos</div>
       </div>
-      <div id="resumoDashboard" style="padding: 16px;"></div>
-    </div>
-  </main>
+    </section>
 
-  <!-- ===== TELA 3 — PERFIL ===== -->
-  <main class="screen" id="scr-perfil">
-    <div class="panel">
-      <h4>Conta</h4>
-      <div style="display:flex;align-items:center;gap:11px">
-        <img class="avatar" id="pAvatar" alt="" style="width:44px;height:44px">
-        <div><b id="pNome">—</b><div class="sub" style="margin:0" id="pMail">—</div></div>
+    <section class="glass card">
+      <div class="card__head">
+        <span class="card__title">Onde o crédito foi</span>
+        <span class="card__hint">#chartPorLocal</span>
       </div>
-      <div style="display:flex;gap:6px;margin-top:9px" id="pRoles"></div>
-    </div>
-
-    <div class="panel">
-      <h4>Configuração Financeira</h4>
-      <p class="desc">Defina um PIN para criptografar o seu salário. Nem o administrador terá acesso.</p>
-      <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <input type="password" id="inputPin" placeholder="PIN (ex: 1234)" inputmode="numeric" style="flex:1;">
-        <input type="number" id="inputSalario" placeholder="Salário Base" style="flex:2;">
+      <div class="chart-box chart-box--donut" id="chartBoxLocal">
+        <canvas id="chartPorLocal" role="img" aria-label="Divisão do gasto por lanchonete"></canvas>
+        <div class="chart-empty">ROSCA SAPORE × REI DO MATE</div>
       </div>
-      <button class="btn" id="btnSalvarSalario">Salvar com Criptografia</button>
-      <div class="sub" id="msgSalario" style="margin-top:8px;"></div>
+    </section>
+
+    <div class="grid-2">
+      <div class="glass stat">
+        <div class="stat__top"><span class="stat__dot stat__dot--blue"></span><span class="stat__name">Sapore</span></div>
+        <div class="stat__val">318,40</div>
+        <div class="stat__meta">11 REFEIÇÕES · 77%</div>
+      </div>
+      <div class="glass stat">
+        <div class="stat__top"><span class="stat__dot"></span><span class="stat__name">Rei do Mate</span></div>
+        <div class="stat__val">94,40</div>
+        <div class="stat__meta">7 LANCHES · 23%</div>
+      </div>
     </div>
 
-    <!-- Regras do RH (Admin Local) -->
-    <div class="panel" id="painelRegras">
-      <h4>Regras do RH (Admin)</h4>
-      <p class="desc" style="margin-bottom:8px;">Gerencie o histórico de descontos e limites da Sapore.</p>
-      <div id="listaPoliticas" style="margin-bottom:8px; display:flex; flex-direction:column; gap:4px;"></div>
-      <button class="btn p" data-abrir="sheet-politica">Nova Regra</button>
+    <div class="grid-2">
+      <div class="glass stat">
+        <span class="label">GASTO PROJETADO</span>
+        <div class="stat__val">468,00</div>
+        <div class="stat__meta">NO RITMO ATUAL</div>
+      </div>
+      <div class="glass stat">
+        <span class="label">MAIOR DIA</span>
+        <div class="stat__val">41,40</div>
+        <div class="stat__meta">19/08 · 2 LANÇAMENTOS</div>
+      </div>
     </div>
 
-    <!-- só admin -->
-    <div class="panel" id="painelAcesso" style="display:none">
-      <h4>Acessos <em class="role" id="pendBadge" style="display:none">0</em></h4>
-      <div class="sub" style="margin:0 0 10px" id="acPlacar">—</div>
-      <button class="btn" id="btnAcessos"><span id="btnAcessosTxt">Gerenciar acessos</span></button>
+    <div class="section-head">
+      <h2>Ritmo do período</h2>
+      <span class="card__hint">15 DE 23 DIAS ÚTEIS</span>
+    </div>
+    <section class="glass card">
+      <div class="proj">
+        <div>
+          <span class="label">MÉDIA / DIA ÚTIL</span>
+          <div class="stat__val">R$ 27,52</div>
+        </div>
+        <div class="proj__right">
+          <span class="label">LANÇAMENTOS</span>
+          <div class="stat__val">18</div>
+        </div>
+      </div>
+      <div class="meter" aria-hidden="true">
+        <span class="fill" style="flex: 65"></span>
+        <span style="flex: 35"></span>
+      </div>
+      <div class="meter-legend">
+        <span>65% do período percorrido</span>
+        <b>faltam 8 dias úteis</b>
+      </div>
+    </section>
+  </section>
+
+  <!-- ======================================================== CONCILIAÇÃO -->
+  <section class="screen" id="conciliar" data-screen="conciliar">
+
+    <div class="page-title">
+      <h1>Conciliação</h1>
+      <span class="page-title__meta">AGO 2026</span>
     </div>
 
-    <div class="panel">
-      <h4>Sessão</h4>
-      <button class="btn d" id="btnLogout">Sair</button>
-      <div class="sub" id="syncMsg">—</div>
-    </div>
-  </main>
+    <section class="glass card">
+      <div class="card__head">
+        <span class="card__title">App × contracheque</span>
+        <span class="tag tag--ghost">EM CONSTRUÇÃO</span>
+      </div>
+      <p class="wip__text" style="margin-top:12px">As lanchonetes enviam o consumo por quinzena. A folha traz a linha da quinzena anterior junto com a atual, então a comparação precisa ser feita quinzena por quinzena.</p>
 
-  <!-- ===== SUB-TELA — gerenciar acessos (só admin) ===== -->
-  <main class="screen" id="scr-acessos">
-    <button class="voltar" id="acVoltar">‹ Perfil</button>
-    <div class="busca">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.7" y2="16.7"/></svg>
-      <input id="q-ac" type="search" placeholder="Buscar por nome ou e-mail" autocomplete="off">
-    </div>
-    <div class="seg" id="segAc">
-      <button class="on" data-st="pendente">Pedidos <em id="cPend">0</em></button>
-      <button data-st="aprovado">Liberados <em id="cLib">0</em></button>
-      <button data-st="negado">Negados <em id="cNeg">0</em></button>
-    </div>
-    <div id="listaAc"></div>
-    <div class="loteBar" id="loteBar" style="display:none">
-      <span class="n" id="loteN">0 selecionados</span>
-      <div id="loteAcoes"></div>
-    </div>
-  </main>
+      <div class="quinz">
+        <div class="quinz__row quinz__row--head">
+          <span>QUINZENA</span><span>NO APP</span><span>NA FOLHA</span>
+        </div>
+        <div class="quinz__row">
+          <span>16–31 JUL</span><b class="quinz__pending">—</b><b class="quinz__pending">—</b>
+        </div>
+        <div class="quinz__row">
+          <span>01–15 AGO</span><b class="quinz__pending">—</b><b class="quinz__pending">—</b>
+        </div>
+        <div class="quinz__row">
+          <span>16–31 AGO</span><b class="quinz__pending">—</b><b class="quinz__pending">—</b>
+        </div>
+      </div>
+      <div class="meter-legend" style="margin-top:14px">
+        <span>Sem valores por quinzena até importar o relatório de consumo detalhado</span>
+      </div>
+    </section>
 
-  <!-- ===== NAVEGAÇÃO INFERIOR ===== -->
-  <nav class="nav" id="nav" role="tablist">
-    <button class="on" data-scr="inicio" role="tab">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.7" y2="16.7"/></svg>
-      Lançamentos
+    <div class="section-head"><h2>O que falta decidir</h2></div>
+    <ul class="rows">
+      <li class="glass row">
+        <span class="row__body">
+          <span class="row__label">De onde vem o valor da folha</span>
+          <span class="row__hint">DIGITADO POR VOCÊ, PDF DO HOLERITE OU RELATÓRIO DAS LANCHONETES</span>
+        </span>
+      </li>
+      <li class="glass row">
+        <span class="row__body">
+          <span class="row__label">Como quebrar as duas linhas do mês</span>
+          <span class="row__hint">A FOLHA SOMA QUINZENA ANTERIOR + ATUAL</span>
+        </span>
+      </li>
+      <li class="glass row">
+        <span class="row__body">
+          <span class="row__label">O que fazer com a divergência</span>
+          <span class="row__hint">REGISTRAR, CONTESTAR NO RH OU APENAS SINALIZAR</span>
+        </span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ PERFIL -->
+  <section class="screen" id="perfil" data-screen="perfil">
+
+    <div class="page-title">
+      <h1>Perfil</h1>
+      <span class="page-title__meta">FGV · UNIDADE BOTAFOGO</span>
+    </div>
+
+    <section class="glass card person">
+      <span class="person__avatar">RT</span>
+      <div class="person__body">
+        <div class="person__name">Rafael Teixeira</div>
+        <div class="person__meta">MATRÍCULA 204.881</div>
+        <div class="person__meta">rafael.teixeira@fgv.br</div>
+      </div>
+    </section>
+
+    <div class="grid-2">
+      <div class="glass stat">
+        <span class="label">TETO MENSAL</span>
+        <div class="stat__val stat__val--pending">a informar</div>
+        <div class="stat__meta">VALOR FIXO POR MÊS</div>
+      </div>
+      <div class="glass stat">
+        <span class="label">ENVIO À FOLHA</span>
+        <div class="stat__val">2×</div>
+        <div class="stat__meta">POR QUINZENA</div>
+      </div>
+    </div>
+
+    <div class="section-head"><h2>Preferências</h2></div>
+    <ul class="rows">
+      <li class="glass row">
+        <span class="row__body">
+          <span class="row__label">Alerta de limite</span>
+          <span class="row__hint">AVISA AO PASSAR DO VALOR QUE VOCÊ DEFINIR</span>
+        </span>
+        <button class="switch is-on" type="button" role="switch" aria-checked="true" aria-label="Alerta de limite"><span></span></button>
+      </li>
+      <li class="glass row">
+        <span class="row__body">
+          <span class="row__label">Lembrete de recibo</span>
+          <span class="row__hint">TODO DIA ÚTIL ÀS 14H</span>
+        </span>
+        <button class="switch" type="button" role="switch" aria-checked="false" aria-label="Lembrete de recibo"><span></span></button>
+      </li>
+      <li class="glass row">
+        <span class="row__body">
+          <span class="row__label">Identificação na lanchonete</span>
+          <span class="row__hint">CRACHÁ / MATRÍCULA · DESCONTO DIRETO EM FOLHA</span>
+        </span>
+      </li>
+      <li class="glass row">
+        <span class="row__body">
+          <span class="row__label">Exportar lançamentos</span>
+          <span class="row__hint">CSV DO PERÍODO SELECIONADO</span>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C9CB2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20h14M12 4v11M7.5 10.5 12 15l4.5-4.5"></path></svg>
+      </li>
+      <li class="glass row">
+        <span class="row__body">
+          <span class="row__label">Sair da conta</span>
+          <span class="row__hint">204.881</span>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C9CB2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6H6v12h8M17 9l3 3-3 3M20 12h-8"></path></svg>
+      </li>
+    </ul>
+  </section>
+
+  <!-- =========================================================== DÚVIDAS -->
+  <section class="screen" id="duvidas" data-screen="duvidas">
+
+    <div class="page-title">
+      <h1>Dúvidas gerais</h1>
+      <span class="page-title__meta">COMO OS NÚMEROS SÃO FEITOS</span>
+    </div>
+
+    <section class="glass card">
+      <div class="card__head">
+        <span class="card__title">Memória de cálculo</span>
+        <span class="card__hint">O QUE O APP FAZ HOJE</span>
+      </div>
+      <div class="formula">
+        <div class="formula__line"><span>Gasto do período</span><b>soma dos consumos registrados</b></div>
+        <div class="formula__line"><span>Quinzenas</span><b>01–15 e 16 ao último dia, como as lanchonetes enviam</b></div>
+        <div class="formula__line"><span>Média / dia útil</span><b>gasto do período ÷ dias úteis com consumo</b></div>
+        <div class="formula__line formula__line--result"><span>Desconto em folha</span><b>estimativa = soma dos consumos, sem os 0,15%</b></div>
+      </div>
+      <p class="wip__text" style="margin-top:14px">Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
+    </section>
+
+    <section class="glass wip">
+      <span class="wip__icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"></rect><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"></path></svg>
+      </span>
+      <div class="wip__body">
+        <div class="wip__title">Salário não entra no app <span class="tag tag--ghost">LGPD</span></div>
+        <p class="wip__text">O app não pede nem armazena o seu salário base. Por isso a taxa de 0,15% por refeição fica fora da conta e o valor mostrado é sempre uma estimativa por baixo.</p>
+      </div>
+    </section>
+
+    <div class="section-head"><h2>Perguntas frequentes</h2></div>
+    <div class="faq">
+      <details class="glass faq__item">
+        <summary>Por que o valor é só uma estimativa?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>Por que aparecem duas linhas no meu contracheque?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>As lanchonetes enviam o consumo à FGV por quinzena. No fechamento da folha, a rubrica de refeitório soma a quinzena anterior com a atual. O app mostra as duas separadas.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>O app precisa do meu salário?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Não. Nem pede nem guarda. É justamente por isso que a taxa de 0,15% por refeição não entra no cálculo.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>O que o número grande da Home mostra?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>A soma dos consumos registrados no período — a base do desconto que cai na folha, ainda sem a taxa por refeição.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>De onde vem o valor de cada lançamento?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Da leitura automática do cupom (OCR): valor total, data e hora, lanchonete, itens, matrícula, CNPJ e número do cupom. Você confere antes de salvar, e pode lançar manualmente quando o cupom estiver ilegível.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>Qual período os números consideram?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Por padrão o mês civil, do dia 1 ao último dia. Em Estatísticas você pode escolher datas de início e fim.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>O que significa “conferido” e “revisar OCR”?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Conferido é o lançamento que você validou. Revisar OCR marca leituras com baixa confiança, que ainda precisam do seu ok.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>E a comparação com o holerite?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Está em construção. A aba Conciliar lista o que falta decidir: de onde vem o valor do contracheque, o nível da comparação e o que fazer com a divergência.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>Meus dados ficam onde?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Os recibos ficam no seu dispositivo. Nada é enviado para o RH sem a sua ação.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- FAB: atalho permanente para a câmera -->
+  <button class="fab" type="button" data-open="scan">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#06101F" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3.2L8.6 6h6.8l1.4 2.5H20v10H4z"></path><circle cx="12" cy="13.2" r="3.1"></circle></svg>
+    Escanear recibo
+  </button>
+
+  <nav class="tabbar" aria-label="Navegação principal">
+    <button class="is-active" type="button" data-nav="home">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg>
+      <span>INÍCIO</span>
     </button>
-    <button data-scr="relatorios" role="tab">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-      Relatórios
+    <button type="button" data-nav="estatisticas">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19V9M12 19V5M19 19v-6"></path></svg>
+      <span>ESTATÍSTICAS</span>
     </button>
-    <button data-scr="perfil" role="tab">
-      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Perfil
-      <em class="badge red pulsa" id="navBadgePerfil" style="display:none">0</em>
+    <button type="button" data-nav="conciliar" aria-label="Conciliar (em construção)">
+      <span class="soon"></span>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="m8.5 12.2 2.4 2.4 4.6-4.8"></path></svg>
+      <span>CONCILIAR</span>
+    </button>
+    <button type="button" data-nav="perfil">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"></circle><path d="M5 20c1.6-3.4 4-5 7-5s5.4 1.6 7 5"></path></svg>
+      <span>PERFIL</span>
+    </button>
+    <button type="button" data-nav="duvidas">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.3M12 16.6v.2"></path></svg>
+      <span>DÚVIDAS</span>
     </button>
   </nav>
+</main>
+
+<!-- ============================================ MODAL: NOVO LANÇAMENTO -->
+<div class="sheet" id="sheetRecibo" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet__panel">
+    <div class="sheet__grip"></div>
+
+    <div class="sheet__head">
+      <div>
+        <div class="sheet__title" id="sheetTitle">Novo recibo</div>
+        <p class="sheet__sub" id="sheetSub">A leitura é feita a partir da foto do cupom.</p>
+      </div>
+      <button class="icon-btn icon-btn--square" type="button" data-close aria-label="Fechar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </button>
+    </div>
+
+    <!-- PASSO 1 — captura -->
+    <div class="step is-active" id="stepScan">
+      <div class="capture">
+        <span class="capture__glow"></span>
+        <span class="capture__corner capture__corner--tl"></span>
+        <span class="capture__corner capture__corner--tr"></span>
+        <span class="capture__corner capture__corner--bl"></span>
+        <span class="capture__corner capture__corner--br"></span>
+        <span class="capture__text">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#FFB84D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3.2L8.6 6h6.8l1.4 2.5H20v10H4z"></path><circle cx="12" cy="13.2" r="3.1"></circle></svg>
+          <b>Enquadre o cupom fiscal</b>
+          <small>Valor, data e estabelecimento são preenchidos automaticamente. Você revisa antes de salvar.</small>
+        </span>
+      </div>
+
+      <div class="actions">
+        <label class="btn" for="inputCamera">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06101F" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3.2L8.6 6h6.8l1.4 2.5H20v10H4z"></path><circle cx="12" cy="13.2" r="3.1"></circle></svg>
+          Escanear recibo
+        </label>
+        <input class="hidden-input" type="file" id="inputCamera" accept="image/*" capture="environment">
+
+        <label class="btn btn--ghost" for="inputGaleria">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="3"></rect><path d="m6 16 3.5-4 3 3 2.5-3 3 4"></path></svg>
+          Escolher da galeria
+        </label>
+        <input class="hidden-input" type="file" id="inputGaleria" accept="image/*">
+
+        <button class="link-btn link-btn--center" type="button" data-open="manual">Preencher manualmente</button>
+      </div>
+    </div>
+
+    <!-- PASSO 2 — revisão (OCR) ou digitação (manual) -->
+    <div class="step" id="stepReview">
+      <div class="ocr-bar" id="ocrBar">
+        <span class="ocr-bar__icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ADE9E" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.2 4.2L19 7"></path></svg>
+        </span>
+        <span>
+          <b>Cupom lido</b>
+          <small>Confira os campos antes de salvar. Toque para editar.</small>
+        </span>
+      </div>
+
+      <div class="thumb-row" id="thumbRow">
+        <span class="thumb" id="thumbPreview">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8C9CB2" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg>
+        </span>
+        <span class="thumb-row__body">
+          <span class="thumb-row__name">cupom-19-08.jpg</span>
+          <span class="thumb-row__meta">LEITURA EM 1,2 S · CONFIANÇA 92%</span>
+        </span>
+        <button class="link-btn" type="button" data-step="scan">Trocar foto</button>
+      </div>
+
+      <form class="fields" onsubmit="return false">
+        <div class="field-row">
+          <label class="field">
+            <span class="field__label">VALOR</span>
+            <input type="text" inputmode="decimal" id="campoValor" value="28,90" aria-label="Valor">
+          </label>
+          <label class="field field--check" id="campoDataWrap">
+            <span class="field__label">DATA E HORA <em>CONFIRA</em></span>
+            <input type="text" id="campoData" value="19/08/2026 12:34" aria-label="Data e hora">
+          </label>
+        </div>
+
+        <div class="field">
+          <span class="field__label">ESTABELECIMENTO</span>
+          <div class="toggle-group" role="radiogroup" aria-label="Estabelecimento">
+            <button class="is-active" type="button" role="radio" aria-checked="true">Sapore</button>
+            <button type="button" role="radio" aria-checked="false">Rei do Mate</button>
+          </div>
+        </div>
+
+        <label class="field">
+          <span class="field__label">CATEGORIA</span>
+          <select aria-label="Categoria">
+            <option>Refeição — almoço</option>
+            <option>Refeição — jantar</option>
+            <option>Café / lanche</option>
+            <option>Outro</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">ITENS CONSUMIDOS</span>
+          <input type="text" id="campoItens" value="Prato executivo, suco 300ml" aria-label="Itens consumidos">
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span class="field__label">MATRÍCULA NO CUPOM</span>
+            <input type="text" id="campoMatricula" value="204.881" aria-label="Matrícula">
+          </label>
+          <label class="field">
+            <span class="field__label">Nº DO CUPOM</span>
+            <input type="text" id="campoCupom" value="018342" aria-label="Número do cupom">
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field__label">CNPJ</span>
+          <input type="text" id="campoCnpj" value="" placeholder="lido do cupom" aria-label="CNPJ">
+        </label>
+
+        <label class="field">
+          <span class="field__label">OBSERVAÇÃO (OPCIONAL)</span>
+          <input type="text" placeholder="ex: almoço com o time" aria-label="Observação">
+        </label>
+      </form>
+
+      <div class="sheet__footer">
+        <button class="btn btn--ghost" type="button" data-close>Descartar</button>
+        <button class="btn" type="button" data-close>Salvar lançamento</button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- ====================== JANELAS DE BAIXO ====================== -->
-<div class="scrim" id="scrim"></div>
+<!-- Chart.js — descomente para plotar em #chartGastos e #chartPorLocal
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  document.getElementById('chartBox').classList.add('has-data');
+  new Chart(document.getElementById('chartGastos'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [] }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+</script>
+-->
 
-<section class="sheet" id="sheet-ocr" role="dialog" aria-modal="true">
-  <div class="grip"></div>
-  <h3>Ler Nota Fiscal</h3>
-  <div style="padding: 16px;">
-    <p class="desc">A imagem não será salva. O processamento acontece no seu aparelho.</p>
-    <input type="file" accept="image/*" capture="environment" id="fileOcr" style="margin-bottom: 16px; width: 100%;">
-    <div id="ocrFeedback" class="sub" style="text-align:center; display:none;">
-      <div class="spin" style="margin: 0 auto 8px;"></div>
-      Processando...
-    </div>
-  </div>
-</section>
-
-<section class="sheet" id="sheet-lancamento" role="dialog" aria-modal="true">
-  <div class="grip"></div>
-  <h3 id="lbl-form-lancamento">Novo Lançamento</h3>
-  <div style="padding: 16px; display:flex; flex-direction:column; gap:12px;">
-    <input type="hidden" id="f-id">
-    <div>
-      <label>Data</label>
-      <input type="date" id="f-data" style="width:100%">
-    </div>
-    <div>
-      <label>Estabelecimento</label>
-      <select id="f-local" style="width:100%">
-        <option value="Rei do Mate">Rei do Mate</option>
-        <option value="Sapore">Sapore</option>
-      </select>
-    </div>
-    <div>
-      <label>Tipo de Refeição</label>
-      <select id="f-tipo" style="width:100%">
-        <option value="Refeição a Quilo">Refeição a Quilo</option>
-        <option value="Prato Feito">Prato Feito</option>
-        <option value="Custo Zero">Custo Zero</option>
-      </select>
-    </div>
-    <div id="div-peso">
-      <label>Peso (Kg)</label>
-      <input type="number" step="0.001" id="f-peso" style="width:100%">
-    </div>
-    <div>
-      <label>Valor Total (R$)</label>
-      <input type="number" step="0.01" id="f-valor" style="width:100%">
-    </div>
-    <button class="btn p" id="btnSalvarL">Salvar Lançamento</button>
-  </div>
-</section>
-
-<section class="sheet" id="sheet-politica" role="dialog" aria-modal="true">
-  <div class="grip"></div>
-  <h3>Nova Política Sapore</h3>
-  <div style="padding: 16px; display:flex; flex-direction:column; gap:12px;">
-    <p class="desc">A regra passa a valer para as despesas a partir desta data.</p>
-    <div>
-      <label>Data de Início</label>
-      <input type="date" id="pol-data" style="width:100%">
-    </div>
-    <div>
-      <label>Desconto do Salário Base (%)</label>
-      <input type="number" step="0.01" id="pol-taxa" placeholder="ex: 0.15" style="width:100%">
-    </div>
-    <div>
-      <label>Subsídio Limite (R$)</label>
-      <input type="number" step="0.01" id="pol-limite" placeholder="ex: 31.59" style="width:100%">
-    </div>
-    <button class="btn p" id="btnSalvarPolitica">Salvar Política</button>
-  </div>
-</section>
-
-<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTit">
-  <div class="grip"></div>
-  <h3 id="shTit"></h3>
-  <p class="desc" id="shDesc"></p>
-  <div id="shCorpo"></div>
-  <button class="btn p" id="shBtn" style="margin-top:14px">Ação principal</button>
-</section>
-
-<section class="sheet" id="opSheet" role="dialog" aria-modal="true" aria-labelledby="opTit">
-  <div class="grip"></div>
-  <h3 id="opTit">Opções</h3>
-  <div id="opLista"></div>
-</section>
-
-<div class="toast" id="toast"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="data.js?v=1"></script>
-<script type="module" src="app.js?v=1"></script>
+<script src="app.js"></script>
 </body>
 </html>

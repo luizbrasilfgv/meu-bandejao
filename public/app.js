@@ -17,12 +17,12 @@
    Este bloco é PÚBLICO por natureza: ele identifica o projeto,
    não autoriza nada. A segurança está nas Firestore Rules. */
 const firebaseConfig = {
-  apiKey:            "COLE_AQUI",
-  authDomain:        "SEU-PROJETO.firebaseapp.com",
-  projectId:         "SEU-PROJETO",
-  storageBucket:     "SEU-PROJETO.firebasestorage.app",
-  messagingSenderId: "COLE_AQUI",
-  appId:             "COLE_AQUI"
+  projectId: "meu-vale",
+  appId: "1:567187664062:web:6b7df83b6931e01de042ef",
+  storageBucket: "meu-vale.firebasestorage.app",
+  apiKey: "AIzaSyDWMwgfxXkjr-ATvG-cY0cL0GJEaZWXnFA",
+  authDomain: "meu-vale.firebaseapp.com",
+  messagingSenderId: "567187664062"
 };
 
 /* Falso = MODO LOCAL: entra sem Google e salva só no aparelho.
@@ -47,7 +47,12 @@ let usuario  = null;
 let papeis   = [];
 let situacao = "pendente";
 let despesas = [];         // <<< o estado do SEU app
-let sessaoSalario = null;
+
+let politicasSapore = [{ id: "inicial", data: "2020-01-01", taxa: 0.15, limite: 31.59 }];
+try {
+  const ps = localStorage.getItem(NS + "_politicas");
+  if (ps) politicasSapore = JSON.parse(ps);
+} catch(e) {}
 let db = null, auth = null, salvarDoc = null;
 
 const el   = id => document.getElementById(id);
@@ -64,52 +69,7 @@ const chave = s => String(s ?? "").normalize("NFD")
    testar sem navegador e o único que sobrevive a uma reescrita.
    =========================================================== */
 
-/* ---------- CRIPTOGRAFIA (Web Crypto API) ---------- */
-const ENC_ITER = 100000;
-async function gerarChave(pin, salt) {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw", enc.encode(pin), { name: "PBKDF2" }, false, ["deriveBits", "deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: salt, iterations: ENC_ITER, hash: "SHA-256" },
-    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
-  );
-}
 
-async function encriptar(texto, pin) {
-  if (!texto) return "";
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const chave = await gerarChave(pin, salt);
-  const enc = new TextEncoder();
-  const buffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, chave, enc.encode(texto));
-  
-  const comp = new Uint8Array(salt.length + iv.length + buffer.byteLength);
-  comp.set(salt, 0);
-  comp.set(iv, salt.length);
-  comp.set(new Uint8Array(buffer), salt.length + iv.length);
-  return btoa(String.fromCharCode(...comp));
-}
-
-async function desencriptar(cifraB64, pin) {
-  if (!cifraB64) return "";
-  try {
-    const dec = atob(cifraB64);
-    const comp = new Uint8Array(dec.length);
-    for (let i = 0; i < dec.length; i++) comp[i] = dec.charCodeAt(i);
-    
-    const salt = comp.slice(0, 16);
-    const iv = comp.slice(16, 28);
-    const data = comp.slice(28);
-    
-    const chave = await gerarChave(pin, salt);
-    const buffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, chave, data);
-    return new TextDecoder().decode(buffer);
-  } catch (e) {
-    throw new Error("PIN incorreto ou dados corrompidos.");
-  }
-}
 
 /* ---------- DOMÍNIO: DESPESAS ---------- */
 function salvarDespesa(item) {
@@ -126,6 +86,19 @@ function excluirDespesa(id) {
   despesas = despesas.filter(d => d.id !== id);
   pintar();
   agendarSalvar();
+}
+
+function salvarPoliticas() {
+  politicasSapore.sort((a,b) => new Date(a.data) - new Date(b.data));
+  try { localStorage.setItem(NS + "_politicas", JSON.stringify(politicasSapore)); } catch(e){}
+}
+
+function obterPolitica(dataIso) {
+  let ativa = politicasSapore[0];
+  for (let p of politicasSapore) {
+    if (dataIso >= p.data) ativa = p;
+  }
+  return ativa;
 }
 
 
@@ -170,128 +143,76 @@ catch(e){ aplicarTema("escuro", false); }
 
 /* ===========================================================
    4. RENDER  <<< ESCREVA AQUI
-   Funções pintarX() que redesenham a partir do estado.
-   Mudou estado, chame a pintura. Nada observa por você.
    =========================================================== */
 function pintar(){ pintarLista(); pintarRelatorios(); }
 
 function pintarLista(){
-  const alvo = el("listaLancamentos"); if (!alvo) return;
-  const q = el("q") ? el("q").value : "";
-  const vis = despesas.filter(i => (i.local + i.tipo).toLowerCase().includes(q.toLowerCase()));
-
-  alvo.innerHTML = vis.length ? vis.map(cartao).join("")
-    : `<div class="vazio"><b>Nada por aqui</b><span>Cadastre um lançamento.</span></div>`;
-}
-
-function cartao(i){
-  return `<article class="card" style="margin-bottom:8px; padding:12px; background:var(--glass); border:1px solid var(--stroke);">
-    <div style="display:flex; justify-content:space-between;">
-      <div><b>${esc(i.local)}</b> <span class="sub">${esc(i.data)}</span></div>
-      <b style="color:var(--ok)">R$ ${Number(i.valor).toFixed(2)}</b>
-    </div>
-    <div class="sub" style="margin-top:4px;">${esc(i.tipo)} ${i.peso ? '- ' + i.peso + 'kg' : ''}</div>
-    <button class="btn d" style="margin-top:8px; padding:4px 8px;" data-excluir="${esc(i.id)}">Excluir</button>
-  </article>`;
-}
-
-let chartInstancia = null;
-function pintarRelatorios(){
-  const ctx = el("graficoDashboard");
-  const resumo = el("resumoDashboard");
-  const divUnlock = el("unlockDashboard");
-  const divContent = el("contentDashboard");
+  const alvo = document.querySelector(".tx-list"); if (!alvo) return;
   
-  if (!ctx || !resumo) return;
-
-  if (sessaoSalario === null) {
-    if (divUnlock) divUnlock.style.display = "block";
-    if (divContent) divContent.style.display = "none";
+  if (!despesas.length) {
+    alvo.innerHTML = `<li><div style="padding: 16px; text-align: center; color: var(--text-muted);">Nenhum lançamento no período.</div></li>`;
     return;
   }
   
-  if (divUnlock) divUnlock.style.display = "none";
-  if (divContent) divContent.style.display = "block";
-
-  // Agrupar por data e por local
-  const dados = {};
-  let totalConsumido = 0;
-  let totalDescontado = 0;
-  let totalPeso = 0;
-  
-  despesas.forEach(d => {
-    if (!dados[d.data]) dados[d.data] = { sapore: 0, rei: 0, peso: 0 };
-    if (d.local === "Sapore") {
-      dados[d.data].sapore += Number(d.valor);
-    } else if (d.local === "Rei do Mate") {
-      dados[d.data].rei += Number(d.valor);
-    }
-    dados[d.data].peso += Number(d.peso);
-    
-    totalConsumido += Number(d.valor);
-    totalPeso += Number(d.peso);
-  });
-
-  const labels = Object.keys(dados).sort();
-  const dataConsumido = [];
-  const dataDescontado = [];
-  const dataPesos = [];
-
-  labels.forEach(l => {
-    const dia = dados[l];
-    const valorDia = dia.sapore + dia.rei;
-    
-    let descDia = 0;
-    if (dia.rei > 0) descDia += dia.rei; // Integral
-    if (dia.sapore > 0) {
-      descDia += (sessaoSalario * 0.0015) + Math.max(0, dia.sapore - 31.59);
-    }
-    
-    dataConsumido.push(valorDia);
-    dataDescontado.push(descDia);
-    dataPesos.push(dia.peso);
-    totalDescontado += descDia;
-  });
-
-  if (chartInstancia) chartInstancia.destroy();
-  
-  chartInstancia = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels.map(l => l.split('-').reverse().join('/')),
-      datasets: [
-        { label: 'Consumido (R$)', data: dataConsumido, borderColor: '#ok', yAxisID: 'y' },
-        { label: 'Desconto (R$)', data: dataDescontado, borderColor: '#warn', yAxisID: 'y' },
-        { label: 'Consumo (Kg)', data: dataPesos, borderColor: '#ccc', borderDash: [5, 5], yAxisID: 'y1' }
-      ]
-    },
-    options: {
-      responsive: true,
-      interaction: { mode: 'index', intersect: false },
-      scales: {
-        y: { type: 'linear', display: true, position: 'left' },
-        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
-      }
-    }
-  });
-
-  const dias = labels.length || 1;
-  const mediaGastos = (totalConsumido / dias).toFixed(2);
-  const mediaDesconto = (totalDescontado / dias).toFixed(2);
-  
-  resumo.innerHTML = `
-    <div class="panel">
-      <h4>Resumo do Período</h4>
-      <p><b>Total Consumido:</b> R$ ${totalConsumido.toFixed(2)}</p>
-      <p><b>Total Descontado em Folha:</b> R$ ${totalDescontado.toFixed(2)}</p>
-      <p><b>Economia / Subsídio:</b> R$ ${(totalConsumido - totalDescontado).toFixed(2)}</p>
-      <p><b>Média Diária Consumo:</b> R$ ${mediaGastos} | <b>Desconto:</b> R$ ${mediaDesconto}</p>
-      <p><b>Total em Quilos:</b> ${totalPeso.toFixed(3)} Kg</p>
-    </div>
-  `;
+  alvo.innerHTML = despesas.map(i => {
+    const isSapore = i.local === "Sapore";
+    const sigla = isSapore ? "SA" : "RM";
+    const colorClass = isSapore ? "avatar--blue" : "";
+    return `<li>
+      <button class="glass tx" type="button" data-abrir="sheetRecibo" onclick="/* TODO: abrir modal de edição */">
+        <span class="avatar ${colorClass}">${sigla}</span>
+        <span class="tx__body">
+          <span class="tx__name">${esc(i.local)}</span>
+          <span class="tx__meta">${esc(i.tipo)} · ${esc(i.data.split('-').reverse().join('/'))}</span>
+        </span>
+        <span class="tx__side">
+          <span class="tx__value">${Number(i.valor).toFixed(2).replace('.', ',')}</span>
+          <span class="tx__status">CONFERIDO</span>
+        </span>
+        <button class="btn mini" style="margin-left: 8px; padding: 4px;" data-excluir="${esc(i.id)}">X</button>
+      </button>
+    </li>`;
+  }).join("");
 }
 
-function badge(){} // vazio por enquanto
+function pintarRelatorios(){
+  // Calcular totais
+  let totalConsumido = 0;
+  let totalDescontado = 0;
+  let saporeVal = 0;
+  let reiVal = 0;
+
+  despesas.forEach(d => {
+    const valor = Number(d.valor);
+    totalConsumido += valor;
+    
+    if (d.local === "Sapore") {
+      saporeVal += valor;
+      const pol = obterPolitica(d.data);
+      totalDescontado += Math.max(0, valor - pol.limite);
+    } else {
+      reiVal += valor;
+      totalDescontado += valor;
+    }
+  });
+
+  // Atualizar Dashboard
+  const elDesconto = document.querySelector(".hero__amount");
+  if (elDesconto) elDesconto.innerHTML = `R$&thinsp;${totalDescontado.toFixed(2).replace('.', ',')}`;
+
+  const legendaSapore = document.querySelector(".meter-legend span");
+  const legendaRei = document.querySelector(".meter-legend b");
+  if (legendaSapore) legendaSapore.textContent = `Sapore R$ ${saporeVal.toFixed(2).replace('.', ',')}`;
+  if (legendaRei) legendaRei.textContent = `Rei do Mate R$ ${reiVal.toFixed(2).replace('.', ',')}`;
+  
+  const fills = document.querySelectorAll(".meter .fill, .meter .fill--amber");
+  if (fills.length >= 2 && totalConsumido > 0) {
+    fills[0].style.flex = (saporeVal / totalConsumido) * 100;
+    fills[1].style.flex = (reiVal / totalConsumido) * 100;
+  }
+}
+
+function pintarPoliticas() {} // Não tem tela no novo design por enquanto
 
 
 /* ===========================================================
@@ -340,22 +261,33 @@ function aviso(msg){
    continuar funcionando sem religar nada.
    =========================================================== */
 document.addEventListener("click", e => {
-  const tab = e.target.closest("[data-scr]");
-  if (tab){
-    document.querySelectorAll(".nav button").forEach(b => b.classList.toggle("on", b === tab));
+  const aba = e.target.closest("[data-aba]");
+  if (aba){
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    aba.classList.add("active");
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-    el("scr-" + tab.dataset.scr)?.classList.add("active");
-    el("ctxLabel").textContent =
-      { inicio:"Lançamentos", relatorios:"Relatórios", perfil:"Perfil" }[tab.dataset.scr] || "";
+    el("scr-" + aba.dataset.aba).classList.add("active");
+    el("ctxLabel").textContent = aba.querySelector("span").textContent;
     window.scrollTo({ top:0 });
     return;
   }
+  const abrir = e.target.closest("[data-abrir]");
+  if (abrir){ e.stopPropagation(); return abrirSheet(abrir.dataset.abrir); }
   
+  const alt = e.target.closest("[data-alt]");
+  if (alt){ e.stopPropagation(); return alternar(alt.dataset.alt); }
+
   const exc = e.target.closest("[data-excluir]");
   if (exc){ e.stopPropagation(); return excluirDespesa(exc.dataset.excluir); }
-
-  const ab = e.target.closest("[data-abrir]");
-  if (ab) return abrirSheet(ab.dataset.abrir);
+  
+  const excpol = e.target.closest("[data-excpol]");
+  if (excpol){ 
+    e.stopPropagation(); 
+    politicasSapore = politicasSapore.filter(p => p.id !== excpol.dataset.excpol);
+    salvarPoliticas();
+    pintar();
+    return;
+  }
 
   // ---- painel de acessos (admin) ----
   const ap = e.target.closest("[data-aprovar]"); if (ap) return decidir(ap.dataset.aprovar, "aprovado");
@@ -423,48 +355,24 @@ if (fileOcr) {
   });
 }
 
-// --- Criptografia de Salário ---
-const btnSalvarSalario = el("btnSalvarSalario");
-if (btnSalvarSalario) {
-  btnSalvarSalario.addEventListener("click", async () => {
-    const pin = el("inputPin").value;
-    const salario = el("inputSalario").value;
-    if (!pin || !salario) return aviso("Preencha o PIN e o Salário.");
-    
-    try {
-      const cifra = await encriptar(salario, pin);
-      localStorage.setItem(NS + "_salario", cifra);
-      el("msgSalario").textContent = "Salário criptografado com sucesso!";
-      el("msgSalario").style.color = "var(--ok)";
-      
-      // Se acabou de salvar, já desbloqueia para uso imediato no Dashboard
-      sessaoSalario = Number(salario);
-    } catch (err) {
-      aviso("Erro ao encriptar.");
-    }
-  });
-}
 
-// --- Desbloqueio Dashboard ---
-const btnUnlockDashboard = el("btnUnlockDashboard");
-if (btnUnlockDashboard) {
-  btnUnlockDashboard.addEventListener("click", async () => {
-    const pin = el("inputPinDashboard").value;
-    const msg = el("msgUnlockDashboard");
-    if (!pin) return msg.textContent = "Digite o PIN.";
+
+// --- Políticas do Admin ---
+const btnSalvarPolitica = el("btnSalvarPolitica");
+if (btnSalvarPolitica) {
+  btnSalvarPolitica.addEventListener("click", () => {
+    const data = el("pol-data").value;
+    const taxa = parseFloat(el("pol-taxa").value);
+    const limite = parseFloat(el("pol-limite").value);
     
-    const cifra = localStorage.getItem(NS + "_salario");
-    if (!cifra) return msg.textContent = "Você ainda não salvou o salário no Perfil.";
+    if (!data || isNaN(taxa) || isNaN(limite)) return aviso("Preencha todos os campos.");
     
-    try {
-      msg.textContent = "Descriptografando...";
-      const sal = await desencriptar(cifra, pin);
-      sessaoSalario = Number(sal);
-      el("inputPinDashboard").value = "";
-      pintarRelatorios();
-    } catch(err) {
-      msg.textContent = "PIN incorreto ou dados corrompidos.";
-    }
+    const id = Date.now().toString(36);
+    politicasSapore.push({ id, data, taxa, limite });
+    salvarPoliticas();
+    fecharSheet();
+    pintar();
+    aviso("Política salva.");
   });
 }
 
@@ -744,3 +652,151 @@ async function decidirLote(novo){
 
 
 iniciar();
+
+/* ===========================================================
+   9. INTERAÇÕES DE UI (DESIGN CLAUDE)
+   =========================================================== */
+(function () {
+  /* ---------------------------------------------------- navegação de telas */
+  var screens = document.querySelectorAll('.screen');
+  var tabs = document.querySelectorAll('.tabbar [data-nav]');
+
+  function go(name) {
+    var exists = document.querySelector('.screen[data-screen="' + name + '"]');
+    if (!exists) return;
+    screens.forEach(function (s) { s.classList.toggle('is-active', s.dataset.screen === name); });
+    tabs.forEach(function (t) { t.classList.toggle('is-active', t.dataset.nav === name); });
+    window.scrollTo(0, 0);
+  }
+
+  document.querySelectorAll('[data-nav]').forEach(function (el) {
+    el.addEventListener('click', function () { go(el.dataset.nav); });
+  });
+
+  /* --------------------------------------------------- modal de lançamento */
+  var sheet = document.getElementById('sheetRecibo');
+  var stepScan = document.getElementById('stepScan');
+  var stepReview = document.getElementById('stepReview');
+  var sheetTitle = document.getElementById('sheetTitle');
+  var sheetSub = document.getElementById('sheetSub');
+  var ocrBar = document.getElementById('ocrBar');
+  var thumbRow = document.getElementById('thumbRow');
+
+  function showStep(name) {
+    var review = name !== 'scan';
+    stepScan.classList.toggle('is-active', !review);
+    stepReview.classList.toggle('is-active', review);
+    sheetSub.textContent = review
+      ? 'Revise, corrija o que estiver errado e salve.'
+      : 'A leitura é feita a partir da foto do cupom.';
+  }
+
+  function openSheet(mode) {
+    var manual = mode === 'manual';
+    sheetTitle.textContent = manual ? 'Lançamento manual' : 'Novo recibo';
+    ocrBar.hidden = manual;
+    thumbRow.hidden = manual;
+    document.getElementById('campoDataWrap').classList.toggle('field--check', !manual);
+    document.getElementById('campoDataWrap').querySelector('em').hidden = manual;
+    if (manual) {
+      document.getElementById('campoValor').value = '';
+      document.getElementById('campoData').value = '';
+      ['campoItens', 'campoMatricula', 'campoCupom', 'campoCnpj'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      sheetSub.textContent = 'Digite os dados do lançamento.';
+    }
+    sheet.classList.add('is-open');
+    showStep(manual ? 'review' : 'scan');
+    if (manual) sheetSub.textContent = 'Digite os dados do lançamento.';
+  }
+
+  function closeSheet() { sheet.classList.remove('is-open'); }
+
+  document.querySelectorAll('[data-open]').forEach(function (el) {
+    el.addEventListener('click', function () { openSheet(el.dataset.open); });
+  });
+
+  sheet.addEventListener('click', function (e) {
+    if (e.target === sheet || e.target.closest('[data-close]')) { closeSheet(); return; }
+    var step = e.target.closest('[data-step]');
+    if (step) showStep(step.dataset.step);
+    
+    // Conectar botão de salvar do Claude com o nosso salvarDespesa
+    if (e.target.textContent === 'Salvar lançamento') {
+      const dataStr = document.getElementById('campoData').value.split(' ')[0]; // "19/08/2026"
+      const dataIso = dataStr.split('/').reverse().join('-'); // "2026-08-19"
+      
+      const btnAtivo = document.querySelector('.toggle-group button.is-active');
+      const local = btnAtivo ? btnAtivo.textContent : "Sapore";
+      
+      let valorStr = document.getElementById('campoValor').value.replace(',', '.');
+      const valor = parseFloat(valorStr) || 0;
+      
+      if (!dataIso || !valor) return aviso("Preencha data e valor.");
+      
+      salvarDespesa({
+        id: "",
+        data: dataIso,
+        local: local,
+        tipo: document.querySelector('select[aria-label="Categoria"]').value,
+        peso: 0,
+        valor: valor
+      });
+      
+      closeSheet();
+      aviso("Lançamento salvo com sucesso!");
+    }
+  });
+  
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+
+  /* ------------------------------------------------- período (estatísticas) */
+  var chips = document.getElementById('periodChips');
+  var range = document.getElementById('rangeFields');
+  var label = document.getElementById('periodoLabel');
+
+  chips.addEventListener('click', function (e) {
+    var btn = e.target.closest('.chip');
+    if (!btn) return;
+    chips.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('is-active'); });
+    btn.classList.add('is-active');
+    range.classList.toggle('is-open', btn.dataset.period === 'custom');
+    if (btn.dataset.period === 'atual') label.textContent = '01 – 31 AGO 2026';
+    if (btn.dataset.period === 'anterior') label.textContent = '01 – 31 JUL 2026';
+  });
+
+  function fmt(value) {
+    var p = value.split('-');
+    return p[2] + '/' + p[1];
+  }
+  ['dataInicio', 'dataFim'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () {
+      var a = document.getElementById('dataInicio').value;
+      var b = document.getElementById('dataFim').value;
+      if (a && b) label.textContent = fmt(a) + ' – ' + fmt(b);
+    });
+  });
+
+  /* --------------------------------- grupos de seleção (abas, toggle simples) */
+  document.querySelectorAll('.switch').forEach(function (sw) {
+    sw.addEventListener('click', function () {
+      var on = sw.classList.toggle('is-on');
+      sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  });
+
+  document.querySelectorAll('.chart-tabs, .toggle-group').forEach(function (group) {
+    group.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      group.querySelectorAll('button').forEach(function (b) {
+        b.classList.remove('is-active');
+        if (b.hasAttribute('aria-checked')) b.setAttribute('aria-checked', 'false');
+      });
+      btn.classList.add('is-active');
+      if (btn.hasAttribute('aria-checked')) btn.setAttribute('aria-checked', 'true');
+    });
+  });
+})();

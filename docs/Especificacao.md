@@ -1,4 +1,4 @@
-# Especificação Funcional e Técnica - Meu Vale FGV
+# Especificação Funcional e Técnica - Meu Bandejão
 
 ## 1. Autenticação e Segurança
 *   **Login Único:** Acesso realizado exclusivamente via Google OAuth (e-mail do Google).

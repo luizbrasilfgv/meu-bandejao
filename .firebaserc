@@ -4,12 +4,7 @@
   },
   "targets": {
     "meu-vale": {
-      "hosting": {
-        "app": [
-          "meu-bandejao",
-          "meu-vale"
-        ]
-      }
+      "hosting": {}
     }
   },
   "etags": {}

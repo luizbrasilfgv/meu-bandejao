@@ -16,24 +16,36 @@ service cloud.firestore {
     function eu(uid)   { return logado() && request.auth.uid == uid; }
     function meuDoc()  { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
 
-    // admin pode vir pelo array roles OU pelo campo string papel.
-    // A string existe porque criar array pelo console é chato:
-    // é o atalho para promover o primeiro administrador na mão.
-    function ehAdmin() { return logado() && (meuDoc().roles.hasAny(['admin'])
-                                             || meuDoc().get('papel','') == 'admin'); }
-    function aprovado(){ return logado() && meuDoc().status == 'aprovado'; }
+    /* Os donos do app. Resolve o ovo e a galinha da portaria: sem isto, o
+       primeiro usuário nasce pendente e não existe ninguém para aprová-lo,
+       e a saída era editar o documento à mão no console.
+       E-mail aqui NÃO é segredo: quem protege é a comparação com o token
+       verificado do Google, não o sigilo da lista. */
+    function donos() { return ['luiz.brasil@fgv.br', 'luizbrasil.rj@gmail.com']; }
+    function ehDono() { return logado() && request.auth.token.get('email','') in donos(); }
+
+    // admin pode vir por ser dono, pelo array roles OU pelo campo string papel.
+    // ehDono() vem primeiro de propósito: ele não depende do documento existir.
+    function ehAdmin() { return ehDono() || (logado() && (meuDoc().roles.hasAny(['admin'])
+                                                          || meuDoc().get('papel','') == 'admin')); }
+    function aprovado(){ return ehDono() || (logado() && meuDoc().status == 'aprovado'); }
 
     match /users/{uid} {
       allow get:  if eu(uid) || ehAdmin();
       allow list: if ehAdmin();                       // ninguém enumera a base
 
-      // A portaria começa aqui: entra sempre pendente, sempre member.
+      // A portaria começa aqui: quem não é dono entra pendente e member.
+      // O dono nasce aprovado e admin — é o único jeito de a portaria ter
+      // um porteiro no primeiro acesso.
       allow create: if eu(uid)
-                    && request.resource.data.roles == ['member']
-                    && request.resource.data.status == 'pendente'
-                    && !('papel' in request.resource.data)
                     && request.resource.data.keys().hasOnly(
-                         ['nome','email','foto','roles','status','criadoEm']);
+                         ['nome','email','foto','roles','status','criadoEm','papel'])
+                    && request.resource.data.roles is list
+                    && (ehDono()
+                          ? request.resource.data.status == 'aprovado'
+                          : (request.resource.data.roles == ['member']
+                             && request.resource.data.status == 'pendente'
+                             && !('papel' in request.resource.data)));
 
       // O dono mexe só nas preferências e nos dados vindos do Google.
       // roles, status e papel saem idênticos aos que entraram.

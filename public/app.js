@@ -42,6 +42,15 @@ const TAXA_PADRAO = 0.15;    // % do salário base por ida — guardada, NÃO ap
 const LOCAIS = ["Sapore", "Rei do Mate"];
 const CATEGORIAS = ["Refeição — almoço", "Refeição — jantar", "Café / lanche", "Outro"];
 
+/* Donos do app: entram já aprovados e administradores, sem passar pela
+   portaria. Sem isto, o primeiro usuário nasce pendente e não existe
+   ninguém para liberá-lo — o ovo e a galinha que obrigava a editar o
+   documento à mão no console.
+   Esta lista é COSMÉTICA: quem garante é a função donos() do
+   firestore.rules. Mudou aqui, mude lá. */
+const DONOS = ["luiz.brasil@fgv.br", "luizbrasil.rj@gmail.com"];
+const ehDono = email => DONOS.includes(String(email || "").trim().toLowerCase());
+
 /* ---------- estado global ---------- */
 let usuario     = null;
 let papeis      = [];
@@ -1312,16 +1321,28 @@ async function iniciar(){
     if (!u) return mostrarGate(true);
 
     const refU = doc(db, "users", u.uid);
+    const dono = ehDono(u.email);
     let snap;
     try {
       snap = await getDoc(refU);
       if (!snap.exists()){
-        // PORTARIA: entra pendente. Só o admin promove — as Rules garantem.
+        // PORTARIA: quem não é dono entra pendente. Só o admin promove — as
+        // Rules garantem que ninguém se promove sozinho.
         await setDoc(refU, {
           nome: u.displayName || "", email: u.email || "", foto: u.photoURL || "",
-          roles: ["member"], status: "pendente", criadoEm: serverTimestamp()
+          roles: dono ? ["member", "admin"] : ["member"],
+          status: dono ? "aprovado" : "pendente",
+          criadoEm: serverTimestamp(),
+          ...(dono ? { papel: "admin" } : {})
         });
         snap = await getDoc(refU);
+      } else if (dono){
+        // conserta um documento de dono que ficou pendente numa versão antiga
+        const d = snap.data() || {};
+        if (d.status !== "aprovado" || d.papel !== "admin"){
+          await updateDoc(refU, { status: "aprovado", papel: "admin" });
+          snap = await getDoc(refU);
+        }
       }
     } catch(err){
       mostrarGate(true);

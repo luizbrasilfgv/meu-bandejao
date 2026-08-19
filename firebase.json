@@ -3,107 +3,59 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "hosting": {
+    "//0": "UM site só: meu-bandejao.web.app. O site meu-vale é o padrão do projeto e não pode ser apagado (o ID do projeto é meu-vale), então ele fica desativado — servindo nada.",
+    "site": "meu-bandejao",
+    "public": "public",
 
-  "//A": "DOIS SITES no mesmo projeto: meu-bandejao (endereço novo) e meu-vale (o antigo, que",
-  "//B": "continua no ar para não quebrar quem já salvou o link). Um target de hosting aceita",
-  "//C": "UM site só, então não dá para apontar um target para os dois: são duas entradas.",
-  "//D": "ATENÇÃO: os dois blocos têm que ficar IDÊNTICOS fora do 'site'. Mexeu num, mexa no outro.",
-  "hosting": [
-    {
-      "site": "meu-bandejao",
-      "public": "public",
+    "//": "só o que está em public/ sobe. *.md fica de fora de propósito.",
+    "ignore": ["**/.*", "**/node_modules/**", "**/*.md"],
 
-      "//": "só o que está em public/ sobe. *.md fica de fora de propósito.",
-      "ignore": ["**/.*", "**/node_modules/**", "**/*.md"],
+    "cleanUrls": true,
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
 
-      "cleanUrls": true,
-      "rewrites": [{ "source": "**", "destination": "/index.html" }],
-
-      "//1": "A ORDEM IMPORTA: quando dois padrões casam, vale o último.",
-      "//2": "Começa fechando tudo em no-cache e depois libera só o que é versionado por URL.",
-      "//3": "O contrário disso é o erro clássico: uma regra **/*.js pega o sw.js e você perde o app.",
-      "headers": [
-        {
-          "//": "padrão seguro: nada em cache. Pega o / e o index.html, que apontam pra versão nova.",
-          "source": "**",
-          "headers": [
-            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-          ]
-        },
-        {
-          "//": "assets versionados na URL (app.js?v=N) podem ficar um ano. O !(sw) salva o service worker.",
-          "source": "**/!(sw).@(js|css)",
-          "headers": [
-            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-          ]
-        },
-        {
-          "//": "ícones mudam pouco e não têm ?v=. Uma semana é um meio-termo honesto.",
-          "source": "**/*.@(png|svg|ico|webp)",
-          "headers": [
-            { "key": "Cache-Control", "value": "public, max-age=604800" }
-          ]
-        },
-        {
-          "//": "por último para vencer as regras acima: são eles que anunciam a versão nova.",
-          "source": "/@(sw.js|manifest.json)",
-          "headers": [
-            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-            { "key": "Service-Worker-Allowed", "value": "/" }
-          ]
-        },
-        {
-          "//": "chaves diferentes de Cache-Control: não conflitam com as regras acima.",
-          "source": "**",
-          "headers": [
-            { "key": "X-Content-Type-Options", "value": "nosniff" },
-            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-            { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
-          ]
-        }
-      ]
-    },
-    {
-      "site": "meu-vale",
-      "public": "public",
-      "ignore": ["**/.*", "**/node_modules/**", "**/*.md"],
-      "cleanUrls": true,
-      "rewrites": [{ "source": "**", "destination": "/index.html" }],
-      "headers": [
-        {
-          "source": "**",
-          "headers": [
-            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-          ]
-        },
-        {
-          "source": "**/!(sw).@(js|css)",
-          "headers": [
-            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-          ]
-        },
-        {
-          "source": "**/*.@(png|svg|ico|webp)",
-          "headers": [
-            { "key": "Cache-Control", "value": "public, max-age=604800" }
-          ]
-        },
-        {
-          "source": "/@(sw.js|manifest.json)",
-          "headers": [
-            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-            { "key": "Service-Worker-Allowed", "value": "/" }
-          ]
-        },
-        {
-          "source": "**",
-          "headers": [
-            { "key": "X-Content-Type-Options", "value": "nosniff" },
-            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-            { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
-          ]
-        }
-      ]
-    }
-  ]
+    "//1": "A ORDEM IMPORTA: quando dois padrões casam, vale o último.",
+    "//2": "Começa fechando tudo em no-cache e depois libera só o que é versionado por URL.",
+    "//3": "O contrário disso é o erro clássico: uma regra **/*.js pega o sw.js e você perde o app.",
+    "headers": [
+      {
+        "//": "padrão seguro: nada em cache. Pega o / e o index.html, que apontam pra versão nova.",
+        "source": "**",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "//": "assets versionados na URL (app.js?v=N) podem ficar um ano. O !(sw) salva o service worker.",
+        "source": "**/!(sw).@(js|css)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "//": "ícones mudam pouco e não têm ?v=. Uma semana é um meio-termo honesto.",
+        "source": "**/*.@(png|svg|ico|webp)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=604800" }
+        ]
+      },
+      {
+        "//": "por último para vencer as regras acima: são eles que anunciam a versão nova.",
+        "source": "/@(sw.js|manifest.json)",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+          { "key": "Service-Worker-Allowed", "value": "/" }
+        ]
+      },
+      {
+        "//": "chaves diferentes de Cache-Control: não conflitam com as regras acima.",
+        "source": "**",
+        "headers": [
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
+        ]
+      }
+    ]
+  }
 }

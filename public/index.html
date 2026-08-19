@@ -14,7 +14,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -485,6 +485,30 @@
       </div>
     </div>
 
+    <!-- PASSO 1.5 — lendo: a foto grande na tela, com a varredura e o progresso -->
+    <div class="step" id="stepLendo">
+      <div class="lendo">
+        <div class="lendo__foto">
+          <img id="lendoImg" alt="Cupom sendo lido">
+          <span class="lendo__varredura" aria-hidden="true"></span>
+        </div>
+
+        <div class="lendo__topo">
+          <span class="lendo__fase" id="lendoFase">Preparando a imagem</span>
+          <span class="lendo__pct" id="lendoPct">0%</span>
+        </div>
+        <div class="lendo__barra" aria-hidden="true"><span id="lendoFill"></span></div>
+
+        <ul class="lendo__passos">
+          <li id="pQR"><span class="lendo__marca"></span><span class="txt">Procurando o QR code da nota</span></li>
+          <li id="pOCR"><span class="lendo__marca"></span><span class="txt">Lendo o texto do cupom</span></li>
+          <li id="pCampos"><span class="lendo__marca"></span><span class="txt">Preenchendo os campos</span></li>
+        </ul>
+
+        <p class="lendo__nota">A foto é lida aqui no aparelho e descartada. Não é enviada nem armazenada.</p>
+      </div>
+    </div>
+
     <!-- PASSO 2 — revisão (leitura) ou digitação (manual) -->
     <div class="step" id="stepReview">
       <div class="ocr-bar" id="ocrBar">
@@ -774,6 +798,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

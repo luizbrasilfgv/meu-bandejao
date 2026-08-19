@@ -826,10 +826,41 @@ function voltar(){
 }
 
 function mostrarPasso(passo){
-  const revisao = passo !== "scan";
-  el("stepScan")?.classList.toggle("is-active", !revisao);
-  el("stepReview")?.classList.toggle("is-active", revisao);
+  el("stepScan")?.classList.toggle("is-active", passo === "scan");
+  el("stepLendo")?.classList.toggle("is-active", passo === "lendo");
+  el("stepReview")?.classList.toggle("is-active", passo === "review");
 }
+
+/* ---------- estado visual da leitura do cupom ---------- */
+function leituraProgresso(pct, fase){
+  const f = el("lendoFill");
+  if (f) f.style.width = clamp0a100(pct) + "%";
+  poe("lendoPct", clamp0a100(pct) + "%");
+  if (fase) poe("lendoFase", fase);
+}
+const clamp0a100 = n => Math.max(0, Math.min(100, Math.round(n)));
+
+function leituraPasso(id, estado, texto){
+  const li = el(id);
+  if (!li) return;
+  li.classList.remove("is-doing", "is-done", "is-fail");
+  if (estado) li.classList.add("is-" + estado);
+  if (texto){
+    const t = li.querySelector(".txt");
+    if (t) t.textContent = texto;
+  }
+}
+
+function leituraReset(url){
+  const img = el("lendoImg");
+  if (img && url) img.src = url;
+  leituraProgresso(0, "Preparando a imagem");
+  leituraPasso("pQR", "", "Procurando o QR code da nota");
+  leituraPasso("pOCR", "", "Lendo o texto do cupom");
+  leituraPasso("pCampos", "", "Preenchendo os campos");
+}
+
+const espera = ms => new Promise(r => setTimeout(r, ms));
 
 function abrirLancamento(modo, id){
   modoSheet = modo;
@@ -1120,8 +1151,9 @@ async function lerCupom(file){
   if (icone) icone.hidden = true;
 
   poe("thumbNome", file.name || "cupom.jpg");
-  poe("thumbMeta", "PREPARANDO A IMAGEM…");
-  mostrarPasso("review");
+  poe("thumbMeta", "");
+  leituraReset(url);
+  mostrarPasso("lendo");
   const ocrBar = el("ocrBar"), thumb = el("thumbRow");
   if (ocrBar) ocrBar.hidden = false;
   if (thumb)  thumb.hidden  = false;
@@ -1132,24 +1164,33 @@ async function lerCupom(file){
   let campos = { valor: null, dataHora: "", local: "", itens: "",
                  matricula: "", numeroCupom: "", cnpj: "" };
   try {
+    leituraProgresso(8, "Preparando a imagem");
     const tela = await prepararImagem(file);
+    leituraProgresso(16, "Preparando a imagem");
 
     // ---- 1. QR: rápido e exato ----
-    poe("thumbMeta", "PROCURANDO O QR CODE…");
+    leituraPasso("pQR", "doing");
+    leituraProgresso(22, "Procurando o QR code");
     fonteQR = await lerQR(tela);
     const doQR = camposDoQR(fonteQR);
     campos = mesclarCampos(campos, doQR);
+    leituraPasso("pQR", fonteQR ? "done" : "fail",
+      fonteQR ? "QR code lido — dados exatos da nota" : "Sem QR legível nesta foto");
+    leituraProgresso(30, fonteQR ? "QR code lido" : "Vamos pelo texto");
 
     // ---- 2. OCR: preenche o que o QR não deu ----
     const faltaAlgo = campos.valor == null || !campos.dataHora || !campos.itens
                       || !campos.matricula || !campos.local;
     if (faltaAlgo){
-      poe("thumbMeta", "BAIXANDO O LEITOR (SÓ NA PRIMEIRA VEZ)…");
+      leituraPasso("pOCR", "doing", "Baixando o leitor (só na primeira vez)");
+      leituraProgresso(34, "Preparando o leitor de texto");
       await carregarTesseract();
+      leituraPasso("pOCR", "doing", "Lendo o texto do cupom");
       worker = await Tesseract.createWorker("por", 1, {
         logger: m => {
-          if (m.status === "recognizing text") poe("thumbMeta", "LENDO O TEXTO… " + Math.round((m.progress || 0) * 100) + "%");
-          else if (m.status) poe("thumbMeta", String(m.status).toUpperCase() + "…");
+          if (m.status === "recognizing text"){
+            leituraProgresso(38 + (m.progress || 0) * 52, "Lendo o texto do cupom");
+          }
         }
       });
       // PSM 4 = uma coluna de texto com tamanhos variados: o formato do cupom.
@@ -1161,7 +1202,7 @@ async function lerCupom(file){
 
       // Não achou o valor? Segunda tentativa tratando o cupom como bloco único.
       if (doOCR.valor == null && campos.valor == null){
-        poe("thumbMeta", "SEGUNDA TENTATIVA…");
+        leituraPasso("pOCR", "doing", "Segunda tentativa de leitura");
         await worker.setParameters({ tessedit_pageseg_mode: "6" });
         const ret2 = await worker.recognize(tela);
         const doOCR2 = extrairCampos(ret2.data.text || "");
@@ -1175,7 +1216,12 @@ async function lerCupom(file){
       }
       // o QR ganha de qualquer coisa que o OCR ache
       campos = mesclarCampos(doOCR, campos);
+      leituraPasso("pOCR", "done", `Texto lido — confiança ${conf}%`);
+    } else {
+      leituraPasso("pOCR", "done", "O QR já trouxe tudo — nem precisou do texto");
     }
+    leituraProgresso(92, "Preenchendo os campos");
+    leituraPasso("pCampos", "doing");
 
     if (!campos.local) campos.local = localPorCnpj(campos.cnpj);
 
@@ -1208,13 +1254,23 @@ async function lerCupom(file){
       wrap.classList.toggle("field--check", baixa);
       const em = wrap.querySelector("em"); if (em) em.hidden = !baixa;
     }
+
+    leituraPasso("pCampos", "done", `${achou.length} de 7 campos preenchidos`);
+    leituraProgresso(100, faltou.length ? "Confira o que faltou" : "Cupom lido inteiro");
+    await espera(650);            // deixa o 100% aparecer antes de trocar de tela
+    mostrarPasso("review");
+
     aviso(faltou.length
       ? `Leu ${achou.length ? achou.map(k => rotulos[k]).join(", ") : "quase nada"}. Faltou ${faltou.map(k => rotulos[k]).join(", ")} — preencha à mão.`
       : "Cupom lido inteiro. Confira e salve.");
   } catch(err){
     console.error(err);
     poe("thumbMeta", "LEITURA FALHOU · PREENCHA À MÃO");
+    leituraPasso("pCampos", "fail", "Não deu para ler — preencha à mão");
+    leituraProgresso(100, "Leitura falhou");
     mostrarDiagnostico(fonteQR, textoOCR);
+    await espera(500);
+    mostrarPasso("review");
     aviso("Não deu para ler o cupom (" + (err.message || "erro no leitor") + "). Preencha à mão.");
     const d = el("campoData");
     if (d && !d.value) d.value = paraBR(agoraIso());
@@ -1300,11 +1356,19 @@ function extrairCampos(texto){
                 matricula: "", numeroCupom: "", cnpj: "" };
 
   /* --- a chave de acesso impressa vale mais que tudo: 44 dígitos em grupos
-         de 4, que o OCR acerta bem. Dela saem CNPJ e nº do cupom. --- */
-  const mChave = t.match(/(?:\d[\d\s.]{50,70}\d)/g) || [];
-  for (const bloco of mChave){
-    const d = bloco.replace(/\D/g, "");
-    if (d.length === 44){ Object.assign(out, camposDaChave(d)); break; }
+         de 4, que o OCR acerta bem. Dela saem CNPJ e nº do cupom.
+         O cupom quebra a chave em duas linhas quando é estreito, então
+         procuramos primeiro na região depois do rótulo, sem os separadores. --- */
+  const iCh = t.search(/chave\s*de\s*acesso|chave/i);
+  if (iCh >= 0){
+    const d = t.slice(iCh, iCh + 260).replace(/\D/g, "");
+    if (d.length >= 44) Object.assign(out, camposDaChave(d.slice(0, 44)));
+  }
+  if (!out.cnpj){
+    for (const bloco of (t.match(/\d[\d\s.]{48,74}\d/g) || [])){
+      const d = bloco.replace(/\D/g, "");
+      if (d.length === 44){ Object.assign(out, camposDaChave(d)); break; }
+    }
   }
 
   /* --- valor: "A PAGAR" manda, depois "TOTAL", depois o maior valor limpo --- */
@@ -1371,8 +1435,9 @@ function extrairCampos(texto){
     .map(l => l
       .replace(/^\s*\d{1,3}\s*[-.)]?\s+/, "")               // nº do item
       .replace(/^\s*\d{5,}\s*/, "")                          // código do produto
-      .replace(/(?:R\$\s*)?\b[\d.]*\d[.,]\d{2}\b/g, "")      // valores
+      .replace(/(?:R\$\s*)?\b[\d.]*\d[.,]\d{2,}\b/g, "")     // valores (com dígito extra do OCR)
       .replace(/\b(un|kg|g|ml|l|pc|cx|dz)\b/gi, "")          // unidades soltas
+      .replace(/[\s\d.,]+$/, "")                             // sobra numérica no fim
       .replace(/\s{2,}/g, " ").trim())
     .filter(l => l.length > 2 && /[a-zà-ú]{3}/i.test(l))
     .slice(0, 6)

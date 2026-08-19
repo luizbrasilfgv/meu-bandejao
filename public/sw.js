@@ -6,7 +6,7 @@
 
 /* SUBA ESTE NÚMERO A CADA PUBLICAÇÃO. É ele que descarta o
    cache antigo — sem isso a pessoa fica presa numa versão. */
-const VERSAO = "app-v4";
+const VERSAO = "app-v5";
 
 /* O casco: sem estes arquivos o app não abre. */
 const CASCO = [
@@ -56,9 +56,13 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  /* ignoreSearch:true faz o ?v=N dos assets não invalidar o cache */
+  /* Casamento EXATO, com a query. O kit usava ignoreSearch:true, o que fazia
+     o ?v=N dos assets não invalidar nada — ou seja, anulava o versionamento e
+     obrigava a recarregar duas vezes para receber código novo. Como o app.js
+     e o styles.css são versionados na URL, o certo é o contrário: ?v=5 não
+     acha ?v=4 no cache, vai à rede e pega o novo na primeira recarga. */
   e.respondWith(
-    caches.match(req, { ignoreSearch:true }).then(cacheado => {
+    caches.match(req).then(cacheado => {
       const rede = fetch(req)
         .then(r => { if (r && r.status === 200) guardar(req, r.clone()); return r; })
         .catch(() => cacheado);

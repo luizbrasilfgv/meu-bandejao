@@ -161,3 +161,19 @@ outro, e só quando alguém troca.
 
 **Contador calculado dentro do laço que desenha a lista.** Se houver filtro ou busca, o número
 passa a contar só o visível e mente. Use uma função só, que alimente o número e a lista.
+
+**Remendo cego em UI Nova (O caso Meu Bandejão).** Se você receber um novo design (HTML/CSS)
+com uma estrutura de IDs e classes diferente do seu `app.js` legado, **nunca tente colocar "band-aids"
+(null checks) no Javascript**. O design é o contrato visual. Se o design usa `.is-open` e seu
+script espera `.on`, reescreva a lógica de UI do script para obedecer ao novo design, ao invés
+de desfigurar o HTML.
+
+**Rules bloqueando o próprio onboarding.** Cuidado ao fazer "bypasses" temporários na lógica de
+Portaria (ex: forçar `status: "aprovado"` no código). Se o seu `firestore.rules` exige que
+usuários novos nasçam como `pendente`, essa pequena alteração fará com que o banco rejeite as
+escritas com `PERMISSION_DENIED` invisíveis e silenciosos. A regra de banco tem que andar de
+mãos dadas com a lógica de portaria.
+
+**Subdomínios fantasma no Firebase.** Criar um novo "App da Web" ou alterar o nome de exibição
+no painel do Firebase **não** altera a URL do Hosting (`.web.app`). Para ter uma URL nova
+dentro do mesmo projeto, o comando correto é `firebase hosting:sites:create novo-nome`.

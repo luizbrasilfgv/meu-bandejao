@@ -14,6 +14,9 @@ Nunca amarre eventos (`onclick`, `addEventListener`) diretamente aos elementos q
 - Use `nav` para a barra inferior, `header` para cabeçalhos.
 - Não crie "div soup" (divs desnecessárias). O Flexbox e o Grid lidam muito bem com os elementos diretamente.
 
+### Reconciliação de Handoff (Design x Lógica)
+Quando um protótipo/UI é entregue pronto (seja por um designer ou IA), a marcação dele (IDs, classes) torna-se a nova fonte da verdade. É sempre mais rápido e limpo adaptar o JS para amarrar os novos elementos do que destruir a semântica do HTML/CSS para forçar encaixe com variáveis legadas (ex: forçar um `<div id="toast">` se o design previu outro formato de notificação).
+
 ---
 
 ## 2. Formulários (Forms) e Inputs
@@ -75,3 +78,10 @@ Ao navegar entre as abas (`.screen`), garanta que os modais abertos na tela ante
 
 ### Limpeza de Dados Locais
 Use o `NS` (Namespace) como prefixo de todo `localStorage` usado para rascunhos, para que diferentes apps deste mesmo formato, mesmo sob a mesma URL (ex: localhost), não apaguem ou baguncem os dados um do outro.
+
+---
+
+## 5. Infraestrutura e PWA
+
+### Cuidado Extremo com Manifest e PWA
+O prompt de "Instalar Aplicativo" no Android (Chrome) não funciona se o `manifest.json` apontar apenas para ícones `.svg`. Ele exige estritamente a declaração de PNGs nos tamanhos `192x192` e `512x512` (sendo o 512 `maskable`). E o Service Worker não é lido por telepatia: ele **deve** ser registrado na `<head>` do `index.html`. Sem essas regras estritas, a regra invariável de PWA do `PADRAO.md` falhará silenciosamente e o usuário nunca verá a opção de instalar o app nativo.

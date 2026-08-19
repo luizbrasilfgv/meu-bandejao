@@ -4,7 +4,10 @@ rules_version = '2';
    TODA a segurança do app mora aqui. O firebaseConfig no
    app.js é público: ele identifica o projeto, não autoriza.
    Princípio: o cliente NÃO PODE SE PROMOVER.
-   Troque <COLECAO> pelo nome da sua coleção de dados.
+
+   As coleções abaixo têm que casar com as constantes do
+   app.js (COL_LANC e COL_POL). Divergir aqui não quebra a
+   tela: só impede silenciosamente de gravar.
    =========================================================== */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -24,31 +27,46 @@ service cloud.firestore {
       allow get:  if eu(uid) || ehAdmin();
       allow list: if ehAdmin();                       // ninguém enumera a base
 
+      // A portaria começa aqui: entra sempre pendente, sempre member.
       allow create: if eu(uid)
                     && request.resource.data.roles == ['member']
                     && request.resource.data.status == 'pendente'
                     && !('papel' in request.resource.data)
                     && request.resource.data.keys().hasOnly(
-                         ['nome','email','foto','roles','status','criadoEm','tema']);
+                         ['nome','email','foto','roles','status','criadoEm']);
 
+      // O dono mexe só nas preferências e nos dados vindos do Google.
+      // roles, status e papel saem idênticos aos que entraram.
       allow update: if ehAdmin()
                     || (eu(uid)
                         && request.resource.data.roles  == resource.data.roles
                         && request.resource.data.status == resource.data.status
-                        && request.resource.data.get('papel', '')
-                             == resource.data.get('papel', ''));
+                        && request.resource.data.get('papel','') == resource.data.get('papel','')
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['prefs','nome','email','foto']));
 
       allow delete: if ehAdmin();
     }
 
-    // O estado de cada usuário. Só grava quem já foi aprovado.
-    // Valide SEMPRE forma e tamanho, senão qualquer aprovado
-    // pode inflar o seu banco.
-    match /dados/{uid} {
+    // Os lançamentos de cada pessoa: um documento por uid.
+    // Só grava quem já foi aprovado. Valide SEMPRE forma e tamanho,
+    // senão qualquer aprovado pode inflar o seu banco.
+    match /lancamentos/{uid} {
       allow read:  if eu(uid) || ehAdmin();
       allow write: if eu(uid) && aprovado()
-                   && request.resource.data.ids is list
-                   && request.resource.data.ids.size() <= 300;
+                   && request.resource.data.itens is list
+                   && request.resource.data.itens.size() <= 1500
+                   && request.resource.data.keys().hasOnly(['itens','atualizadoEm']);
+    }
+
+    // Regra do RH (teto por refeição e taxa, com vigência):
+    // todo aprovado lê, só o administrador escreve.
+    match /politicas/{doc} {
+      allow read:  if aprovado() || ehAdmin();
+      allow write: if ehAdmin()
+                   && request.resource.data.lista is list
+                   && request.resource.data.lista.size() <= 200
+                   && request.resource.data.keys().hasOnly(['lista','atualizadoEm']);
     }
 
     match /{document=**} { allow read, write: if false; }

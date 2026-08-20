@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=11">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -93,26 +93,37 @@
     <!-- resumo do período -->
     <section class="glass hero">
       <div class="hero__head">
-        <span class="label">DESCONTO PREVISTO EM FOLHA <span class="label__ast">*</span></span>
+        <span class="label">O QUE VOCÊ GASTOU NO PERÍODO</span>
         <span class="delta" hidden>—</span>
       </div>
       <div class="hero__amount">R$&thinsp;0,00</div>
       <p class="hero__note">Sem lançamentos no período.</p>
+
+      <!-- para onde esse gasto foi -->
+      <div class="destaque">
+        <div class="destaque__col">
+          <span class="label">DESCONTO EM FOLHA <span class="label__ast">*</span></span>
+          <div class="destaque__val destaque__val--folha" id="vFolha">—</div>
+          <span class="destaque__hint" id="hFolha"></span>
+        </div>
+        <div class="destaque__col">
+          <span class="label">SUBSÍDIO DA FGV</span>
+          <div class="destaque__val destaque__val--sub" id="vSubsidio">—</div>
+          <span class="destaque__hint" id="hSubsidio"></span>
+        </div>
+      </div>
 
       <div class="disclaimer">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6v.2"></path></svg>
         <p>Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
       </div>
 
-      <!-- quanto gastei x quanto a FGV cobriu -->
-      <div class="split">
-        <div class="split__col">
-          <span class="label">CONSUMO BRUTO</span>
-          <div class="split__val split__val--pending" id="vBruto">—</div>
-        </div>
-        <div class="split__col">
-          <span class="label">SUBSÍDIO FGV</span>
-          <div class="split__val split__val--sub split__val--pending" id="vSubsidio">—</div>
+      <!-- gasto fora da FGV: só aparece quando existe -->
+      <div class="destaque" id="linhaFora" hidden>
+        <div class="destaque__col">
+          <span class="label">PAGO POR FORA</span>
+          <div class="destaque__val destaque__val--fora" id="vFora">—</div>
+          <span class="destaque__hint" id="hFora"></span>
         </div>
       </div>
 
@@ -131,11 +142,13 @@
       <div class="meter" aria-hidden="true">
         <span class="fill" id="mtSapore" style="flex: 0"></span>
         <span class="fill--amber" id="mtRei" style="flex: 0"></span>
+        <span class="fill--fora" id="mtFora" style="flex: 0"></span>
         <span id="mtVazio" style="flex: 100"></span>
       </div>
       <div class="meter-legend">
         <span id="lgSapore">Sapore R$ 0,00</span>
-        <b id="lgRei">Rei do Mate R$ 0,00</b>
+        <b id="lgRei">Rei R$ 0,00</b>
+        <span id="lgFora" hidden>Fora R$ 0,00</span>
       </div>
     </section>
 
@@ -174,9 +187,10 @@
       </div>
 
       <div class="period__row" id="fLocais" style="margin-top:10px">
-        <button class="chip is-active" type="button" data-flocal="">Todas</button>
+        <button class="chip is-active" type="button" data-flocal="">Todos</button>
         <button class="chip" type="button" data-flocal="Sapore">Sapore</button>
         <button class="chip" type="button" data-flocal="Rei do Mate">Rei do Mate</button>
+        <button class="chip" type="button" data-flocal="Outro">Fora da FGV</button>
       </div>
 
       <div class="range is-open" style="margin-top:10px">
@@ -315,6 +329,14 @@
         <div class="stat__top"><span class="stat__dot"></span><span class="stat__name">Rei do Mate</span></div>
         <div class="stat__val stat__val--pending" id="stReiVal">—</div>
         <div class="stat__meta" id="stReiMeta">0 LANCHES · 0%</div>
+      </div>
+    </div>
+
+    <div class="grid-2" id="stForaCard" hidden>
+      <div class="glass stat">
+        <div class="stat__top"><span class="stat__dot stat__dot--fora"></span><span class="stat__name">Fora da FGV</span></div>
+        <div class="stat__val stat__val--pending" id="stForaVal">—</div>
+        <div class="stat__meta" id="stForaMeta">0 LANÇAMENTOS · 0% · 0% DA FGV</div>
       </div>
     </div>
 
@@ -483,8 +505,9 @@
       <div class="formula">
         <div class="formula__line"><span>Consumo bruto</span><b>soma de tudo que você registrou no período</b></div>
         <div class="formula__line"><span>Sapore</span><b>a FGV subsidia até o teto por refeição; desconta o que passar</b></div>
-        <div class="formula__line"><span>Rei do Mate</span><b>valor integral, por sua conta</b></div>
-        <div class="formula__line"><span>Subsídio FGV</span><b>consumo bruto − desconto em folha</b></div>
+        <div class="formula__line"><span>Rei do Mate</span><b>valor integral, descontado no contracheque</b></div>
+        <div class="formula__line"><span>Fora da FGV</span><b>0% de subsídio e fora da folha: você pagou na hora</b></div>
+        <div class="formula__line"><span>Subsídio FGV</span><b>só o que a Sapore cobriu, até o teto</b></div>
         <div class="formula__line"><span>Quinzenas</span><b>01–15 e 16 ao último dia, como as lanchonetes enviam</b></div>
         <div class="formula__line formula__line--result"><span>Desconto em folha</span><b>excedente na Sapore + integral no Rei do Mate, sem os 0,15%</b></div>
       </div>
@@ -509,7 +532,11 @@
       </details>
       <details class="glass faq__item">
         <summary>O que o número grande da Home mostra?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>O desconto previsto em folha: na Sapore, apenas o que passou do teto subsidiado por refeição; no Rei do Mate, o valor integral. Logo abaixo você vê o consumo bruto (tudo que gastou) e o subsídio estimado da FGV.</p>
+        <p>Tudo que você registrou no período — o seu gasto de comida, sem separar quem paga o quê. Logo abaixo ele se desdobra em três: <b>desconto em folha</b> (o que vai cair no contracheque), <b>subsídio da FGV</b> (o que a instituição cobriu na Sapore) e, quando houver, <b>pago por fora</b> (bar, padaria, restaurante da rua). Os três somam exatamente o número grande.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>Almocei num lugar que não é Sapore nem Rei do Mate. Lanço?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Sim. Escolha <b>Outro</b> no estabelecimento e escreva onde foi. Esse gasto entra no seu controle do período — consumo bruto, gráficos, estatísticas e exportação — mas com <b>0% de subsídio da FGV</b> e <b>fora do contracheque</b>, porque você pagou na hora, do seu bolso. O número grande da Home, que é a previsão de desconto em folha, não muda por causa dele.</p>
       </details>
       <details class="glass faq__item">
         <summary>De onde vem o teto por refeição?<span class="faq__chev" aria-hidden="true"></span></summary>
@@ -652,8 +679,15 @@
           <div class="toggle-group" id="grupoLocal" role="radiogroup" aria-label="Estabelecimento">
             <button class="is-active" type="button" role="radio" aria-checked="true" data-local="Sapore">Sapore</button>
             <button type="button" role="radio" aria-checked="false" data-local="Rei do Mate">Rei do Mate</button>
+            <button type="button" role="radio" aria-checked="false" data-local="Outro">Outro</button>
           </div>
+          <p class="field__nota" id="avisoSemSubsidio" hidden>Fora da FGV: 0% de subsídio e não entra no contracheque. Entra só no seu controle de gastos do período.</p>
         </div>
+
+        <label class="field" id="campoLocalNomeWrap" hidden>
+          <span class="field__label">ONDE FOI</span>
+          <input type="text" id="campoLocalNome" placeholder="ex: Bar do Bigode" aria-label="Nome do local">
+        </label>
 
         <label class="field">
           <span class="field__label">CATEGORIA</span>
@@ -900,6 +934,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

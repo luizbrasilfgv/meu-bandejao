@@ -39,7 +39,18 @@ const DOC_POL  = "vigentes";
 const TETO_PADRAO = 31.59;   // R$ por refeição subsidiada na Sapore
 const TAXA_PADRAO = 0.15;    // % do salário base por ida — guardada, NÃO aplicada
 
-const LOCAIS = ["Sapore", "Rei do Mate"];
+/* Os três casos, que têm regra de dinheiro DIFERENTE:
+   - Sapore: a FGV subsidia até o teto, você é descontado no excedente
+   - Rei do Mate: valor integral, descontado no contracheque
+   - Outro: bar, padaria, restaurante da rua. Você paga na hora, do seu bolso.
+     Zero de subsídio e, principalmente, NÃO ENTRA NA FOLHA. */
+const LOCAIS = ["Sapore", "Rei do Mate", "Outro"];
+const INTERNOS = ["Sapore", "Rei do Mate"];      // os que caem no contracheque
+const ehInterno = local => INTERNOS.indexOf(local) >= 0;
+
+/** O nome que aparece na tela: "Outro" mostra o lugar que você escreveu. */
+const nomeDoLocal = l => (l.local === "Outro" && l.localNome) ? l.localNome : (l.local || "");
+
 const CATEGORIAS = ["Refeição — almoço", "Refeição — jantar", "Café / lanche", "Outro"];
 
 /* Donos do app: entram já aprovados e administradores, sem passar pela
@@ -141,24 +152,45 @@ function politicaEm(dataIso){
 function descontoDe(l){
   const valor = num(l.valor);
   if (l.local === "Sapore") return Math.max(0, valor - num(politicaEm(dataDe(l)).teto));
-  return valor;
+  if (l.local === "Rei do Mate") return valor;
+  return 0;   // fora da FGV: sai do bolso na hora, não do contracheque
 }
 
-/** Consolidado: bruto (o que gastou), desconto (folha) e subsídio (FGV). */
+/** O que a FGV cobriu. Só a Sapore subsidia, e só até o teto. */
+function subsidioDe(l){
+  if (l.local !== "Sapore") return 0;
+  return Math.min(num(l.valor), num(politicaEm(dataDe(l)).teto));
+}
+
+/** O que você pagou por fora, sem passar pela folha. */
+function foraDaFolhaDe(l){
+  return ehInterno(l.local) ? 0 : num(l.valor);
+}
+
+/**
+ * Consolidado do período. Os três somam o bruto, por construção:
+ *   bruto = desconto (folha) + subsidio (FGV) + fora (seu bolso, fora da folha)
+ * Calcular o subsídio como "bruto − desconto" daria errado desde que passou a
+ * existir gasto fora da FGV: o bar do bigode entraria como coisa subsidiada.
+ */
 function resumo(lista){
-  const r = { n: lista.length, bruto: 0, desconto: 0, subsidio: 0, revisar: 0, porLocal: {} };
+  const r = { n: lista.length, bruto: 0, desconto: 0, subsidio: 0, fora: 0,
+              nFora: 0, revisar: 0, porLocal: {} };
   for (const nome of LOCAIS) r.porLocal[nome] = { n: 0, bruto: 0, desconto: 0 };
 
   for (const l of lista){
     const bruto = num(l.valor);
     const desc  = descontoDe(l);
-    r.bruto += bruto;
+    const fora  = foraDaFolhaDe(l);
+    r.bruto    += bruto;
     r.desconto += desc;
+    r.subsidio += subsidioDe(l);
+    r.fora     += fora;
+    if (fora) r.nFora++;
     if (l.status === "revisar") r.revisar++;
     const alvo = r.porLocal[l.local] || (r.porLocal[l.local] = { n: 0, bruto: 0, desconto: 0 });
     alvo.n++; alvo.bruto += bruto; alvo.desconto += desc;
   }
-  r.subsidio = r.bruto - r.desconto;
   return r;
 }
 
@@ -290,8 +322,9 @@ function ordenar(lista, modo){
 
 /** Tudo que dá para procurar num lançamento, sem acento e em minúsculas. */
 function textoDoLancamento(l){
-  return chave([l.local, l.categoria, l.itens, l.matricula, l.numeroCupom,
-                l.cnpj, l.observacao, paraBR(l.dataHora), brl(l.valor)]
+  return chave([l.local, l.localNome, l.categoria, l.itens, l.matricula, l.numeroCupom,
+                l.cnpj, l.observacao, paraBR(l.dataHora), brl(l.valor),
+                ehInterno(l.local) ? "em folha" : "fora da folha fgv"]
     .filter(Boolean).join(" "));
 }
 
@@ -326,15 +359,15 @@ function novoId(){
 
 /** CSV do que está filtrado na tela, com a memória de cálculo em cada linha. */
 function paraCSV(lista){
-  const cab = ["data", "hora", "local", "categoria", "valor", "teto_vigente",
-               "desconto_folha", "subsidio_fgv", "itens", "matricula",
-               "numero_cupom", "cnpj", "observacao", "origem", "status"];
+  const cab = ["data", "hora", "local", "nome_do_local", "entra_na_folha", "categoria",
+               "valor", "teto_vigente", "desconto_folha", "subsidio_fgv", "fora_da_folha",
+               "itens", "matricula", "numero_cupom", "cnpj", "observacao", "origem", "status"];
   const linhas = ordenar(lista).map(l => {
     const teto = num(politicaEm(dataDe(l)).teto);
-    const desc = descontoDe(l);
     return [
-      dataDe(l), horaDe(l), l.local, l.categoria,
-      num(l.valor).toFixed(2), teto.toFixed(2), desc.toFixed(2), (num(l.valor) - desc).toFixed(2),
+      dataDe(l), horaDe(l), l.local, nomeDoLocal(l), ehInterno(l.local) ? "sim" : "nao",
+      l.categoria, num(l.valor).toFixed(2), ehInterno(l.local) ? teto.toFixed(2) : "0.00",
+      descontoDe(l).toFixed(2), subsidioDe(l).toFixed(2), foraDaFolhaDe(l).toFixed(2),
       l.itens, l.matricula, l.numeroCupom, l.cnpj, l.observacao, l.origem, l.status
     ].map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";");
   });
@@ -453,18 +486,19 @@ function pintarHome(lista, ini, fim){
     meta.textContent = `${MESES[mes - 1]} ${ano} · ${r.n} LANÇAMENTO${r.n === 1 ? "" : "S"}`;
   }
 
+  // O número grande é o SEU gasto. O resto do card diz para onde ele foi.
   const valor = qs(".hero__amount");
-  if (valor) valor.innerHTML = `R$&thinsp;${brl(r.desconto)}`;
+  if (valor) valor.innerHTML = `R$&thinsp;${brl(r.bruto)}`;
 
-  // variação contra o período anterior de igual tamanho
+  // variação do gasto contra o período anterior de igual tamanho
   const alvoDelta = qs(".delta");
   if (alvoDelta){
     const ant = periodoAnterior(ini, fim);
     const rAnt = resumo(noPeriodo(lancamentos, ant.ini, ant.fim));
-    if (!rAnt.desconto || !r.n){
+    if (!rAnt.bruto || !r.n){
       alvoDelta.hidden = true;
     } else {
-      const pct = ((r.desconto - rAnt.desconto) / rAnt.desconto) * 100;
+      const pct = ((r.bruto - rAnt.bruto) / rAnt.bruto) * 100;
       alvoDelta.hidden = false;
       alvoDelta.textContent = `${pct >= 0 ? "+" : "−"}${Math.abs(pct).toFixed(1).replace(".", ",")}%`;
       alvoDelta.classList.toggle("delta--up", pct > 0);
@@ -475,20 +509,23 @@ function pintarHome(lista, ini, fim){
   const nota = qs(".hero__note");
   if (nota){
     nota.textContent = r.n
-      ? `${paraBR(ini).slice(0, 5)} a ${paraBR(fim).slice(0, 5)} · ${r.n} lançamento${r.n === 1 ? "" : "s"} · excedente acima do teto de R$ ${brl(pol.teto)} na Sapore, mais o integral do Rei do Mate.`
+      ? `${paraBR(ini).slice(0, 5)} a ${paraBR(fim).slice(0, 5)} · ${r.n} lançamento${r.n === 1 ? "" : "s"} · tudo que você registrou no período.`
       : `${paraBR(ini).slice(0, 5)} a ${paraBR(fim).slice(0, 5)} · nenhum lançamento no período.`;
   }
 
-  // quanto gastei x quanto a FGV cobriu
-  const brutoEl = el("vBruto"), subEl = el("vSubsidio");
-  if (brutoEl){
-    brutoEl.textContent = r.n ? `R$ ${brl(r.bruto)}` : "—";
-    brutoEl.classList.toggle("split__val--pending", !r.n);
-  }
-  if (subEl){
-    subEl.textContent = r.n ? `R$ ${brl(r.subsidio)}` : "—";
-    subEl.classList.toggle("split__val--pending", !r.n);
-  }
+  // para onde o gasto foi: folha, subsídio da FGV e o seu bolso
+  const põeDestaque = (id, hintId, v, hint) => {
+    const x = el(id);
+    if (x){
+      x.textContent = r.n ? `R$ ${brl(v)}` : "—";
+      x.classList.toggle("destaque__val--zero", r.n && !v);
+    }
+    poe(hintId, r.n ? hint : "");
+  };
+  põeDestaque("vFolha", "hFolha", r.desconto,
+    `EXCEDENTE NA SAPORE + INTEGRAL NO REI DO MATE`);
+  põeDestaque("vSubsidio", "hSubsidio", r.subsidio,
+    `A FGV COBRE ATÉ R$ ${brl(pol.teto)} POR REFEIÇÃO NA SAPORE`);
 
   // quinzenas do mês em tela
   const ano = Number(fim.slice(0, 4)), mes = Number(fim.slice(5, 7));
@@ -504,40 +541,67 @@ function pintarHome(lista, ini, fim){
     }
   });
 
-  // barra Sapore x Rei do Mate (pelo valor gasto)
+  // o que você pagou por fora da FGV: só aparece quando existe
+  const foraLinha = el("linhaFora");
+  if (foraLinha) foraLinha.hidden = !r.fora;
+  poe("vFora", `R$ ${brl(r.fora)}`);
+  poe("hFora", r.nFora
+    ? `${r.nFora} LANÇAMENTO${r.nFora === 1 ? "" : "S"} FORA DA FGV · 0% DE SUBSÍDIO · NÃO VAI PARA A FOLHA`
+    : "");
+
+  // barra por local (pelo valor gasto)
   const sap = r.porLocal["Sapore"] || { bruto: 0, n: 0 };
   const rei = r.porLocal["Rei do Mate"] || { bruto: 0, n: 0 };
-  const fSap = el("mtSapore"), fRei = el("mtRei"), fVazio = el("mtVazio");
-  if (fSap && fRei && fVazio){
+  const fSap = el("mtSapore"), fRei = el("mtRei"), fFora = el("mtFora"), fVazio = el("mtVazio");
+  if (fSap && fRei && fFora && fVazio){
     if (r.bruto > 0){
-      fSap.style.flex = String((sap.bruto / r.bruto) * 100);
-      fRei.style.flex = String((rei.bruto / r.bruto) * 100);
+      fSap.style.flex  = String((sap.bruto / r.bruto) * 100);
+      fRei.style.flex  = String((rei.bruto / r.bruto) * 100);
+      fFora.style.flex = String((r.fora / r.bruto) * 100);
       fVazio.style.flex = "0";
     } else {
-      fSap.style.flex = "0"; fRei.style.flex = "0"; fVazio.style.flex = "100";
+      fSap.style.flex = "0"; fRei.style.flex = "0"; fFora.style.flex = "0"; fVazio.style.flex = "100";
     }
   }
   poe("lgSapore", `Sapore R$ ${brl(sap.bruto)}`);
-  poe("lgRei", `Rei do Mate R$ ${brl(rei.bruto)}`);
+  poe("lgRei", `Rei R$ ${brl(rei.bruto)}`);
+  const lgF = el("lgFora");
+  if (lgF){
+    lgF.hidden = !r.fora;
+    lgF.textContent = `Fora R$ ${brl(r.fora)}`;
+  }
 }
 
 /** A linha de transação, usada na Home e na tela de todas. */
+/** Duas letras para o avatar: SA, RM ou as iniciais do lugar que você escreveu. */
+function siglaDoLocal(l){
+  if (l.local === "Sapore") return "SA";
+  if (l.local === "Rei do Mate") return "RM";
+  const p = String(l.localNome || "Outro").trim().split(/\s+/)
+    .filter(w => w.length > 2 || /^[A-ZÀ-Ú]/.test(w));
+  const base = p.length ? p : [String(l.localNome || "Outro")];
+  return ((base[0][0] || "") + (base[1] ? base[1][0] : (base[0][1] || ""))).toUpperCase();
+}
+
 function linhaTx(l){
-  const sapore = l.local === "Sapore";
   const revisar = l.status === "revisar";
+  const fora = !ehInterno(l.local);
+  const classeAvatar = l.local === "Sapore" ? "avatar--blue" : fora ? "avatar--fora" : "";
   const hora = horaDe(l);
   const quando = dataDe(l) === hojeIso() ? `HOJE${hora ? " " + hora : ""}` : paraBR(l.dataHora);
   const meta = [l.categoria, quando].filter(Boolean).join(" · ").toUpperCase();
+  const situacao = revisar ? "REVISAR OCR" : fora ? "FORA DA FOLHA" : "EM FOLHA";
+  const classeSit = revisar ? "tx__status--pending" : fora ? "tx__status--fora" : "";
   return `<li>
     <button class="glass tx ${revisar ? "tx--pending" : ""}" type="button" data-editar="${esc(l.id)}">
-      <span class="avatar ${sapore ? "avatar--blue" : ""}">${sapore ? "SA" : "RM"}</span>
+      <span class="avatar ${classeAvatar}">${esc(siglaDoLocal(l))}</span>
       <span class="tx__body">
-        <span class="tx__name">${esc(l.local)}</span>
+        <span class="tx__name">${esc(nomeDoLocal(l))}</span>
         <span class="tx__meta">${esc(meta)}</span>
       </span>
       <span class="tx__side">
         <span class="tx__value">${brl(l.valor)}</span>
-        <span class="tx__status ${revisar ? "tx__status--pending" : ""}">${revisar ? "REVISAR OCR" : "CONFERIDO"}</span>
+        <span class="tx__status ${classeSit}">${situacao}</span>
       </span>
     </button>
   </li>`;
@@ -565,12 +629,18 @@ function pintarEstatisticas(lista, ini, fim, rotulo){
 
   const sap = e.porLocal["Sapore"] || { bruto: 0, n: 0 };
   const rei = e.porLocal["Rei do Mate"] || { bruto: 0, n: 0 };
-  const pctSap = e.bruto ? Math.round((sap.bruto / e.bruto) * 100) : 0;
+  const out = e.porLocal["Outro"] || { bruto: 0, n: 0 };
+  const pct = v => e.bruto ? Math.round((v / e.bruto) * 100) : 0;
 
   poe("stSaporeVal", temDado ? brl(sap.bruto) : "—", !temDado);
-  poe("stSaporeMeta", `${sap.n} REFEIÇ${sap.n === 1 ? "ÃO" : "ÕES"} · ${pctSap}%`);
+  poe("stSaporeMeta", `${sap.n} REFEIÇ${sap.n === 1 ? "ÃO" : "ÕES"} · ${pct(sap.bruto)}%`);
   poe("stReiVal", temDado ? brl(rei.bruto) : "—", !temDado);
-  poe("stReiMeta", `${rei.n} LANCHE${rei.n === 1 ? "" : "S"} · ${temDado ? 100 - pctSap : 0}%`);
+  poe("stReiMeta", `${rei.n} LANCHE${rei.n === 1 ? "" : "S"} · ${pct(rei.bruto)}%`);
+
+  const cardFora = el("stForaCard");
+  if (cardFora) cardFora.hidden = !out.n;
+  poe("stForaVal", out.n ? brl(out.bruto) : "—", !out.n);
+  poe("stForaMeta", `${out.n} LANÇAMENTO${out.n === 1 ? "" : "S"} · ${pct(out.bruto)}% · 0% DA FGV`);
 
   poe("stProjetado", temDado ? brl(e.projetado) : "—", !temDado);
   poe("stProjetadoMeta", temDado
@@ -610,7 +680,9 @@ function pintarTransacoes(){
                        || filtro.min != null || filtro.max != null || filtro.ini || filtro.fim);
 
   poe("txPlacar", vis.length
-    ? `${vis.length} de ${lancamentos.length} lançamento${lancamentos.length === 1 ? "" : "s"} · R$ ${brl(r.bruto)} consumidos · R$ ${brl(r.desconto)} em folha`
+    ? `${vis.length} de ${lancamentos.length} lançamento${lancamentos.length === 1 ? "" : "s"} · `
+      + `R$ ${brl(r.bruto)} gastos · R$ ${brl(r.desconto)} em folha`
+      + (r.fora ? ` · R$ ${brl(r.fora)} fora da FGV` : "")
     : lancamentos.length ? "Nada casou com esse filtro" : "Você ainda não lançou nada");
 
   const limpar = el("btnLimparFiltro");
@@ -841,13 +913,16 @@ function pintarGraficos(lista){
     if (box) box.classList.toggle("has-data", r.bruto > 0);
     if (chartLocal){ chartLocal.destroy(); chartLocal = null; }
     if (r.bruto > 0){
+      const cinza = cor("--muted") || "#8C9CB2";
+      const visiveis = LOCAIS.filter(n => (r.porLocal[n] || { bruto: 0 }).bruto > 0);
+      const corDoLocal = { "Sapore": azul, "Rei do Mate": ambar, "Outro": cinza };
       chartLocal = new Chart(cvLocal, {
         type: "doughnut",
         data: {
-          labels: LOCAIS,
+          labels: visiveis.map(n => n === "Outro" ? "Fora da FGV" : n),
           datasets: [{
-            data: LOCAIS.map(n => (r.porLocal[n] || { bruto: 0 }).bruto),
-            backgroundColor: [azul, ambar], borderWidth: 0, hoverOffset: 6
+            data: visiveis.map(n => r.porLocal[n].bruto),
+            backgroundColor: visiveis.map(n => corDoLocal[n]), borderWidth: 0, hoverOffset: 6
           }]
         },
         options: {
@@ -871,18 +946,22 @@ function pintarGraficos(lista){
   // legenda da rosca: nome, valor e percentual, que o gráfico sozinho não diz
   const leg = el("legendaLocal");
   if (leg){
-    const cores = { "Sapore": azul, "Rei do Mate": ambar };
-    leg.innerHTML = LOCAIS.map(nome => {
-      const d = r.porLocal[nome] || { bruto: 0, n: 0, desconto: 0 };
-      const pct = r.bruto ? (d.bruto / r.bruto) * 100 : 0;
-      return `<li>
-        <span class="leg__dot" style="background:${cores[nome]}"></span>
-        <span class="leg__nome">${esc(nome)}</span>
-        <span class="leg__meta">${d.n} lanç.</span>
-        <span class="leg__pct">${pct.toFixed(1).replace(".", ",")}%</span>
-        <b class="leg__val">R$ ${brl(d.bruto)}</b>
-      </li>`;
-    }).join("");
+    const cinza = cor("--muted") || "#8C9CB2";
+    const cores = { "Sapore": azul, "Rei do Mate": ambar, "Outro": cinza };
+    const rotulo = { "Sapore": "Sapore", "Rei do Mate": "Rei do Mate", "Outro": "Fora da FGV" };
+    leg.innerHTML = LOCAIS
+      .filter(nome => nome !== "Outro" || (r.porLocal[nome] || {}).n)
+      .map(nome => {
+        const d = r.porLocal[nome] || { bruto: 0, n: 0, desconto: 0 };
+        const pct = r.bruto ? (d.bruto / r.bruto) * 100 : 0;
+        return `<li>
+          <span class="leg__dot" style="background:${cores[nome]}"></span>
+          <span class="leg__nome">${esc(rotulo[nome])}</span>
+          <span class="leg__meta">${d.n} lanç.</span>
+          <span class="leg__pct">${pct.toFixed(1).replace(".", ",")}%</span>
+          <b class="leg__val">R$ ${brl(d.bruto)}</b>
+        </li>`;
+      }).join("");
   }
 }
 
@@ -1059,6 +1138,7 @@ function preencherFormulario(l, manual){
   põe("campoCupom",     l ? l.numeroCupom : "");
   põe("campoCnpj",      l ? l.cnpj : "");
   põe("campoObs",       l ? l.observacao : "");
+  põe("campoLocalNome", l ? l.localNome : "");
 
   const cat = el("campoCategoria");
   if (cat) cat.value = (l && l.categoria) || CATEGORIAS[0];
@@ -1079,6 +1159,11 @@ function marcarLocal(local){
     b.classList.toggle("is-active", on);
     b.setAttribute("aria-checked", on ? "true" : "false");
   });
+  // o nome do lugar só faz sentido quando não é Sapore nem Rei do Mate
+  const wrap = el("campoLocalNomeWrap");
+  if (wrap) wrap.hidden = local !== "Outro";
+  const aviso0 = el("avisoSemSubsidio");
+  if (aviso0) aviso0.hidden = local !== "Outro";
 }
 
 function lerFormulario(){
@@ -1089,11 +1174,15 @@ function lerFormulario(){
 
   const ativo = qs("#grupoLocal button.is-active");
   const anterior = editandoId ? lancamentos.find(l => l.id === editandoId) : null;
+  const local = ativo ? ativo.dataset.local : "Sapore";
+  const localNome = (el("campoLocalNome")?.value || "").trim();
+  if (local === "Outro" && !localNome) return { erro: "Escreva onde foi — ex: Bar do Bigode." };
 
   return { item: {
     id: editandoId || "",
     dataHora: dataIso,
-    local: ativo ? ativo.dataset.local : "Sapore",
+    local,
+    localNome: local === "Outro" ? localNome : "",
     categoria: el("campoCategoria")?.value || CATEGORIAS[0],
     valor,
     itens: (el("campoItens")?.value || "").trim(),
@@ -1150,19 +1239,28 @@ const carregarJsQR = () => carregarScript(QR_CDN, "jsQR");
    reconhecimento é por CNPJ, que não tem erro de leitura. */
 const CNPJ_LOCAL = {};
 
-function localPorCnpj(cnpj){
+/** Devolve { local, nome } aprendido para um CNPJ. Aceita o formato antigo (string). */
+function conhecidoPorCnpj(cnpj){
   const d = String(cnpj || "").replace(/\D/g, "");
-  if (d.length !== 14) return "";
-  return (prefs.cnpjLocal && prefs.cnpjLocal[d]) || CNPJ_LOCAL[d] || "";
+  if (d.length !== 14) return null;
+  const g = (prefs.cnpjLocal && prefs.cnpjLocal[d]) || CNPJ_LOCAL[d];
+  if (!g) return null;
+  return typeof g === "string" ? { local: g, nome: "" } : g;
+}
+function localPorCnpj(cnpj){
+  const c = conhecidoPorCnpj(cnpj);
+  return c ? c.local : "";
 }
 
 /** Você corrigiu a lanchonete de um CNPJ? O app aprende e não erra de novo. */
-function aprenderCnpj(cnpj, local){
+function aprenderCnpj(cnpj, local, nome){
   const d = String(cnpj || "").replace(/\D/g, "");
-  if (d.length !== 14 || !local || CNPJ_LOCAL[d] === local) return;
+  if (d.length !== 14 || !local) return;
+  const novo = { local, nome: local === "Outro" ? String(nome || "").trim() : "" };
+  const atual = conhecidoPorCnpj(d);
+  if (atual && atual.local === novo.local && (atual.nome || "") === novo.nome) return;
   prefs.cnpjLocal = prefs.cnpjLocal || {};
-  if (prefs.cnpjLocal[d] === local) return;
-  prefs.cnpjLocal[d] = local;
+  prefs.cnpjLocal[d] = novo;
   gravarPrefs();
 }
 
@@ -1804,7 +1902,7 @@ function acaoSalvar(qual){
   const { item, erro } = lerFormulario();
   if (erro) return aviso(erro);
   const editando = !!editandoId;
-  aprenderCnpj(item.cnpj, item.local);   // corrigiu a lanchonete? não erra de novo
+  aprenderCnpj(item.cnpj, item.local, item.localNome);   // corrigiu o local? não erra de novo
   salvarLancamento(item);
   rascunhoOCR = { confianca: null };
   editandoId = "";

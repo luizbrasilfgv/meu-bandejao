@@ -177,3 +177,34 @@ mãos dadas com a lógica de portaria.
 **Subdomínios fantasma no Firebase.** Criar um novo "App da Web" ou alterar o nome de exibição
 no painel do Firebase **não** altera a URL do Hosting (`.web.app`). Para ter uma URL nova
 dentro do mesmo projeto, o comando correto é `firebase hosting:sites:create novo-nome`.
+
+**Um target de hosting aceita UM site.** `firebase target:apply hosting app siteA siteB` deixa
+aplicar, e o deploy morre depois com *"Hosting target app is linked to multiple sites, but only
+one is permitted"*. Para publicar o mesmo conteúdo em dois endereços, são duas entradas no array
+`"hosting"` do `firebase.json`, cada uma com o seu `"site"`. E o site padrão do projeto (o que
+tem o mesmo id do projeto) **não pode ser apagado** — só desativado com `firebase hosting:disable`.
+
+**`ignoreSearch: true` no service worker anula o `?v=N`.** O kit trazia
+`caches.match(req, { ignoreSearch: true })` na busca de assets, o que faz `app.js?v=7` casar com
+o `app.js?v=6` que já está no cache. Ou seja: a disciplina de versionar assets, que existe
+justamente para entregar código novo, não entregava nada — e a pessoa precisava recarregar duas
+vezes. Casamento exato nos assets; `ignoreSearch` só no fallback de navegação offline.
+
+**HTML novo com JavaScript velho.** O pior estado de um PWA, e o mais fácil de produzir: o
+`index.html` vem da rede (está em `no-cache`) já apontando para os assets novos, mas o service
+worker antigo ainda está no comando e entrega o JS do cache dele. A tela abre bonita e os botões
+não respondem. Conserto: a página ouve `controllerchange` e recarrega **uma vez** (com trava)
+quando o worker novo assume. Sem isso, toda publicação tem uma primeira abertura quebrada.
+
+**Cabeçalho de cache que não casa com o caminho servido.** Com `rewrites: [{source:"**",
+destination:"/index.html"}]`, o cabeçalho é avaliado contra o caminho **original** da requisição.
+Uma regra para `/index.html` nunca pega quem entrou em `/`. Inverta a lógica para falhar do lado
+seguro: `**` fecha tudo em `no-cache` e só depois libere cache longo para os assets versionados.
+Assim, glob que não casa custa cache curto — não um `sw.js` preso por um ano.
+
+**Ícone de PWA é indexado pela URL.** Trocar o conteúdo de `icon-192.png` mantendo o nome **não**
+repinta o atalho já instalado: o Android guarda o bitmap no WebAPK e o iOS congela o
+`apple-touch-icon` no instante em que se adiciona à tela de início. Versione o **nome do
+arquivo** (`icon-192-v2.png`) em quatro lugares: os arquivos, o `manifest.json`, as tags `<link>`
+do `index.html` e o `CASCO` do `sw.js`. Querystring (`icon.png?v=2`) às vezes resolve; o renome
+resolve sempre.

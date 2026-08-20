@@ -50,9 +50,6 @@ e vale a identidade:  bruto = desconto folha + subsídio FGV + fora da folha
   exportação) e **não** entra na previsão de desconto em folha. O lançamento guarda o nome do
   lugar em `localNome`, obrigatório nesse caso.
 
-> O subsídio é calculado somando o que a Sapore cobriu, **não** como `bruto − desconto`. Essa
-> subtração funcionava enquanto tudo passava pela folha; com gasto fora da FGV ela contaria o
-> bar do bigode como coisa subsidiada pela instituição.
 * **Teto e taxa são política, não constante.** Ficam em `politicas/vigentes`, com **data de
   vigência**: o administrador cadastra a nova regra e os lançamentos antigos continuam
   calculados pela regra que valia na data deles. O padrão, quando não há nada cadastrado, é
@@ -62,6 +59,10 @@ e vale a identidade:  bruto = desconto folha + subsídio FGV + fora da folha
   redação fixa (não reescrever):
 
   > Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade
+
+> **Não calcule o subsídio como `bruto − desconto`.** Funcionava enquanto tudo passava pela
+> folha; desde que existe gasto fora da FGV, essa subtração contaria o bar da esquina como coisa
+> subsidiada pela instituição. Some o que a Sapore cobriu, e pronto.
 
 ## 4. Conciliação
 
@@ -77,13 +78,18 @@ e vale a identidade:  bruto = desconto folha + subsídio FGV + fora da folha
 
 * **Período:** mês civil por padrão, com mês anterior e intervalo livre. Todo número da tela
   respeita o período selecionado.
-* **Métricas:** total por lanchonete com percentual, gasto projetado no ritmo atual, maior dia,
-  média por dia com consumo e ritmo do período em dias úteis (sem base de feriados — é
-  aproximação declarada).
-* **Gráficos (Chart.js):** barra empilhada por dia ou por mês, separando desconto e subsídio; e
-  rosca da divisão por lanchonete.
-* **Exportação:** CSV do período filtrado, com a memória de cálculo em cada linha (valor, teto
-  vigente na data, desconto e subsídio).
+* **Métricas:** total por local com percentual (incluindo o cartão "Fora da FGV", que só aparece
+  quando existe), gasto projetado no ritmo atual, maior dia, média por dia com consumo e ritmo
+  do período em dias úteis (sem base de feriados — é aproximação declarada).
+* **Gráficos (Chart.js):** evolução em **linha** por padrão (consumo bruto e desconto em folha),
+  com botão para ver em **coluna** empilhada (desconto + subsídio); escala por dia ou por mês,
+  independente do tipo. E rosca da divisão por local, com o total escrito no centro por um
+  plugin inline e legenda própria com quantidade, percentual e valor de cada um.
+* **Tela de transações:** lista tudo, com filtro por texto livre (casa em local, nome do lugar,
+  categoria, itens, matrícula, nº do cupom, CNPJ, observação, data e valor), chips de local,
+  categoria, situação, faixa de valor, faixa de data e ordenação.
+* **Exportação:** CSV do que está filtrado, com a memória de cálculo em cada linha — valor, teto
+  vigente na data, desconto em folha, subsídio da FGV e o que ficou fora da folha.
 
 ## 6. Dados
 

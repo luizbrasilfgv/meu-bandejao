@@ -53,7 +53,18 @@
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* color-scheme no documento inteiro, não só nos campos: é o que faz o navegador
+   desenhar em escuro o que NÃO é nosso — a lista aberta do <select>, o seletor
+   de data, a barra de rolagem. Sem isto, o menu do select vem com fundo branco
+   do sistema e o texto herda a cor clara do app: branco no branco. */
+html { -webkit-text-size-adjust: 100%; color-scheme: dark; }
+
+/* E, para quem desenha a lista dentro da página em vez de pedir ao sistema,
+   a cor vai explícita. `inherit` aqui é o que produz o texto invisível. */
+option, optgroup {
+  color: var(--text);
+  background-color: var(--bg-2);
+}
 
 body {
   margin: 0;
@@ -203,7 +214,8 @@ a:hover { color: #8CC3FA; }
   -webkit-backdrop-filter: var(--blur);
 }
 .range span { display: block; font: 400 9.5px/1 var(--mono); letter-spacing: .12em; color: var(--muted); }
-.range input {
+.range input,
+.range select {
   width: 100%;
   margin-top: 8px;
   font: 500 14px/1.1 var(--mono);
@@ -212,6 +224,7 @@ a:hover { color: #8CC3FA; }
   outline: none;
   color-scheme: dark;
 }
+.range select { font-family: var(--sans); font-size: 13.5px; }
 
 /* ------------------------------------------------------------ card herói */
 
@@ -601,6 +614,17 @@ a:hover { color: #8CC3FA; }
 }
 .field select { font-family: var(--sans); font-size: 15px; font-weight: 500; }
 .field input::placeholder { color: var(--muted-2); }
+
+/* appearance:none tira a setinha nativa — sem repor uma, nada indica que abre.
+   Chevron por background-image, como manda o LICOES_APRENDIDAS.md. */
+.field select,
+.range select {
+  padding-right: 22px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7' fill='none' stroke='%238C9CB2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4.5 4.5L10 1'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+}
+.range select { appearance: none; -webkit-appearance: none; }
 
 .toggle-group { display: flex; gap: 8px; margin-top: 11px; }
 .toggle-group button {

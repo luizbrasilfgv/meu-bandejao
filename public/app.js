@@ -486,18 +486,19 @@ function pintarHome(lista, ini, fim){
     meta.textContent = `${MESES[mes - 1]} ${ano} · ${r.n} LANÇAMENTO${r.n === 1 ? "" : "S"}`;
   }
 
+  // O número grande é o SEU gasto. O resto do card diz para onde ele foi.
   const valor = qs(".hero__amount");
-  if (valor) valor.innerHTML = `R$&thinsp;${brl(r.desconto)}`;
+  if (valor) valor.innerHTML = `R$&thinsp;${brl(r.bruto)}`;
 
-  // variação contra o período anterior de igual tamanho
+  // variação do gasto contra o período anterior de igual tamanho
   const alvoDelta = qs(".delta");
   if (alvoDelta){
     const ant = periodoAnterior(ini, fim);
     const rAnt = resumo(noPeriodo(lancamentos, ant.ini, ant.fim));
-    if (!rAnt.desconto || !r.n){
+    if (!rAnt.bruto || !r.n){
       alvoDelta.hidden = true;
     } else {
-      const pct = ((r.desconto - rAnt.desconto) / rAnt.desconto) * 100;
+      const pct = ((r.bruto - rAnt.bruto) / rAnt.bruto) * 100;
       alvoDelta.hidden = false;
       alvoDelta.textContent = `${pct >= 0 ? "+" : "−"}${Math.abs(pct).toFixed(1).replace(".", ",")}%`;
       alvoDelta.classList.toggle("delta--up", pct > 0);
@@ -508,20 +509,23 @@ function pintarHome(lista, ini, fim){
   const nota = qs(".hero__note");
   if (nota){
     nota.textContent = r.n
-      ? `${paraBR(ini).slice(0, 5)} a ${paraBR(fim).slice(0, 5)} · ${r.n} lançamento${r.n === 1 ? "" : "s"} · excedente acima do teto de R$ ${brl(pol.teto)} na Sapore, mais o integral do Rei do Mate.`
+      ? `${paraBR(ini).slice(0, 5)} a ${paraBR(fim).slice(0, 5)} · ${r.n} lançamento${r.n === 1 ? "" : "s"} · tudo que você registrou no período.`
       : `${paraBR(ini).slice(0, 5)} a ${paraBR(fim).slice(0, 5)} · nenhum lançamento no período.`;
   }
 
-  // quanto gastei x quanto a FGV cobriu
-  const brutoEl = el("vBruto"), subEl = el("vSubsidio");
-  if (brutoEl){
-    brutoEl.textContent = r.n ? `R$ ${brl(r.bruto)}` : "—";
-    brutoEl.classList.toggle("split__val--pending", !r.n);
-  }
-  if (subEl){
-    subEl.textContent = r.n ? `R$ ${brl(r.subsidio)}` : "—";
-    subEl.classList.toggle("split__val--pending", !r.n);
-  }
+  // para onde o gasto foi: folha, subsídio da FGV e o seu bolso
+  const põeDestaque = (id, hintId, v, hint) => {
+    const x = el(id);
+    if (x){
+      x.textContent = r.n ? `R$ ${brl(v)}` : "—";
+      x.classList.toggle("destaque__val--zero", r.n && !v);
+    }
+    poe(hintId, r.n ? hint : "");
+  };
+  põeDestaque("vFolha", "hFolha", r.desconto,
+    `EXCEDENTE NA SAPORE + INTEGRAL NO REI DO MATE`);
+  põeDestaque("vSubsidio", "hSubsidio", r.subsidio,
+    `A FGV COBRE ATÉ R$ ${brl(pol.teto)} POR REFEIÇÃO NA SAPORE`);
 
   // quinzenas do mês em tela
   const ano = Number(fim.slice(0, 4)), mes = Number(fim.slice(5, 7));
@@ -542,7 +546,7 @@ function pintarHome(lista, ini, fim){
   if (foraLinha) foraLinha.hidden = !r.fora;
   poe("vFora", `R$ ${brl(r.fora)}`);
   poe("hFora", r.nFora
-    ? `${r.nFora} LANÇAMENTO${r.nFora === 1 ? "" : "S"} FORA DA FGV · 0% DE SUBSÍDIO`
+    ? `${r.nFora} LANÇAMENTO${r.nFora === 1 ? "" : "S"} FORA DA FGV · 0% DE SUBSÍDIO · NÃO VAI PARA A FOLHA`
     : "");
 
   // barra por local (pelo valor gasto)

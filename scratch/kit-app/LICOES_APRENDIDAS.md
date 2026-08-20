@@ -85,3 +85,70 @@ Use o `NS` (Namespace) como prefixo de todo `localStorage` usado para rascunhos,
 
 ### Cuidado Extremo com Manifest e PWA
 O prompt de "Instalar Aplicativo" no Android (Chrome) não funciona se o `manifest.json` apontar apenas para ícones `.svg`. Ele exige estritamente a declaração de PNGs nos tamanhos `192x192` e `512x512` (sendo o 512 `maskable`). E o Service Worker não é lido por telepatia: ele **deve** ser registrado na `<head>` do `index.html`. Sem essas regras estritas, a regra invariável de PWA do `PADRAO.md` falhará silenciosamente e o usuário nunca verá a opção de instalar o app nativo.
+
+### Contraste do `<select>`: o menu não é seu
+`color-scheme: dark` nos campos não basta. Quem desenha a lista aberta do `<select>` é o
+navegador, e ele usa o esquema de cor do **documento** — sem a declaração no `<html>`, ele monta o
+menu com fundo branco do sistema enquanto as `option` herdam a cor clara do app: texto invisível.
+Declare `color-scheme: dark` no `<html>` (isso também escurece seletor de data e barra de rolagem)
+e dê cor e fundo explícitos em `option, optgroup`, para os navegadores que renderizam a lista
+dentro da página. E se você usou `appearance: none` no select, reponha uma setinha por
+`background-image` — sem ela nada indica que o campo abre.
+
+---
+
+## 6. Números na tela
+
+### A hierarquia visual é uma afirmação sobre o dado
+O valor de 42px é lido como "o total". Se ele não for o total, a tela mente sem uma linha de código
+errada. No Meu Bandejão o número grande era o desconto em folha e o gasto real ficava num rodapé
+de 19px: um mês de R$ 234,90 aparecia como R$ 19,90. Escolha o número grande pelo que a pessoa
+pergunta primeiro, e desdobre o resto abaixo dele com peso suficiente para ninguém ignorar.
+
+### Cuidado com número derivado por subtração
+`subsidio = bruto - desconto` funcionava enquanto todo gasto passava pela mesma regra. No dia em
+que entrou um gasto que não passa (almoço fora, 0% de subsídio), a subtração passou a atribuir à
+instituição um dinheiro que ela nunca pagou — e nada quebrou, o número só ficou errado. Some cada
+parcela pela sua própria regra e **teste a identidade**: `total = parcela1 + parcela2 + parcela3`.
+Um teste que confere a soma pega esse erro; um teste que confere valores fixos não.
+
+### Texto de redação fixa tem lugar fixo
+Um aviso legal que começa com "Este valor..." está amarrado ao número que está acima dele. Se você
+reordenar a tela e deixar o aviso onde estava, ele passa a se referir a outra coisa — sem que
+ninguém tenha editado uma palavra. Ao mover números, mova as notas que falam deles.
+
+---
+
+## 7. Leitura de cupom fiscal (OCR)
+
+### No Brasil, leia o QR code antes de tentar OCR
+Cupom de NFC-e traz um QR com a chave de acesso de 44 dígitos, e a chave tem **posição fixa**:
+`cUF(2) AAMM(4) CNPJ(14) mod(2) serie(3) nNF(9) tpEmis(1) cNF(8) cDV(1)`. Dela saem CNPJ e número
+do cupom sem chute nenhum. Na versão 1 do QR, o conteúdo separado por `|` traz ainda `dhEmi` e
+`vNF` — data/hora e valor exatos. Use `BarcodeDetector` quando o navegador tiver, `jsQR` como
+reserva. OCR entra depois, só para o que o QR não dá (itens, matrícula).
+
+Reserva boa: a chave **impressa**, em grupos de 4 dígitos. O OCR acerta dígito espaçado muito
+melhor que texto corrido — inclusive quando o cupom estreito quebra a chave em duas linhas.
+
+### Pré-processar a imagem rende mais que ajustar regex
+Papel térmico é o pior caso do OCR. Antes de reconhecer: amplie para ~1800px na maior dimensão,
+converta para cinza e estique o contraste jogando fora 2% de cada ponta do histograma. Sem isso,
+o Tesseract lê a data (dígitos grandes e espaçados) e erra todo o resto. Use `tessedit_pageseg_mode`
+4 (coluna de texto de tamanhos variados) e tente 6 se não achar o valor.
+
+### O valor não é o maior número do cupom
+Tributo aproximado, número de lei, CEP e chave de acesso viram candidatos e ganham. Priorize a
+linha do "VALOR A PAGAR", depois "TOTAL", e **descarte** linhas de pagamento (troco, débito, valor
+pago) e de ruído (trib, aprox, federal, estadual, lei, PROCON, CEP). No primeiro teste real o app
+leu R$ 2,09 num cupom de R$ 10,50 — o 2,09 veio do rodapé jurídico.
+
+### Mostre o texto cru na tela
+Um painel recolhível com o que o leitor entendeu transforma "não reconheceu nada" em evidência, e
+é a diferença entre ajustar a extração e adivinhar. Mascare CPF ali: é uma tela feita para ser
+copiada e colada.
+
+### Identifique o estabelecimento por CNPJ, e aprenda
+Nome de loja no OCR sai com erro. CNPJ, vindo do QR ou da chave, não. Guarde o par CNPJ → local
+nas preferências do usuário na primeira vez que ele confirmar, e do segundo cupom em diante o
+reconhecimento não depende mais de ler o nome.

@@ -28,7 +28,7 @@
 * **Lançamento manual:** alternativa completa, para cupom ilegível. Mesmos campos.
 * **Edição:** toque na linha da transação abre o mesmo modal em modo de edição.
 * **Exclusão:** exige confirmação obrigatória numa janela de baixo, com o lançamento descrito.
-* **Estabelecimentos:** Sapore e Rei do Mate. Categorias: almoço, jantar, café/lanche e outro.
+* **Estabelecimentos:** Sapore, Rei do Mate e Outro (lugar de fora, com o nome digitado). Categorias: almoço, jantar, café/lanche e outro.
 
 ## 3. Regra de negócio do desconto
 
@@ -36,12 +36,23 @@ Confirmada com o usuário e implementada em funções puras (`descontoDe`, `resu
 
 ```
 consumo bruto  = soma de tudo que foi registrado no período
-desconto folha = Σ Sapore max(0, valor − teto vigente) + Σ Rei do Mate valor integral
-subsídio FGV   = consumo bruto − desconto folha
+desconto folha = Σ Sapore max(0, valor − teto) + Σ Rei do Mate valor integral
+subsídio FGV   = Σ Sapore min(valor, teto)
+fora da folha  = Σ Outro valor integral
+
+e vale a identidade:  bruto = desconto folha + subsídio FGV + fora da folha
 ```
 
 * **Sapore:** a FGV subsidia até o teto por refeição; o colaborador é descontado no excedente.
-* **Rei do Mate:** pago integralmente pelo colaborador.
+* **Rei do Mate:** pago integralmente pelo colaborador, via contracheque.
+* **Outro** (bar, padaria, restaurante da rua): **0% de subsídio e fora do contracheque** — foi
+  pago na hora, do bolso. Entra no controle do período (consumo bruto, gráficos, estatísticas,
+  exportação) e **não** entra na previsão de desconto em folha. O lançamento guarda o nome do
+  lugar em `localNome`, obrigatório nesse caso.
+
+> O subsídio é calculado somando o que a Sapore cobriu, **não** como `bruto − desconto`. Essa
+> subtração funcionava enquanto tudo passava pela folha; com gasto fora da FGV ela contaria o
+> bar do bigode como coisa subsidiada pela instituição.
 * **Teto e taxa são política, não constante.** Ficam em `politicas/vigentes`, com **data de
   vigência**: o administrador cadastra a nova regra e os lançamentos antigos continuam
   calculados pela regra que valia na data deles. O padrão, quando não há nada cadastrado, é

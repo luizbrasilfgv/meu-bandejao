@@ -185,7 +185,6 @@ abertas — são respostas.
 | Consumo exatamente igual a R$ 35,00 | Paga só os 0,15%. O excedente é zero | **[DRH]** |
 | Itens que o DRH não citou pelo nome | **Não entram.** O subsídio cobre o básico da refeição — o que o DRH nomeou — e nada além. Café, salgado, sopa: fora | **[DRH]** — leitura restritiva, ver abaixo |
 | Rei do Mate consome o teto do dia? | **Não.** É integral, sem subsídio aplicado, e não toca nos R$ 35,00 | **[DRH]** |
-
 | Vigência do R$ 35,00 | **Sempre foi 35,00** no período que o app cobre. O R$ 31,59 é valor antigo, de tabela anterior aos lançamentos | **[DRH]** |
 
 Ficam de fora duas coisas, e nenhuma afeta o cálculo:

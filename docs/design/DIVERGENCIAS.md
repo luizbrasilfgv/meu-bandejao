@@ -42,7 +42,29 @@ de 21/08/2026, é a fonte normativa e vence:
 |---|---|---|
 | "teto mensal (valor fixo por mês). **O valor não foi informado**" | subsídio de **R$ 35,00 por dia** de consumo, tabela 2026/2027 | o DRH |
 | taxa de 0,15% "por **ida** ao refeitório" numa página, "por **refeição**" no aviso literal da outra | 0,15% do salário base **por dia com consumo** | o DRH |
-| nada sobre composição do cupom | **geladeira e sobremesa elaborada não têm subsídio**; kilo, básico, suco de máquina, fruta e gelatina têm | o DRH |
+| nada sobre composição do cupom | **só o basicão tem subsídio** — kilo, básico, suco de máquina, fruta e gelatina. Todo o resto vai integral, inclusive café e salgado | o DRH, na leitura restritiva |
+| a taxa "**nunca entra no cálculo**" e o valor é sempre estimativa | a participação é a **maior parcela** do desconto | o DRH: ela entra, quando o usuário informa o salário |
+
+## O salário, que o handoff proibia
+
+A regra 3 do handoff é categórica: *"O app não pede nem armazena salário (LGPD). Por isso a taxa de
+0,15% por refeição nunca entra no cálculo."* **O app hoje pede.**
+
+O que mudou: com a regra do DRH confirmada, a participação deixou de ser detalhe e passou a ser a
+maior parcela do desconto — com salário de R$ 10.000 e 20 dias de consumo são R$ 300,00 no mês,
+contra R$ 37,00 de excedente do teto num mês típico. Um app que se propõe a prever o desconto e
+ignora 89% dele não cumpre o que promete.
+
+O que **não** mudou é o motivo da regra 3, e é por isso que ela foi contornada em vez de revogada:
+o salário fica em `privado`, só no `localStorage`, gravado por uma função que de propósito não
+chama `salvarPerfil`. Não vai para o Firestore, não sincroniza, e o administrador não tem como ver
+o de ninguém. Regra de banco não protegeria — ela vale para o SDK do cliente, não para quem abre o
+console do projeto. A única garantia é o dado não estar lá.
+
+Consequências aceitas: **não sincroniza entre aparelhos** (trocou de celular, digita de novo), e o
+campo é **opcional** — vazio, o app calcula como antes e o aviso de estimativa continua em tela.
+Informado, o aviso é escondido, porque ele afirma que os 0,15% estão fora da conta e passaria a
+mentir. O texto em si não foi tocado: é de redação fixa.
 
 O `README.md` desta pasta continua como foi recebido, contradição interna inclusive — é handoff, não
 documentação viva. A regra em vigor está em `docs/Especificacao.md`, seção 4.

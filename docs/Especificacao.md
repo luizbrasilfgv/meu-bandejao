@@ -43,9 +43,13 @@ também. O resto é opcional: `categoria`, `itens`, `matricula`, `numeroCupom`, 
 * **Estabelecimentos:** `Sapore`, `Rei do Mate` e `Outro`. Ao escolher `Outro` aparece o campo
   **ONDE FOI** e um aviso de que aquilo é 0% FGV e não vai para a folha.
 * **Categorias:** almoço, jantar, café/lanche e outro.
-* **`valorSemSubsidio`** — quanto, dentro do `valor`, é item de geladeira ou sobremesa elaborada.
-  Só aparece quando o local é `Sapore`; nos outros é sempre zero. Nunca pode passar do `valor`, e
-  o formulário recusa. É o campo que separa a base subsidiável do resto da nota.
+* **`valorSemSubsidio`** — quanto, dentro do `valor`, não tem direito a subsídio. Só aparece quando
+  o local é `Sapore`; nos outros é sempre zero. Nunca pode passar do `valor`, e o formulário
+  recusa. É o campo que separa a base subsidiável do resto da nota.
+* **Data e hora é `<input type="datetime-local">`**, não texto com máscara. O valor que o navegador
+  entrega já é o formato interno (`AAAA-MM-DDTHH:MM`), então não há texto para interpretar:
+  `normalizaDataHora()` só corta segundos e valida. O formato **exibido** segue o idioma do
+  aparelho; o gravado, não.
 
 ### 2.3 Editar e excluir
 
@@ -69,7 +73,16 @@ Na ordem, porque a ordem é a decisão:
    pagamento (troco, débito, valor pago) e de ruído (tributo aproximado, lei, PROCON, CEP) são
    descartadas; o nome do estabelecimento aceita erro de OCR; a chave impressa é remontada mesmo
    quebrada em duas linhas.
-4. **Preenche e mostra o que faltou.** O aviso diz o que entrou e o que não veio, campo por campo.
+4. **Separa o que tem subsídio do que não tem.** Percorre as linhas que têm valor e decide nesta
+   ordem: casou em `SEM_SUBSIDIO` (geladeira, sobremesa elaborada) → não tem; casou em
+   `COM_SUBSIDIO` (kilo, básico, suco de máquina, fruta, gelatina) → tem; **não casou em nada →
+   NÃO TEM**. De cada linha vale o maior valor, que é o total da linha e não o unitário. A soma é
+   limitada ao total do cupom, senão valor duplicado pelo OCR daria subsídio negativo.
+   O resultado é **sugestão, não decisão**: entra no campo `valorSemSubsidio`, com o selo `CONFIRA`
+   e a lista do que foi reconhecido escrita ao lado. Quando **nenhum** item subsidiável é
+   reconhecido — que quase sempre é falha de leitura, não refeição inteira sem subsídio — a nota
+   diz isso, em vez de apresentar o número como conclusão.
+5. **Preenche e mostra o que faltou.** O aviso diz o que entrou e o que não veio, campo por campo.
    Confiança baixa ou valor não encontrado marca a data com `CONFIRA`.
 
 Durante a leitura existe um **passo visual próprio**: a foto grande com uma linha varrendo, barra
@@ -203,13 +216,28 @@ nenhum documento sigiloso transita no app.
 
 ### 5.5 Perfil
 
-Conta Google (nome, e-mail, foto), matrícula, teto mensal, alerta de limite, exportação do
-período e sair. Para administrador, mais: **Gerenciar acessos** e **Políticas de desconto**.
+Conta Google (nome, e-mail, foto), **salário-base**, matrícula, teto mensal, alerta de limite,
+exportação do período e sair. Para administrador, mais: **Gerenciar acessos** e **Políticas de
+desconto**.
+
+O salário-base é o único campo que **não sincroniza** — fica em `privado`, no `localStorage`, e a
+linha mostra a participação já calculada (`0,15% = R$ 15,00 POR DIA`) junto do aviso de que o valor
+não sai do aparelho. Vazio é o padrão.
 
 ### 5.6 Dúvidas
 
-Memória de cálculo linha por linha e FAQ, incluindo o que o número grande mostra, de onde vem o
-teto, por que aparecem duas linhas no contracheque e como tratar gasto fora da FGV.
+Memória de cálculo linha por linha e FAQ. A memória lista, nesta ordem: consumo bruto, subsídio da
+Sapore (R$ 35,00 **por dia**), o que tem subsídio, o que não tem, participação, Rei do Mate, fora
+da FGV, quinzenas e o resultado. **A ordem importa:** o que entra vem antes do que não entra,
+porque começar pela lista de exclusão faz parecer que todo o resto entra — foi assim que a tela
+passou a contradizer o cálculo uma vez.
+
+O FAQ cobre o que o número grande mostra, de onde vem o subsídio de R$ 35,00 por dia, **o que entra
+e o que não entra no subsídio**, por que a rubrica do mês pode não bater com o consumo do mês, quem
+consegue ver o salário, como o app lê o cupom e como tratar gasto fora da FGV.
+
+> Esta tela é a explicação do que o cálculo faz. **Mudou a regra, mude as duas juntas** — app
+> cobrando de um jeito e explicando de outro é pior do que app sem explicação.
 
 ## 6. Dados
 

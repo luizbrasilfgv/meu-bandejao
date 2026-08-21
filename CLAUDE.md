@@ -6,9 +6,12 @@ No ar em **https://meu-bandejao.web.app**. Leia `README.md` para a visão geral 
 
 **A regra do desconto mora em `docs/Regra_DRH_Sapore.md`** — é o documento único, com a
 procedência de cada afirmação marcada ([DRH] = norma, [APP] = decisão de implementação,
-[?] = não confirmado) e a lista do que ainda falta perguntar ao DRH. Antes de mexer em qualquer
-cálculo de dinheiro, leia esse arquivo. Se você descobrir algo novo sobre a regra, ele é o lugar
-de registrar — não o comentário do código.
+[?] = não confirmado). Antes de mexer em qualquer cálculo de dinheiro, leia esse arquivo. Se você
+descobrir algo novo sobre a regra, ele é o lugar de registrar — não o comentário do código.
+
+`docs/Bot_DRH_Refeitorio.md` é a mesma regra em linguagem de colaborador, para o bot do DRH. Ele
+tem outro dono e outro público: **mudou a regra, mude os dois**, e mantenha os blocos dele
+autossuficientes, porque um bot recupera um trecho por vez.
 
 ## Arquitetura: o que não se negocia
 

@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=17">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -512,12 +512,12 @@
       <div class="formula">
         <div class="formula__line"><span>Consumo bruto</span><b>soma de tudo que você registrou no período</b></div>
         <div class="formula__line"><span>Subsídio da Sapore</span><b>R$ 35,00 por DIA, não por nota: duas refeições no mesmo dia dividem um teto só</b></div>
-        <div class="formula__line"><span>Sem subsídio</span><b>geladeira e sobremesa elaborada (coca, bolo, salada de frutas) vão integrais para a folha</b></div>
-        <div class="formula__line"><span>Com subsídio</span><b>kilo, prato básico, suco de máquina, fruta e gelatina</b></div>
+        <div class="formula__line"><span>Com subsídio</span><b>só o basicão: kilo, prato básico, suco de máquina, fruta e gelatina</b></div>
+        <div class="formula__line"><span>Sem subsídio</span><b>todo o resto vai integral para a folha — refrigerante, água de garrafa, bolo, salada de frutas, sorvete, açaí, café, salgado. Na dúvida, não entra</b></div>
         <div class="formula__line"><span>Participação</span><b>0,15% do salário base por dia com consumo na Sapore</b></div>
         <div class="formula__line"><span>Rei do Mate</span><b>valor integral, descontado no contracheque, sem subsídio</b></div>
         <div class="formula__line"><span>Fora da FGV</span><b>0% de subsídio e fora da folha: você pagou na hora</b></div>
-        <div class="formula__line"><span>Quinzenas</span><b>01–15 e 16 ao último dia, como as lanchonetes enviam</b></div>
+        <div class="formula__line"><span>Quinzenas</span><b>01–15 e 16 ao último dia, mostradas separadas: a data de corte que a Sapore usa para enviar não é confirmada</b></div>
         <div class="formula__line formula__line--result"><span>Desconto em folha</span><b>participação + excedente do teto diário + integral no Rei do Mate</b></div>
       </div>
       <p class="wip__text" style="margin-top:14px">Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
@@ -552,8 +552,14 @@
         <p>É a regra do DRH para a Sede Botafogo, tabela 2026/2027, cadastrada no app com data de vigência. Quando ela muda, o administrador cadastra a nova e os lançamentos antigos continuam calculados pela regra que valia na data deles. Repare que o subsídio é <b>do dia</b>: se você almoça e janta na Sapore no mesmo dia, as duas notas dividem um único R$ 35,00.</p>
       </details>
       <details class="glass faq__item">
-        <summary>Por que aparecem duas linhas no meu contracheque?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>As lanchonetes enviam o consumo à FGV por quinzena. No fechamento da folha, a rubrica de refeitório soma a quinzena anterior com a atual. O app mostra as duas separadas.</p>
+        <summary>O que entra e o que não entra no subsídio?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p><b>Entra só o basicão:</b> kilo (self-service por peso), prato básico, suco de máquina, fruta e gelatina. É o que o DRH nomeou.</p>
+        <p><b>Todo o resto vai integral para a folha</b>, mesmo que o seu dia não tenha chegado a R$ 35,00: refrigerante, água de garrafa, suco de caixinha, iogurte, sorvete, bolo, torta, pudim, salada de frutas, açaí — e também café e salgado, que não fazem parte do básico.</p>
+        <p>Duas diferenças que confundem: <b>fruta entra, salada de frutas não</b>; <b>suco de máquina entra, suco de garrafa não</b>. E a regra de bolso é <b>na dúvida, não entra</b> — o app prevê desconto, e é melhor prever um pouco mais do que levar susto no contracheque.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>Por que a rubrica do mês não bate com o que eu consumi no mês?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Porque a <b>data de corte do envio</b> não é necessariamente o mês do calendário: o período que a Sapore fecha e manda para a folha pode pegar parte de um mês e parte do outro. Por isso o app mostra as duas quinzenas separadas, em vez de somar de um jeito que pode não ser o da folha. Para conferir dia a dia, procure o DRH com a sua matrícula e o mês.</p>
       </details>
       <details class="glass faq__item">
         <summary>O app precisa do meu salário? Quem consegue ver?<span class="faq__chev" aria-hidden="true"></span></summary>
@@ -699,7 +705,7 @@
           <span class="field__label">DESTE VALOR, SEM SUBSÍDIO <em hidden>CONFIRA</em></span>
           <input type="text" inputmode="decimal" id="campoSemSubsidio" placeholder="0,00" aria-label="Valor de itens sem subsídio">
           <p class="field__nota" id="notaSemSubsidioOCR" hidden></p>
-          <p class="field__nota">Coca, refrigerante, bolo e salada de frutas vão integrais para a folha. Kilo, básico, suco de máquina, fruta e gelatina entram no subsídio.</p>
+          <p class="field__nota">Só o básico entra no subsídio: kilo, prato básico, suco de máquina, fruta e gelatina. Todo o resto vai integral para a folha — refrigerante, água de garrafa, bolo, salada de frutas, sorvete, açaí, café, salgado. Na dúvida, não entra.</p>
         </div>
 
         <label class="field" id="campoLocalNomeWrap" hidden>
@@ -952,6 +958,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

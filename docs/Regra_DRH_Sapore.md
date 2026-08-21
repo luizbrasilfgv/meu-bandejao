@@ -75,6 +75,17 @@ Vai **integral** para a folha, mesmo que o seu dia tenha ficado abaixo dos R$ 35
 | Bolo | sobremesa elaborada |
 | Salada de frutas | sobremesa elaborada |
 
+### Na dúvida, não entra
+
+O DRH nomeou o que entra (kilo, básico, suco de máquina, fruta, gelatina) e o que não entra
+(geladeira, sobremesa elaborada), e não disse o que fazer com o resto — café, salgado, sopa. A regra
+adotada é a **restritiva: o que não foi nomeado como incluído fica de fora.** Dois motivos, e os
+dois apontam para o mesmo lado:
+
+1. Instituição lê benefício pelo lado que gasta menos, e é essa leitura que chega ao contracheque.
+2. Este app **prevê** desconto. Prever desconto maior do que vem é susto que não acontece; prever
+   menor é susto no contracheque. O erro tem que cair no lado que não machuca.
+
 ### Consequência prática
 
 O subsídio **não é função do total da nota**, é função da parte subsidiável dela. Duas notas de
@@ -170,15 +181,21 @@ abertas — são respostas.
 | Periodicidade dos 0,15% | **Por dia.** Uma vez por dia com consumo, não por nota e não por mês | **[DRH]** confirmado pelo usuário e pela planilha de conferência, cuja coluna de participação tem uma incidência por dia |
 | Existe teto mensal? | **Não existe.** | **[DRH]** |
 | Dia sem consumo | Não paga nada. Sem consumo, sem participação | **[DRH]** |
-| Dia com consumo só de item sem subsídio (uma coca e nada mais) | **Paga os 0,15%.** A participação é pela passagem na roleta, não pelo subsídio recebido | **[DRH]** |
+| Dia com consumo só de item sem subsídio (uma coca e nada mais) | **Paga os 0,15% se passou na roleta.** O gatilho é a passagem pela identificação do refeitório, não o subsídio recebido nem o tipo de item | **[DRH]** |
 | Consumo exatamente igual a R$ 35,00 | Paga só os 0,15%. O excedente é zero | **[DRH]** |
-| Itens que o DRH não citou pelo nome | **Não precisa de lista.** O critério resolve: é de geladeira ou sobremesa elaborada? Vai integral. Senão, entra no subsídio. Café da máquina entra; água de garrafa e sorvete não | **[DRH]** — critério, não enumeração |
+| Itens que o DRH não citou pelo nome | **Não entram.** O subsídio cobre o básico da refeição — o que o DRH nomeou — e nada além. Café, salgado, sopa: fora | **[DRH]** — leitura restritiva, ver abaixo |
 | Rei do Mate consome o teto do dia? | **Não.** É integral, sem subsídio aplicado, e não toca nos R$ 35,00 | **[DRH]** |
 
 | Vigência do R$ 35,00 | **Sempre foi 35,00** no período que o app cobre. O R$ 31,59 é valor antigo, de tabela anterior aos lançamentos | **[DRH]** |
 
-Fica de fora só uma coisa, e ela não afeta conta nenhuma: se a regra é a mesma nas outras unidades
-da FGV. **[?]** O documento fala só da Sede Botafogo, e o uso é na Sede.
+Ficam de fora duas coisas, e nenhuma afeta o cálculo:
+
+* Se a regra é a mesma nas outras unidades da FGV. **[?]** O documento fala só da Sede Botafogo, e
+  o uso é na Sede.
+* Como a rubrica do contracheque agrupa o envio do consumo — se soma a quinzena anterior com a
+  atual, como o app assume. **[?]** **Isso não é pergunta para o DRH: quem sabe é a Sapore**, que é
+  quem envia o consumo. Enquanto não houver resposta, a tela mostra as duas quinzenas separadas,
+  que é a forma que não erra em nenhuma das hipóteses.
 
 ---
 

@@ -114,11 +114,15 @@ e valem as identidades:
   o teto em **ordem cronológica** — a primeira nota do dia consome o teto, a seguinte pega o que
   sobrou. O rateio é sempre calculado sobre a lista inteira, nunca sobre a lista filtrada da tela,
   senão o mesmo lançamento mostraria subsídios diferentes em telas diferentes.
-* **Nem tudo no cupom tem subsídio.** Item de geladeira (refrigerante, garrafa) e sobremesa
-  elaborada (bolo, salada de frutas) vão integrais para a folha. Kilo, prato básico, suco de
-  máquina, fruta e gelatina entram. O valor da parcela sem subsídio é **marcado no lançamento**
-  (`valorSemSubsidio`), não inferido do texto do cupom: dois cupons de mesmo total e composição
-  diferente produzem descontos diferentes, então adivinhar seria errar dinheiro em silêncio.
+* **Nem tudo no cupom tem subsídio, e na dúvida não tem.** Entram só kilo, prato básico, suco de
+  máquina, fruta e gelatina — o que o DRH nomeou. Todo o resto vai integral para a folha: geladeira,
+  sobremesa elaborada, café, salgado, e também o que o leitor não conseguiu reconhecer. O padrão
+  restritivo é deliberado, porque o app **prevê** desconto: errar prevendo mais é susto que não
+  acontece, errar prevendo menos é susto no contracheque.
+  O valor final é **marcado no lançamento** (`valorSemSubsidio`), nunca decidido pelo leitor: dois
+  cupons de mesmo total e composição diferente produzem descontos diferentes. O leitor do cupom
+  **sugere** o valor, escreve ao lado o que reconheceu e marca o campo com `CONFIRA`; quando não
+  reconhece nenhum item subsidiável, diz isso em vez de apresentar o número como conclusão.
 * **A participação não é comida.** É encargo por dia de uso, então `desconto + subsídio` passa do
   gasto exatamente nela. A tela mostra as parcelas separadas no rodapé do número da folha; nunca
   apresente os três valores como se somassem o gasto.

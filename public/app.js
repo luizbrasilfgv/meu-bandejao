@@ -1730,8 +1730,14 @@ async function lerCupom(file){
       põe("campoSemSubsidio", brl(campos.semSubsidio));
       if (notaSS){
         notaSS.hidden = false;
-        notaSS.textContent = `O leitor achou ${brl(campos.semSubsidio)} sem subsídio: `
-          + campos.itensSemSubsidio.join(", ").toLowerCase() + ". Confira.";
+        /* Cupom em que nada foi reconhecido como subsidiável quase sempre é
+           falha de leitura, não refeição inteira sem subsídio. Dizer isso é
+           mais honesto que apresentar o número como se fosse conclusão. */
+        notaSS.textContent = campos.achouSubsidiavel
+          ? `O leitor achou ${brl(campos.semSubsidio)} sem subsídio: `
+            + campos.itensSemSubsidio.join(", ").toLowerCase() + ". Confira."
+          : `O leitor não reconheceu nenhum item com subsídio neste cupom e jogou `
+            + `${brl(campos.semSubsidio)} para a folha. Pode ser falha de leitura — confira.`;
       }
     } else if (notaSS){
       notaSS.hidden = true;
@@ -1837,12 +1843,21 @@ const RE_PAGAMENTO = /troco|dinheiro|cart[ãa]o|cr[eé]dito|d[eé]bito|\bpix\b|r
 const RE_RUIDO = /trib|aprox|federal|estadual|\blei\b\s*\d|procon|fone|icms|pis|cofins|\bcep\b|chave|acesso|aut\s*[:.]|consulte|nfc\s*-?\s*e|cpf|cnpj|\bqtde\b|aliq/i;
 
 /** Todos os valores monetários de um texto. */
-/* ---------- o que do cupom NÃO tem subsídio ----------
-   O critério do DRH é "nada de geladeira e nenhuma sobremesa elaborada". Isto
-   aqui NÃO é o critério: é uma lista de palavras que costumam aparecer no cupom
-   e que caem nele. Serve para o formulário já abrir com o valor sugerido — e
-   nunca decide sozinha. O campo fica visível, com a lista do que foi
-   reconhecido ao lado, e o lançamento vai marcado para revisão.
+/* ---------- o que do cupom tem subsídio, e o que não tem ----------
+   A ordem da decisão é DELIBERADA e o padrão é restritivo:
+
+     1. casou em SEM_SUBSIDIO  -> não tem subsídio
+     2. casou em COM_SUBSIDIO  -> tem subsídio
+     3. não casou em nada      -> NÃO TEM SUBSÍDIO
+
+   O passo 3 é a escolha que importa. O DRH nomeou o que entra (kilo, básico,
+   suco de máquina, fruta, gelatina) e o que não entra (geladeira, sobremesa
+   elaborada), e não disse o que fazer com o resto. Duas razões para o resto
+   ficar de fora:
+   — a instituição lê benefício pelo lado que gasta menos, e é essa leitura que
+     aparece no contracheque;
+   — este app PREVÊ desconto. Prever desconto maior do que vem é susto que não
+     acontece; prever menor é susto no contracheque.
    Os padrões são sem acento e em minúsculas porque a comparação passa por
    chave(), que normaliza. */
 const SEM_SUBSIDIO = [
@@ -1858,8 +1873,31 @@ const SEM_SUBSIDIO = [
   /brownie/, /pave/, /churros/, /cannoli/, /tiramisu/, /banoffee/,
 ];
 
-/** Casa uma linha de cupom contra a lista do que não tem subsídio. */
-const naoTemSubsidio = linha => SEM_SUBSIDIO.some(re => re.test(chave(linha)));
+/* O que tem subsídio: o basicão e mais nada. É a lista fechada que o DRH
+   nomeou — kilo, prato básico, suco de máquina, fruta e gelatina — com as
+   variações de escrita que o cupom e o OCR produzem para a MESMA coisa
+   (self-service, por peso, refeição, quilo com q). Não acrescente item aqui
+   sem o DRH ter dito que entra: cada palavra a mais é dinheiro que o app
+   deixa de prever como desconto. */
+const COM_SUBSIDIO = [
+  /\bkilo\b/, /\bquilo\b/, /\bkg\b/, /self.?serv/, /por peso/, /a peso/,
+  /\bbasic/, /prato basic/, /refeic/, /\bbufe\b/, /buffet/,
+  /suco/, /\bfruta/, /gelatina/,
+];
+
+/**
+ * Uma linha do cupom tem subsídio? A ordem decide, e o padrão é NÃO.
+ * O que não está nomeado pelo DRH como incluído fica de fora: na dúvida, vai
+ * integral para a folha. Ver o comentário de SEM_SUBSIDIO para o porquê.
+ */
+function temSubsidio(linha){
+  const t = chave(linha);
+  if (SEM_SUBSIDIO.some(re => re.test(t))) return false;   // geladeira, sobremesa elaborada
+  return COM_SUBSIDIO.some(re => re.test(t));              // não nomeado = não entra
+}
+
+/** O contrário, que é o que o formulário precisa somar. */
+const naoTemSubsidio = linha => !temSubsidio(linha);
 
 function valoresDe(s){
   const out = [];
@@ -1886,7 +1924,7 @@ function extrairCampos(texto){
   const plano = chave(t);
   const out = { valor: null, dataHora: "", local: "", itens: "",
                 matricula: "", numeroCupom: "", cnpj: "",
-                semSubsidio: 0, itensSemSubsidio: [] };
+                semSubsidio: 0, itensSemSubsidio: [], achouSubsidiavel: false };
 
   /* --- a chave de acesso impressa vale mais que tudo: 44 dígitos em grupos
          de 4, que o OCR acerta bem. Dela saem CNPJ e nº do cupom.
@@ -1962,20 +2000,25 @@ function extrairCampos(texto){
 
   /* --- itens: linhas com valor que não são total, pagamento nem ruído --- */
   /* --- a parte do cupom sem subsídio, para o formulário já abrir sugerindo ---
-     Percorre as linhas que têm valor e casa contra a lista SEM_SUBSIDIO. De cada
-     linha vale o MAIOR valor: numa linha "2 x 4,50   9,00" o total da linha é o
-     9,00, e é ele que vai para a folha — o 4,50 é o unitário. */
+     Percorre as linhas que têm valor e soma as que NÃO têm subsídio — incluindo
+     as que o leitor não reconheceu, porque na dúvida não entra. De cada linha
+     vale o MAIOR valor: numa linha "2 x 4,50   9,00" o total da linha é o 9,00,
+     e é ele que vai para a folha; o 4,50 é o unitário. */
   for (const l of linhas){
     if (!util(l) || RE_TOTAL.test(l) || RE_SUBTOTAL.test(l) || RE_APAGAR.test(l)) continue;
     const vals = valoresDe(l);
-    if (!vals.length || !naoTemSubsidio(l)) continue;
+    if (!vals.length) continue;
+    if (temSubsidio(l)){ out.achouSubsidiavel = true; continue; }
     out.semSubsidio += Math.max(...vals);
     const nome = l.replace(/(?:R\$\s*)?\b[\d.]*\d[.,]\d{2,}\b/g, "")
                   .replace(/^\s*\d{1,3}\s*[-.)]?\s+/, "").replace(/^\s*\d{5,}\s*/, "")
                   .replace(/\s{2,}/g, " ").trim();
     if (nome) out.itensSemSubsidio.push(nome.slice(0, 24));
   }
-  out.semSubsidio = Math.round(out.semSubsidio * 100) / 100;
+  /* Nunca pode passar do total do cupom: a soma por linha erra para cima quando
+     o OCR duplica um valor, e semSubsidio maior que valor daria subsídio
+     negativo. O formulário já recusa, mas melhor não sugerir o impossível. */
+  out.semSubsidio = Math.min(Math.round(out.semSubsidio * 100) / 100, num(out.valor) || Infinity);
 
   out.itens = linhas
     .filter(l => valoresDe(l).length)

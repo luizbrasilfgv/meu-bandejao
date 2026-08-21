@@ -31,8 +31,8 @@ Duas coisas somadas:
 1. **0,15% do seu salário-base**, em cada dia que você consumiu no refeitório.
 2. **O que passou de R$ 35,00** naquele dia.
 
-Mais o valor integral de itens que não têm direito a subsídio (bebida de geladeira e sobremesa
-elaborada) e de todo consumo no Rei do Mate.
+Mais o valor integral de tudo que não é o básico da refeição — bebida de geladeira, sobremesa
+elaborada, café, salgado — e de todo consumo no Rei do Mate.
 
 ---
 
@@ -95,7 +95,7 @@ prato inteiro.
 
 ## O que entra no subsídio de R$ 35,00?
 
-Entram:
+Só o básico da refeição. Entram, e **apenas** estes:
 
 * **Kilo** (self-service por peso)
 * **Prato básico**
@@ -107,26 +107,55 @@ Entram:
 
 ## O que NÃO entra no subsídio?
 
-A regra é: **nada que seja de geladeira e nenhuma sobremesa elaborada entra no subsídio.**
+Tudo o que não é o básico da refeição. **Na dúvida, não entra.**
 
-Não entram, por exemplo:
+Em particular, **nada que seja de geladeira e nenhuma sobremesa elaborada**:
 
 * **Refrigerante e outras bebidas de geladeira** (lata, garrafa)
-* **Bolo**
-* **Salada de frutas**
+* **Água mineral**, com ou sem gás
+* **Suco de caixinha ou garrafa** — diferente do suco de máquina, que entra
+* **Iogurte, leite fermentado**
+* **Sorvete, picolé**
+* **Bolo, torta, pudim, mousse**
+* **Salada de frutas** — diferente da fruta, que entra
+* **Açaí**
+
+E também **café** e **salgado** (pão de queijo, coxinha, sanduíche), que não fazem parte do básico.
 
 Esses itens são cobrados **integralmente** de você, além dos 0,15% do dia, **mesmo que o seu
 consumo do dia não tenha chegado a R$ 35,00**.
 
-Para saber se um item que não está nesta lista entra ou não, use o critério: se vem de geladeira ou
-é sobremesa elaborada, não entra no subsídio.
+## O item que eu comprei entra no subsídio?
+
+O subsídio cobre **o básico da refeição, e só ele**:
+
+| Entra no subsídio | Não entra — é cobrado integralmente |
+|---|---|
+| Kilo (self-service por peso) | Refrigerante, lata ou garrafa |
+| Prato básico | Água mineral, com ou sem gás |
+| Suco de máquina | Suco de caixinha ou garrafa |
+| Fruta | Iogurte, leite fermentado |
+| Gelatina | Sorvete, picolé |
+| | Bolo, torta, pudim, mousse |
+| | Salada de frutas |
+| | Açaí |
+| | Café e capuccino |
+| | Salgado, pão de queijo, sanduíche |
+
+**Na dúvida, não entra.** Se o item não está na coluna da esquerda, considere que vai integral para
+a folha. Duas diferenças que costumam confundir:
+
+* **Fruta entra, salada de frutas não.** A fruta é fruta; a salada de frutas é sobremesa preparada.
+* **Suco de máquina entra, suco de garrafa não.** O de garrafa vem da geladeira.
 
 ---
 
 ## Comprei só um refrigerante, sem almoçar. Como fica?
 
-O refrigerante é cobrado integralmente, porque item de geladeira não tem subsídio. E os 0,15% do
-seu salário-base incidem porque houve consumo no refeitório naquele dia.
+O refrigerante é cobrado integralmente, porque item de geladeira não tem subsídio.
+
+E os 0,15% do salário-base incidem **se você passou pela identificação do refeitório** — é a
+passagem que dispara a cobrança do dia, não o tipo de item nem o valor consumido.
 
 ---
 
@@ -142,10 +171,12 @@ no mesmo dia, o subsídio de R$ 35,00 continua inteiro para o almoço.
 ## Como isso aparece no meu contracheque?
 
 O consumo é identificado na entrada do refeitório (crachá / matrícula) e vai direto para a folha de
-pagamento, na rubrica de refeitório.
+pagamento, na **rubrica de refeitório**.
 
-O envio do consumo é feito **por quinzena**, e o fechamento da folha soma a quinzena anterior com a
-atual. Por isso a rubrica de um mês pode conter consumo de duas quinzenas diferentes.
+Se o valor de um mês parecer diferente do que você consumiu naquele mês, o motivo costuma ser a
+**data de corte do envio do consumo**: o período que a Sapore fecha e manda para a folha não é
+necessariamente igual ao mês do calendário. Para conferir dia a dia, procure o DRH com a sua
+matrícula e o mês em questão.
 
 ---
 
@@ -190,7 +221,8 @@ contracheque. O consumo detalhado por dia é registrado no sistema de identifica
 | Coca-Cola entra no subsídio? | Não. Nada de geladeira entra |
 | Bolo e salada de frutas entram? | Não. São sobremesa elaborada |
 | Fruta e gelatina entram? | Sim |
-| Suco de máquina entra? | Sim |
+| Suco de máquina entra? | Sim. O de garrafa ou caixinha, não |
 | Kilo e prato básico entram? | Sim |
+| Item que não está na lista? | Na dúvida, não entra |
 | Rei do Mate tem subsídio? | Não. É integral, e não usa os R$ 35,00 |
 | Dia que eu não fui, pago algo? | Não |

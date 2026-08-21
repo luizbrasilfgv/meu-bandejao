@@ -6,7 +6,7 @@
 
 /* SUBA ESTE NÚMERO A CADA PUBLICAÇÃO. É ele que descarta o
    cache antigo — sem isso a pessoa fica presa numa versão. */
-const VERSAO = "app-v16";
+const VERSAO = "app-v17";
 
 /* O casco: sem estes arquivos o app não abre. */
 const CASCO = [

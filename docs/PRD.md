@@ -21,25 +21,29 @@ Em ordem de importância, porque é isso que define a hierarquia da tela inicial
 
 1. **Quanto eu gastei** no período. É o número grande.
 2. **Quanto disso vira desconto em folha** — o que a FGV vai cobrar no contracheque.
-3. **Quanto a FGV cobriu** — o subsídio, que só existe na Sapore e só até o teto.
+3. **Quanto a FGV cobriu** — o subsídio, que só existe na Sapore e só até o teto do dia.
 4. **Quanto saiu do bolso na hora** — o que foi pago fora da FGV, quando houver.
 
-Os quatro têm que fechar: o item 1 é a soma dos outros três. Uma tela em que o desconto em folha
-apareça maior que o gasto total dá a impressão errada de que se gastou pouco — foi o que
-aconteceu na primeira versão e o que motivou inverter a hierarquia.
+Os quatro têm que fechar, com uma ressalva: o item 1 é a soma dos outros três **menos a
+participação de 0,15%**, que está dentro do item 2 e não é comida — é encargo por dia de uso. Por
+isso a tela mostra as parcelas da folha separadas, em vez de três números que aparentam somar o
+gasto e não somam. Uma tela em que o desconto em folha apareça maior que o gasto total dá a
+impressão errada de que se gastou pouco — foi o que aconteceu na primeira versão e o que motivou
+inverter a hierarquia.
 
 ## 3. Perfis de usuário
 
 * **Usuário comum:** lança por foto do cupom ou à mão, edita e exclui os próprios lançamentos,
   vê os painéis, filtra a lista completa e exporta em CSV.
 * **Administrador:** tudo do comum, mais o painel de aprovação de novos acessos e a manutenção
-  das políticas de desconto (teto por refeição e taxa, com data de vigência).
+  das políticas de desconto (subsídio por dia e participação, com data de vigência).
 
 ## 4. Princípios que não se negociam
 
-* **O salário não entra no app.** Sem campo, sem criptografia, sem PIN. A consequência aceita é
-  que a taxa de 0,15% do salário base por ida ao refeitório não é calculada, e todo valor
-  exibido é uma estimativa por baixo, sempre declarada como tal.
+* **O salário não entra no app.** Sem campo, sem criptografia, sem PIN. O app aceita, por opção do
+  usuário e lido do contracheque, o **valor da participação em reais** — nunca o salário. Vazio é o
+  padrão, e aí a participação de 0,15% não é calculada e todo valor exibido é uma estimativa por
+  baixo, sempre declarada como tal.
 * **A foto do cupom não é armazenada.** É lida na memória do aparelho e descartada.
 * **Nenhum número inventado.** Onde falta dado, a tela mostra `—`. Onde o valor é estimativa,
   está escrito que é.

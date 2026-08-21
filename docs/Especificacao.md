@@ -43,6 +43,9 @@ também. O resto é opcional: `categoria`, `itens`, `matricula`, `numeroCupom`, 
 * **Estabelecimentos:** `Sapore`, `Rei do Mate` e `Outro`. Ao escolher `Outro` aparece o campo
   **ONDE FOI** e um aviso de que aquilo é 0% FGV e não vai para a folha.
 * **Categorias:** almoço, jantar, café/lanche e outro.
+* **`valorSemSubsidio`** — quanto, dentro do `valor`, é item de geladeira ou sobremesa elaborada.
+  Só aparece quando o local é `Sapore`; nos outros é sempre zero. Nunca pode passar do `valor`, e
+  o formulário recusa. É o campo que separa a base subsidiável do resto da nota.
 
 ### 2.3 Editar e excluir
 
@@ -83,36 +86,69 @@ mascarado. Serve de diagnóstico quando algum campo não vem.
 
 ## 4. Regra de negócio do desconto
 
-Implementada em funções puras — `descontoDe`, `subsidioDe`, `foraDaFolhaDe`, `resumo`:
+A regra é do DRH, para funcionários da **Sede Botafogo** em sistema de consumo direto. Está
+implementada em funções puras — `baseSubsidiavel`, `calcularRateio`, `descontoDe`, `subsidioDe`,
+`foraDaFolhaDe`, `participacaoDe`, `resumo`:
 
 ```
-gasto no período = soma de tudo que foi registrado
-desconto folha   = Σ Sapore max(0, valor − teto) + Σ Rei do Mate valor integral
-subsídio FGV     = Σ Sapore min(valor, teto)
-pago por fora    = Σ Outro valor integral
+POR DIA d com consumo na Sapore
+  base(d)      = Σ (valor − valorSemSubsidio) das notas Sapore do dia
+  extras(d)    = Σ valorSemSubsidio
+  subsídio(d)  = min( base(d), teto )            teto = R$ 35,00/DIA (tabela 2026/2027)
+  excedente(d) = max( 0, base(d) − teto ) + extras(d)
 
-e vale a identidade:  gasto = desconto folha + subsídio FGV + pago por fora
+NO PERÍODO
+  gasto          = soma de tudo que foi registrado
+  subsídio FGV   = Σ subsídio(d)
+  participação   = 0,15% do salário base × nº de dias com consumo na Sapore
+  desconto folha = participação + Σ excedente(d) + Σ Rei do Mate integral
+  pago por fora  = Σ Outro valor integral
+
+e valem as identidades:
+  gasto = subsídio FGV + Σ excedente + Rei do Mate + pago por fora
+  gasto = subsídio FGV + (desconto folha − participação) + pago por fora
 ```
 
-* **Sapore:** a FGV subsidia até o teto por refeição; o colaborador é descontado no excedente.
-* **Rei do Mate:** pago integralmente pelo colaborador, via contracheque.
+* **O teto é DIÁRIO, não por nota.** Duas refeições no mesmo dia dividem um único R$ 35,00. Isso
+  tira o subsídio do domínio de um lançamento isolado: `calcularRateio` agrupa por dia e distribui
+  o teto em **ordem cronológica** — a primeira nota do dia consome o teto, a seguinte pega o que
+  sobrou. O rateio é sempre calculado sobre a lista inteira, nunca sobre a lista filtrada da tela,
+  senão o mesmo lançamento mostraria subsídios diferentes em telas diferentes.
+* **Nem tudo no cupom tem subsídio.** Item de geladeira (refrigerante, garrafa) e sobremesa
+  elaborada (bolo, salada de frutas) vão integrais para a folha. Kilo, prato básico, suco de
+  máquina, fruta e gelatina entram. O valor da parcela sem subsídio é **marcado no lançamento**
+  (`valorSemSubsidio`), não inferido do texto do cupom: dois cupons de mesmo total e composição
+  diferente produzem descontos diferentes, então adivinhar seria errar dinheiro em silêncio.
+* **A participação não é comida.** É encargo por dia de uso, então `desconto + subsídio` passa do
+  gasto exatamente nela. A tela mostra as parcelas separadas no rodapé do número da folha; nunca
+  apresente os três valores como se somassem o gasto.
+* **Sapore:** a FGV subsidia até o teto do dia; o colaborador é descontado no excedente.
+* **Rei do Mate:** pago integralmente pelo colaborador, via contracheque, sem subsídio e sem teto.
 * **Outro** (bar, padaria, restaurante da rua): **0% de subsídio e fora do contracheque** — foi
   pago na hora, do bolso. Entra no controle do período (gasto, gráficos, estatísticas,
   exportação) e **não** entra na previsão de desconto em folha.
 
 > **Não calcule o subsídio como `gasto − desconto`.** Funcionava enquanto tudo passava pela folha;
 > desde que existe gasto fora da FGV, essa subtração contaria o bar da esquina como coisa
-> subsidiada pela instituição. Some o que a Sapore cobriu, e pronto.
+> subsidiada pela instituição — e desde que existe a participação, ela viraria subsídio negativo.
+> Some cada parcela pela sua regra, e pronto.
 
-* **Teto e taxa são política, não constante.** Ficam em `politicas/vigentes`, com **data de
-  vigência**: o administrador cadastra a nova regra e os lançamentos antigos continuam calculados
-  pela regra que valia na data deles. O padrão, quando não há nada cadastrado, é teto de
-  R$ 31,59 e taxa de 0,15%.
-* **A taxa de 0,15% do salário base por ida fica registrada e FORA da conta**, porque aplicá-la
-  exigiria o salário. Por isso todo valor exibido é uma estimativa por baixo, com este aviso de
-  redação fixa (não reescrever), posicionado junto do número de **desconto em folha**:
+* **Subsídio e participação são política, não constante.** Ficam em `politicas/vigentes`, com
+  **data de vigência**: o administrador cadastra a nova regra e os lançamentos antigos continuam
+  calculados pela regra que valia na data deles. O padrão, quando não há nada cadastrado, é
+  subsídio de R$ 35,00 por dia e participação de 0,15%.
+* **O salário não entra no app; o valor da participação, em reais, entra se o usuário quiser.**
+  Fica em `prefs.participacaoDia`, informado no Perfil a partir do contracheque — o app nunca
+  pergunta o salário. Vazio é o padrão: aí a participação vale zero, o desconto é estimativa por
+  baixo, e aparece este aviso de **redação fixa** (não reescrever), posicionado junto do número de
+  **desconto em folha**:
 
   > Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade
+
+  Informado o valor, a participação entra na conta e **o aviso sai de tela** — em vez de reescrever
+  um texto que passaria a mentir. Registro honesto: guardar a participação em reais é
+  matematicamente equivalente a guardar o salário, porque dividir por 0,0015 devolve o salário.
+  A diferença é que o app não pede, não sugere e funciona sem.
 
 ## 5. Telas
 
@@ -181,13 +217,18 @@ politicas/vigentes   → { lista: [ { id, vigencia, teto, taxaPct } ], atualizad
 Um lançamento:
 
 ```
-{ id, dataHora, local, localNome, categoria, valor, itens, matricula,
-  numeroCupom, cnpj, observacao, confiancaOCR, origem, status, criadoEm }
+{ id, dataHora, local, localNome, categoria, valor, valorSemSubsidio, itens,
+  matricula, numeroCupom, cnpj, observacao, confiancaOCR, origem, status, criadoEm }
 ```
 
-`prefs`: `{ alertaLimite, lembreteRecibo, tetoMensal, matricula, cnpjLocal }` — sendo
-`cnpjLocal` o mapa CNPJ → `{ local, nome }` que o app aprende sozinho. O lembrete de recibo
-registra a preferência mas **ainda não dispara notificação**, e a tela declara isso.
+`prefs`: `{ alertaLimite, lembreteRecibo, tetoMensal, matricula, cnpjLocal, participacaoDia }` —
+sendo `cnpjLocal` o mapa CNPJ → `{ local, nome }` que o app aprende sozinho, e `participacaoDia`
+os 0,15% do salário base **já em reais**, informado pelo usuário e `null` por padrão. O lembrete
+de recibo registra a preferência mas **ainda não dispara notificação**, e a tela declara isso.
+
+Lançamento antigo, gravado antes deste campo existir, não tem `valorSemSubsidio` — `num()` resolve
+para zero, então o cálculo trata como nota inteiramente subsidiável. É o comportamento anterior,
+que é o certo para quem não marcou nada.
 
 Leitura com `onSnapshot` (sincroniza entre aparelhos, com guard contra o eco da própria escrita) e
 escrita com atraso de 600 ms. Uma cópia fica no `localStorage` para o app abrir sem internet.

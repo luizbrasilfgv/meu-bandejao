@@ -23,9 +23,22 @@ uma ideia foi abandonada vale tanto quanto a ideia que ficou.
   escanear cupom sem criar um acervo de documentos.
 * **O salário não entra no app.** *(revisão de uma decisão anterior)* A primeira versão previa
   guardar o salário criptografado, com PIN e reautenticação para editar. Foi abandonado: em vez
-  de proteger um dado sensível, decidimos não coletá-lo. Consequência aceita: a taxa de 0,15% do
-  salário base por ida ao refeitório **não é calculada**, e todo valor exibido é uma estimativa
-  por baixo, sempre com o aviso literal ao lado.
+  de proteger um dado sensível, decidimos não coletá-lo.
+* **A participação entra em reais, por opção, e o app nunca pergunta o salário.**
+  *(decisão de 21/08/2026)* Com a regra do DRH confirmada, a participação de 0,15% é parcela real
+  do desconto — ignorá-la deixava o número errado por larga margem: com salário de R$ 10.000 e 20
+  dias de consumo são R$ 300,00 no mês, contra R$ 37,00 de excedente do teto num mês típico. A
+  saída foi um campo opcional no Perfil (`prefs.participacaoDia`) onde o usuário informa **o valor
+  em reais**, lido do próprio contracheque. Vazio é o padrão e o comportamento antigo.
+  Registro honesto do custo: guardar a participação em reais é **matematicamente equivalente** a
+  guardar o salário, porque dividir por 0,0015 devolve o salário. O que muda é que o app não pede,
+  não sugere, não usa para mais nada e funciona sem — em vez de coletar salário como dado de
+  cadastro. Quem não quiser esse dado no app deixa vazio e continua com a estimativa por baixo.
+* **O aviso de estimativa sai de tela em vez de ser reescrito.** *(decisão de 21/08/2026)* O texto
+  dos 0,15% é de redação fixa e afirma que a participação está fora da conta. Informado o valor,
+  ela entra — e o texto passaria a mentir. Reescrever texto que não é nosso está proibido pelo
+  handoff; então ele é escondido enquanto a participação estiver valendo, e volta quando o campo
+  é limpo.
 * **O CPF do cupom é ignorado.** O leitor extrai matrícula, nº do cupom e CNPJ; CPF não. E no
   painel de diagnóstico da leitura, que mostra o texto cru, o CPF é mascarado — é uma tela feita
   para ser copiada e colada.
@@ -49,14 +62,37 @@ uma ideia foi abandonada vale tanto quanto a ideia que ficou.
 
 ## 4. Regra de negócio
 
-* **Três casos, três regras.** *(20/08/2026)*
-  * **Sapore:** a FGV subsidia até o teto por refeição; o colaborador é descontado no excedente.
-  * **Rei do Mate:** valor integral, descontado no contracheque.
+* **Três casos, três regras.** *(20/08/2026, atualizado em 21/08/2026 com a regra do DRH)*
+  * **Sapore:** a FGV subsidia até R$ 35,00 **por dia**; o colaborador é descontado no excedente,
+    nos itens sem subsídio e na participação de 0,15% por dia com consumo.
+  * **Rei do Mate:** valor integral, descontado no contracheque, sem subsídio.
   * **Outro:** 0% de subsídio e **fora do contracheque** — foi pago na hora, do bolso.
+* **O teto é do dia, não da nota.** *(21/08/2026, do documento do DRH)* Antes o app aplicava o teto
+  em cada lançamento, o que dava dois tetos a quem almoça e janta na Sapore no mesmo dia — subsídio
+  de R$ 50,00 onde a regra dá R$ 35,00. Consequência arquitetural: `descontoDe(l)` deixou de ser
+  função só de `l`. O rateio é calculado por dia sobre a lista inteira, em **ordem cronológica**
+  (a primeira nota do dia consome o teto), e memoizado num cache invalidado num ponto único, no
+  topo de `pintar()`. Cache com invalidação espalhada aqui seria dinheiro errado na tela sem erro
+  no console.
+* **Ordem cronológica, e não rateio proporcional.** Qualquer convenção fecha a soma do dia; a
+  cronológica é a única que corresponde ao que acontece na catraca — quando você almoçou, o
+  subsídio do dia ainda estava inteiro. Proporcional distribuiria para trás um teto que já tinha
+  sido consumido.
+* **A base subsidiável é marcada, não inferida.** *(21/08/2026)* Geladeira e sobremesa elaborada
+  não têm subsídio, e dois cupons de mesmo total com composição diferente geram descontos
+  diferentes. Adivinhar pelo texto do cupom erraria dinheiro em silêncio, então existe o campo
+  `valorSemSubsidio` no lançamento, visível só na Sapore, com a lista do que entra e do que não
+  entra ao lado.
 * **O subsídio é somado, não subtraído.** Era `bruto − desconto`, o que funcionava enquanto tudo
   passava pela folha. Com gasto fora da FGV, essa subtração passaria a contar o bar da esquina
-  como coisa subsidiada pela instituição. Agora é `Σ Sapore min(valor, teto)`, e vale a
-  identidade `bruto = desconto + subsídio + fora`, que o teste verifica explicitamente.
+  como coisa subsidiada pela instituição — e com a participação, ela viraria subsídio negativo.
+  Cada parcela é somada pela sua regra, e vale
+  `bruto = subsídio + (desconto − participação) + fora`, que o teste verifica explicitamente.
+* **Um ponto a confirmar no contracheque.** A periodicidade dos 0,15% foi informada como
+  **por dia com consumo**. O documento do DRH escreve "diário" no teto e não marca periodicidade no
+  percentual, então o app segue o que foi informado e trata a participação como uma incidência por
+  dia com consumo na Sapore. Dia só de Rei do Mate não conta. Se o contracheque mostrar uma única
+  incidência no mês, muda `participacaoDe` — é uma função de três linhas.
 * **O nome do lugar é obrigatório quando é "Outro".** Sem ele, todo gasto de fora vira um
   "Outro" indistinguível na lista e nos gráficos.
 * **O número grande é o gasto, não o desconto.** *(revisão de 20/08/2026)* A primeira versão

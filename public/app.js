@@ -35,9 +35,11 @@ const COL_LANC = "lancamentos";
 const COL_POL  = "politicas";
 const DOC_POL  = "vigentes";
 
-/* Regra do RH usada quando o banco ainda não tem política. */
-const TETO_PADRAO = 31.59;   // R$ por refeição subsidiada na Sapore
-const TAXA_PADRAO = 0.15;    // % do salário base por ida — guardada, NÃO aplicada
+/* Regra do DRH (Sede Botafogo, consumo direto) usada quando o banco ainda não
+   tem política cadastrada. O subsídio é DIÁRIO: duas refeições no mesmo dia
+   dividem um teto só, não um teto cada. */
+const TETO_PADRAO = 35.00;   // R$ por DIA de consumo subsidiável na Sapore — tabela 2026/2027
+const TAXA_PADRAO = 0.15;    // % do salário base por DIA com consumo, somado ao excedente
 
 /* Os três casos, que têm regra de dinheiro DIFERENTE:
    - Sapore: a FGV subsidia até o teto, você é descontado no excedente
@@ -68,8 +70,11 @@ let papeis      = [];
 let situacao    = "pendente";
 let lancamentos = [];                       // o estado do app
 let politicas   = [];                       // regras do RH, por vigência
+/* participacaoDia: os 0,15% do salário base, JÁ EM REAIS. O app não pede o
+   salário — quem informa o valor é o usuário, e sem ele a participação fica
+   fora da conta, como sempre esteve. */
 let prefs       = { alertaLimite: true, lembreteRecibo: false, tetoMensal: null,
-                    matricula: "", cnpjLocal: {} };
+                    matricula: "", cnpjLocal: {}, participacaoDia: null };
 let periodo     = { preset: "atual", inicio: "", fim: "" };
 let modoSheet   = "scan";                   // scan | manual | editar
 let editandoId  = "";
@@ -144,22 +149,89 @@ function politicaEm(dataIso){
 }
 
 /**
+ * O que o subsídio cobre neste lançamento. Nem tudo no cupom entra: item de
+ * geladeira (refrigerante em lata ou garrafa) e sobremesa elaborada (bolo,
+ * salada de frutas) vão integrais para a folha. Kilo, prato básico, suco de
+ * máquina, fruta e gelatina entram.
+ */
+function baseSubsidiavel(l){
+  if (l.local !== "Sapore") return 0;
+  return Math.max(0, num(l.valor) - num(l.valorSemSubsidio));
+}
+
+/* ---------- rateio do teto diário ----------
+   O teto do DRH é do DIA, não do cupom: duas refeições no mesmo dia dividem um
+   único R$ 35,00. Isso tira o subsídio do domínio de um lançamento isolado — e,
+   como a tela mostra o rateio linha por linha, exige uma ordem. A ordem é a
+   cronológica: a primeira nota do dia consome o teto e quem vem depois pega o
+   que sobrou.
+   O mapa é sempre calculado sobre a lista INTEIRA, nunca sobre a lista filtrada
+   da tela: senão o mesmo lançamento mostraria subsídios diferentes em telas
+   diferentes, conforme o filtro ativo. */
+let rateioCache = null;
+function invalidarRateio(){ rateioCache = null; }
+
+function rateio(){
+  if (!rateioCache) rateioCache = calcularRateio(lancamentos);
+  return rateioCache;
+}
+
+/** Ordem dentro do dia: hora do cupom, e o empate desempata pela inclusão. */
+function cronologico(a, b){
+  return String(a.dataHora).localeCompare(String(b.dataHora))
+      || String(a.criadoEm || "").localeCompare(String(b.criadoEm || ""))
+      || String(a.id || "").localeCompare(String(b.id || ""));
+}
+
+function calcularRateio(lista){
+  const dias = new Map();
+  for (const l of lista){
+    if (l.local !== "Sapore") continue;
+    const d = dataDe(l);
+    if (!d) continue;
+    if (!dias.has(d)) dias.set(d, []);
+    dias.get(d).push(l);
+  }
+  const mapa = new Map();
+  for (const [d, doDia] of dias){
+    let resta = num(politicaEm(d).teto);
+    for (const l of doDia.sort(cronologico)){
+      const sub = Math.min(baseSubsidiavel(l), Math.max(0, resta));
+      resta -= sub;
+      // excedente = tudo o que a FGV não cobriu, inclusive os itens sem subsídio
+      mapa.set(l.id, { subsidio: sub, excedente: num(l.valor) - sub });
+    }
+  }
+  return mapa;
+}
+
+/**
+ * O rateio deste lançamento. Fora da lista global — pré-visualização de algo
+ * que ainda não foi salvo — cai no cálculo solto, com o teto do dia inteiro.
+ */
+function rateioDe(l){
+  const r = rateio().get(l.id);
+  if (r) return r;
+  const sub = Math.min(baseSubsidiavel(l), num(politicaEm(dataDe(l)).teto));
+  return { subsidio: sub, excedente: num(l.valor) - sub };
+}
+
+/**
  * Quanto deste lançamento cai como desconto em folha.
- * Sapore: a FGV subsidia até o teto; o colaborador é descontado no excedente.
+ * Sapore: o que passou do teto DIÁRIO, mais os itens que não têm subsídio.
  * Rei do Mate: pago integralmente pelo colaborador.
- * NÃO inclui a taxa de 0,15% do salário base — exigiria o salário, que o app não pede.
+ * NÃO inclui a participação de 0,15% do salário base: ela é por DIA com
+ * consumo, não por lançamento, e entra no resumo do período.
  */
 function descontoDe(l){
-  const valor = num(l.valor);
-  if (l.local === "Sapore") return Math.max(0, valor - num(politicaEm(dataDe(l)).teto));
-  if (l.local === "Rei do Mate") return valor;
+  if (l.local === "Sapore") return rateioDe(l).excedente;
+  if (l.local === "Rei do Mate") return num(l.valor);
   return 0;   // fora da FGV: sai do bolso na hora, não do contracheque
 }
 
-/** O que a FGV cobriu. Só a Sapore subsidia, e só até o teto. */
+/** O que a FGV cobriu. Só a Sapore subsidia, e só até o teto do dia. */
 function subsidioDe(l){
-  if (l.local !== "Sapore") return 0;
-  return Math.min(num(l.valor), num(politicaEm(dataDe(l)).teto));
+  return l.local === "Sapore" ? rateioDe(l).subsidio : 0;
 }
 
 /** O que você pagou por fora, sem passar pela folha. */
@@ -168,13 +240,31 @@ function foraDaFolhaDe(l){
 }
 
 /**
- * Consolidado do período. Os três somam o bruto, por construção:
- *   bruto = desconto (folha) + subsidio (FGV) + fora (seu bolso, fora da folha)
- * Calcular o subsídio como "bruto − desconto" daria errado desde que passou a
- * existir gasto fora da FGV: o bar do bigode entraria como coisa subsidiada.
+ * A participação de 0,15% do salário base, uma vez por DIA com consumo na
+ * Sapore. Dia em que você só passou no Rei do Mate não conta: o benefício
+ * subsidiado é o do refeitório.
+ * Vale zero enquanto o usuário não informar o valor no Perfil — o app não pede
+ * o salário e não inventa número.
+ */
+function participacaoDe(diasSapore){
+  const v = num(prefs.participacaoDia);
+  return v > 0 ? v * diasSapore.size : 0;
+}
+
+/**
+ * Consolidado do período. A soma fecha assim, por construção:
+ *   bruto = subsidio (FGV) + excedente + rei + fora
+ *   desconto (folha) = excedente + rei + participacao
+ * Ou seja: desconto + subsidio = bruto + participacao. A participação NÃO é
+ * parcela do consumo — é encargo por dia de uso, e não paga comida. Por isso
+ * ela sobra na conta, e é isso que a tela precisa deixar claro.
+ * Calcular o subsídio como "bruto − desconto" daria errado por dois motivos: o
+ * gasto fora da FGV entraria como coisa subsidiada, e a participação viraria
+ * subsídio negativo.
  */
 function resumo(lista){
   const r = { n: lista.length, bruto: 0, desconto: 0, subsidio: 0, fora: 0,
+              excedente: 0, rei: 0, participacao: 0, diasSapore: new Set(),
               nFora: 0, revisar: 0, porLocal: {} };
   for (const nome of LOCAIS) r.porLocal[nome] = { n: 0, bruto: 0, desconto: 0 };
 
@@ -183,14 +273,21 @@ function resumo(lista){
     const desc  = descontoDe(l);
     const fora  = foraDaFolhaDe(l);
     r.bruto    += bruto;
-    r.desconto += desc;
     r.subsidio += subsidioDe(l);
     r.fora     += fora;
+    if (l.local === "Sapore"){
+      r.excedente += desc;
+      if (dataDe(l)) r.diasSapore.add(dataDe(l));
+    } else if (l.local === "Rei do Mate"){
+      r.rei += desc;
+    }
     if (fora) r.nFora++;
     if (l.status === "revisar") r.revisar++;
     const alvo = r.porLocal[l.local] || (r.porLocal[l.local] = { n: 0, bruto: 0, desconto: 0 });
     alvo.n++; alvo.bruto += bruto; alvo.desconto += desc;
   }
+  r.participacao = participacaoDe(r.diasSapore);
+  r.desconto = r.excedente + r.rei + r.participacao;
   return r;
 }
 
@@ -230,10 +327,14 @@ function porDia(lista){
   const mapa = new Map();
   for (const l of lista){
     const d = dataDe(l);
-    const atual = mapa.get(d) || { data: d, bruto: 0, desconto: 0, n: 0 };
+    const atual = mapa.get(d) || { data: d, bruto: 0, desconto: 0, n: 0, sapore: false };
     atual.bruto += num(l.valor); atual.desconto += descontoDe(l); atual.n++;
+    if (l.local === "Sapore") atual.sapore = true;
     mapa.set(d, atual);
   }
+  // a participação é por dia com consumo na Sapore, uma vez em cada
+  const p = num(prefs.participacaoDia);
+  if (p > 0) for (const d of mapa.values()) if (d.sapore) d.desconto += p;
   return [...mapa.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
 
@@ -242,10 +343,14 @@ function porMes(lista){
   const mapa = new Map();
   for (const l of lista){
     const m = dataDe(l).slice(0, 7);
-    const atual = mapa.get(m) || { data: m, bruto: 0, desconto: 0, n: 0 };
+    const atual = mapa.get(m) || { data: m, bruto: 0, desconto: 0, n: 0, dias: new Set() };
     atual.bruto += num(l.valor); atual.desconto += descontoDe(l); atual.n++;
+    if (l.local === "Sapore" && dataDe(l)) atual.dias.add(dataDe(l));
     mapa.set(m, atual);
   }
+  // tantas participações quantos dias com consumo na Sapore o mês tiver
+  const p = num(prefs.participacaoDia);
+  if (p > 0) for (const m of mapa.values()) m.desconto += p * m.dias.size;
   return [...mapa.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
 
@@ -357,16 +462,24 @@ function novoId(){
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-/** CSV do que está filtrado na tela, com a memória de cálculo em cada linha. */
+/**
+ * CSV do que está filtrado na tela, com a memória de cálculo em cada linha.
+ * A participação de 0,15% NÃO tem coluna: ela é por dia com consumo, não por
+ * lançamento, e rateá-la entre as notas do dia inventaria um número que a folha
+ * não tem. Ela aparece no resumo do período, na tela.
+ */
 function paraCSV(lista){
   const cab = ["data", "hora", "local", "nome_do_local", "entra_na_folha", "categoria",
-               "valor", "teto_vigente", "desconto_folha", "subsidio_fgv", "fora_da_folha",
+               "valor", "valor_sem_subsidio", "base_subsidiavel", "teto_diario",
+               "desconto_folha", "subsidio_fgv", "fora_da_folha",
                "itens", "matricula", "numero_cupom", "cnpj", "observacao", "origem", "status"];
   const linhas = ordenar(lista).map(l => {
-    const teto = num(politicaEm(dataDe(l)).teto);
+    const sapore = l.local === "Sapore";
     return [
       dataDe(l), horaDe(l), l.local, nomeDoLocal(l), ehInterno(l.local) ? "sim" : "nao",
-      l.categoria, num(l.valor).toFixed(2), ehInterno(l.local) ? teto.toFixed(2) : "0.00",
+      l.categoria, num(l.valor).toFixed(2), num(l.valorSemSubsidio).toFixed(2),
+      baseSubsidiavel(l).toFixed(2),
+      sapore ? num(politicaEm(dataDe(l)).teto).toFixed(2) : "0.00",
       descontoDe(l).toFixed(2), subsidioDe(l).toFixed(2), foraDaFolhaDe(l).toFixed(2),
       l.itens, l.matricula, l.numeroCupom, l.cnpj, l.observacao, l.origem, l.status
     ].map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";");
@@ -463,6 +576,12 @@ function gravarPoliticas(){
    Mudou estado, chame pintar(). Não existe nada observando.
    =========================================================== */
 function pintar(){
+  /* O rateio do teto diário é jogado fora aqui, num lugar só. Toda mutação de
+     lançamento ou de política termina chamando pintar(), então este é o único
+     ponto por onde o cache pode envelhecer — e esquecer de invalidar em algum
+     outro lugar seria dinheiro errado na tela, sem erro no console. */
+  invalidarRateio();
+
   const { ini, fim, rotulo } = limitesPeriodo();
   const doPeriodo = noPeriodo(lancamentos, ini, fim);
 
@@ -522,10 +641,24 @@ function pintarHome(lista, ini, fim){
     }
     poe(hintId, r.n ? hint : "");
   };
+  /* A composição da folha, escrita por extenso. Com a participação valendo, os
+     números do card deixam de somar o gasto — a participação é encargo por dia
+     de uso, não comida — e a única forma de isso não parecer defeito é mostrar
+     de onde vem cada parcela. */
+  const partes = [];
+  if (r.participacao) partes.push(`PARTICIPAÇÃO R$ ${brl(r.participacao)}`);
+  if (r.excedente)    partes.push(`EXCEDENTE R$ ${brl(r.excedente)}`);
+  if (r.rei)          partes.push(`REI DO MATE R$ ${brl(r.rei)}`);
   põeDestaque("vFolha", "hFolha", r.desconto,
-    `EXCEDENTE NA SAPORE + INTEGRAL NO REI DO MATE`);
+    partes.length ? partes.join(" + ") : "NADA PASSOU DO TETO DIÁRIO");
   põeDestaque("vSubsidio", "hSubsidio", r.subsidio,
-    `A FGV COBRE ATÉ R$ ${brl(pol.teto)} POR REFEIÇÃO NA SAPORE`);
+    `A FGV COBRE ATÉ R$ ${brl(pol.teto)} POR DIA NA SAPORE`);
+
+  /* O aviso de estimativa tem redação fixa e diz que a participação está fora
+     da conta. Informado o valor, ela entra — e o aviso passaria a mentir. Em
+     vez de reescrever um texto que não é meu, ele sai de tela. */
+  const avisoEst = el("avisoEstimativa");
+  if (avisoEst) avisoEst.hidden = num(prefs.participacaoDia) > 0;
 
   // quinzenas do mês em tela
   const ano = Number(fim.slice(0, 4)), mes = Number(fim.slice(5, 7));
@@ -583,6 +716,19 @@ function siglaDoLocal(l){
   return ((base[0][0] || "") + (base[1] ? base[1][0] : (base[0][1] || ""))).toUpperCase();
 }
 
+/**
+ * Quanto a FGV cobriu e quanto sobrou para a folha, nesta nota. O rateio é do
+ * DIA: numa segunda nota do mesmo dia o subsídio aparece menor, porque a
+ * primeira já consumiu parte do teto. Não inclui a participação de 0,15%, que
+ * é do dia e não da nota.
+ */
+function rotuloFolha(l){
+  const s = subsidioDe(l), d = descontoDe(l);
+  if (s && d) return `FGV ${brl(s)} · FOLHA ${brl(d)}`;
+  if (s) return `FGV ${brl(s)} · SEM DESCONTO`;
+  return `FOLHA ${brl(d)}`;
+}
+
 function linhaTx(l){
   const revisar = l.status === "revisar";
   const fora = !ehInterno(l.local);
@@ -590,7 +736,7 @@ function linhaTx(l){
   const hora = horaDe(l);
   const quando = dataDe(l) === hojeIso() ? `HOJE${hora ? " " + hora : ""}` : paraBR(l.dataHora);
   const meta = [l.categoria, quando].filter(Boolean).join(" · ").toUpperCase();
-  const situacao = revisar ? "REVISAR OCR" : fora ? "FORA DA FOLHA" : "EM FOLHA";
+  const situacao = revisar ? "REVISAR OCR" : fora ? "FORA DA FOLHA" : rotuloFolha(l);
   const classeSit = revisar ? "tx__status--pending" : fora ? "tx__status--fora" : "";
   return `<li>
     <button class="glass tx ${revisar ? "tx--pending" : ""}" type="button" data-editar="${esc(l.id)}">
@@ -761,6 +907,14 @@ function pintarPerfil(){
     teto.classList.toggle("stat__val--pending", !prefs.tetoMensal);
   }
 
+  const hPart = el("hParticipacao");
+  if (hPart){
+    const p = num(prefs.participacaoDia);
+    hPart.textContent = p > 0
+      ? `R$ ${brl(p)} POR DIA COM CONSUMO NA SAPORE · ENTRA NO DESCONTO`
+      : "0,15% DO SALÁRIO BASE, POR DIA COM CONSUMO · A INFORMAR";
+  }
+
   const sw1 = el("swAlerta"), sw2 = el("swLembrete");
   if (sw1){
     sw1.classList.toggle("is-on", !!prefs.alertaLimite);
@@ -788,17 +942,17 @@ function pintarPoliticas(){
   alvo.innerHTML = ordenadas.length ? ordenadas.map(p => `
     <li class="glass row">
       <span class="row__body">
-        <span class="row__label">Teto R$ ${brl(p.teto)} · taxa ${String(p.taxaPct).replace(".", ",")}%</span>
+        <span class="row__label">Subsídio R$ ${brl(p.teto)}/dia · participação ${String(p.taxaPct).replace(".", ",")}%</span>
         <span class="row__hint">A PARTIR DE ${esc(paraBR(p.vigencia))}${p.id === vigente.id ? " · VIGENTE" : ""}</span>
       </span>
       <button class="link-btn" type="button" data-excpol="${esc(p.id)}">Remover</button>
     </li>`).join("")
     : `<li class="glass row"><span class="row__body">
         <span class="row__label">Nenhuma política cadastrada</span>
-        <span class="row__hint">USANDO O PADRÃO: TETO R$ ${brl(TETO_PADRAO)} · TAXA ${String(TAXA_PADRAO).replace(".", ",")}%</span>
+        <span class="row__hint">USANDO O PADRÃO: SUBSÍDIO R$ ${brl(TETO_PADRAO)}/DIA · PARTICIPAÇÃO ${String(TAXA_PADRAO).replace(".", ",")}%</span>
       </span></li>`;
 
-  poe("polVigente", `Teto de R$ ${brl(vigente.teto)} por refeição na Sapore. A taxa de ${String(vigente.taxaPct).replace(".", ",")}% do salário base por ida fica registrada e fora da conta.`);
+  poe("polVigente", `Subsídio de R$ ${brl(vigente.teto)} por DIA de consumo na Sapore — duas refeições no mesmo dia dividem um teto só. A participação é de ${String(vigente.taxaPct).replace(".", ",")}% do salário base por dia com consumo; o valor em reais fica no Perfil de cada um, porque o app não pede o salário.`);
 }
 
 /** Avisa quando o gasto do período passa o teto mensal informado. */
@@ -1132,6 +1286,7 @@ function abrirLancamento(modo, id){
 function preencherFormulario(l, manual){
   const põe = (id, v) => { const x = el(id); if (x) x.value = v ?? ""; };
   põe("campoValor",     l ? brl(l.valor) : "");
+  põe("campoSemSubsidio", l && num(l.valorSemSubsidio) ? brl(l.valorSemSubsidio) : "");
   põe("campoData",      l ? paraBR(l.dataHora) : (manual ? paraBR(agoraIso()) : ""));
   põe("campoItens",     l ? l.itens : "");
   põe("campoMatricula", l ? l.matricula : prefs.matricula);
@@ -1164,6 +1319,10 @@ function marcarLocal(local){
   if (wrap) wrap.hidden = local !== "Outro";
   const aviso0 = el("avisoSemSubsidio");
   if (aviso0) aviso0.hidden = local !== "Outro";
+  /* Item sem subsídio só existe na Sapore: no Rei do Mate tudo é integral e o
+     "Outro" nem passa pela folha. */
+  const semSub = el("campoSemSubsidioWrap");
+  if (semSub) semSub.hidden = local !== "Sapore";
 }
 
 function lerFormulario(){
@@ -1178,6 +1337,15 @@ function lerFormulario(){
   const localNome = (el("campoLocalNome")?.value || "").trim();
   if (local === "Outro" && !localNome) return { erro: "Escreva onde foi — ex: Bar do Bigode." };
 
+  /* Quanto desta nota não tem subsídio (geladeira, sobremesa elaborada). Só
+     faz sentido na Sapore, e nunca pode passar do total da nota — senão o
+     subsídio viraria negativo. */
+  const semSub = paraValor(el("campoSemSubsidio")?.value);
+  const valorSemSubsidio = local === "Sapore" && isFinite(semSub) && semSub > 0 ? semSub : 0;
+  if (valorSemSubsidio > valor){
+    return { erro: "O valor sem subsídio não pode ser maior que o total da nota." };
+  }
+
   return { item: {
     id: editandoId || "",
     dataHora: dataIso,
@@ -1185,6 +1353,7 @@ function lerFormulario(){
     localNome: local === "Outro" ? localNome : "",
     categoria: el("campoCategoria")?.value || CATEGORIAS[0],
     valor,
+    valorSemSubsidio,
     itens: (el("campoItens")?.value || "").trim(),
     matricula: (el("campoMatricula")?.value || "").trim(),
     numeroCupom: (el("campoCupom")?.value || "").trim(),
@@ -1834,6 +2003,19 @@ document.addEventListener("click", e => {
       });
   }
 
+  if (achar("data-participacao")){
+    return pedirCampo("Participação em folha", "0,15% DO SEU SALÁRIO BASE, EM REAIS (POR DIA)",
+      prefs.participacaoDia ? brl(prefs.participacaoDia) : "", "numero", v => {
+        const n = paraValor(v);
+        prefs.participacaoDia = isFinite(n) && n > 0 ? n : null;
+        gravarPrefs();
+        pintar();   // muda o desconto em todas as telas, não só no Perfil
+        aviso(prefs.participacaoDia
+          ? "Participação salva. Ela passa a entrar no desconto em folha."
+          : "Participação removida. O desconto volta a ser estimativa por baixo.");
+      });
+  }
+
   if (achar("data-matricula")){
     return pedirCampo("Matrícula", "SUA MATRÍCULA NA FGV", prefs.matricula, "texto", v => {
       prefs.matricula = String(v || "").trim();
@@ -1870,7 +2052,7 @@ document.addEventListener("click", e => {
     const teto = paraValor(el("polTeto")?.value);
     const taxa = paraValor(el("polTaxa")?.value);
     if (!vig) return aviso("Informe a data de vigência.");
-    if (!isFinite(teto) || teto < 0) return aviso("Informe o teto por refeição.");
+    if (!isFinite(teto) || teto < 0) return aviso("Informe o subsídio por dia.");
     salvarPolitica({ id: "", vigencia: vig, teto, taxaPct: isFinite(taxa) ? taxa : TAXA_PADRAO });
     fecharSheet("sheetPolitica");
     return aviso("Política salva.");

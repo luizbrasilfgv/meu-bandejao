@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=11">
+<link rel="stylesheet" href="styles.css?v=13">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -113,7 +113,7 @@
         </div>
       </div>
 
-      <div class="disclaimer">
+      <div class="disclaimer" id="avisoEstimativa">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6v.2"></path></svg>
         <p>Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
       </div>
@@ -447,6 +447,13 @@
         </span>
         <button class="switch is-on" id="swAlerta" type="button" role="switch" aria-checked="true" data-pref="alertaLimite" aria-label="Alerta de limite"><span></span></button>
       </li>
+      <li class="glass row" data-participacao>
+        <span class="row__body">
+          <span class="row__label">Participação em folha</span>
+          <span class="row__hint" id="hParticipacao">0,15% DO SALÁRIO BASE, POR DIA COM CONSUMO · A INFORMAR</span>
+        </span>
+        <button class="link-btn" type="button" data-participacao>Editar</button>
+      </li>
       <li class="glass row" data-matricula>
         <span class="row__body">
           <span class="row__label">Minha matrícula</span>
@@ -482,7 +489,7 @@
       <li class="glass row" data-somente-admin hidden data-sub="politicas">
         <span class="row__body">
           <span class="row__label">Políticas de desconto</span>
-          <span class="row__hint">TETO POR REFEIÇÃO E TAXA, COM DATA DE VIGÊNCIA</span>
+          <span class="row__hint">SUBSÍDIO POR DIA E PARTICIPAÇÃO, COM DATA DE VIGÊNCIA</span>
         </span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C9CB2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
       </li>
@@ -504,12 +511,14 @@
       </div>
       <div class="formula">
         <div class="formula__line"><span>Consumo bruto</span><b>soma de tudo que você registrou no período</b></div>
-        <div class="formula__line"><span>Sapore</span><b>a FGV subsidia até o teto por refeição; desconta o que passar</b></div>
-        <div class="formula__line"><span>Rei do Mate</span><b>valor integral, descontado no contracheque</b></div>
+        <div class="formula__line"><span>Subsídio da Sapore</span><b>R$ 35,00 por DIA, não por nota: duas refeições no mesmo dia dividem um teto só</b></div>
+        <div class="formula__line"><span>Sem subsídio</span><b>geladeira e sobremesa elaborada (coca, bolo, salada de frutas) vão integrais para a folha</b></div>
+        <div class="formula__line"><span>Com subsídio</span><b>kilo, prato básico, suco de máquina, fruta e gelatina</b></div>
+        <div class="formula__line"><span>Participação</span><b>0,15% do salário base por dia com consumo na Sapore</b></div>
+        <div class="formula__line"><span>Rei do Mate</span><b>valor integral, descontado no contracheque, sem subsídio</b></div>
         <div class="formula__line"><span>Fora da FGV</span><b>0% de subsídio e fora da folha: você pagou na hora</b></div>
-        <div class="formula__line"><span>Subsídio FGV</span><b>só o que a Sapore cobriu, até o teto</b></div>
         <div class="formula__line"><span>Quinzenas</span><b>01–15 e 16 ao último dia, como as lanchonetes enviam</b></div>
-        <div class="formula__line formula__line--result"><span>Desconto em folha</span><b>excedente na Sapore + integral no Rei do Mate, sem os 0,15%</b></div>
+        <div class="formula__line formula__line--result"><span>Desconto em folha</span><b>participação + excedente do teto diário + integral no Rei do Mate</b></div>
       </div>
       <p class="wip__text" style="margin-top:14px">Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
     </section>
@@ -520,7 +529,7 @@
       </span>
       <div class="wip__body">
         <div class="wip__title">Salário não entra no app <span class="tag tag--ghost">LGPD</span></div>
-        <p class="wip__text">O app não pede nem armazena o seu salário base. Por isso a taxa de 0,15% por refeição fica fora da conta e o valor mostrado é sempre uma estimativa por baixo.</p>
+        <p class="wip__text">O app não pede nem armazena o seu salário base. Se quiser que a participação de 0,15% entre na conta, informe o valor <b>em reais</b> no Perfil — é você que digita, lendo do seu contracheque. Enquanto estiver vazio, a participação fica fora e o desconto mostrado é uma estimativa por baixo.</p>
       </div>
     </section>
 
@@ -532,15 +541,15 @@
       </details>
       <details class="glass faq__item">
         <summary>O que o número grande da Home mostra?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>Tudo que você registrou no período — o seu gasto de comida, sem separar quem paga o quê. Logo abaixo ele se desdobra em três: <b>desconto em folha</b> (o que vai cair no contracheque), <b>subsídio da FGV</b> (o que a instituição cobriu na Sapore) e, quando houver, <b>pago por fora</b> (bar, padaria, restaurante da rua). Os três somam exatamente o número grande.</p>
+        <p>Tudo que você registrou no período — o seu gasto de comida, sem separar quem paga o quê. Logo abaixo ele se desdobra em <b>desconto em folha</b> (o que vai cair no contracheque), <b>subsídio da FGV</b> (o que a instituição cobriu na Sapore) e, quando houver, <b>pago por fora</b> (bar, padaria, restaurante da rua). Atenção a uma coisa: se você informou a participação de 0,15%, ela está dentro do desconto em folha mas <b>não é comida</b> — é encargo por dia de uso. Então o gasto é igual a subsídio + (desconto − participação) + pago por fora. O rodapé do número mostra as parcelas separadas.</p>
       </details>
       <details class="glass faq__item">
         <summary>Almocei num lugar que não é Sapore nem Rei do Mate. Lanço?<span class="faq__chev" aria-hidden="true"></span></summary>
         <p>Sim. Escolha <b>Outro</b> no estabelecimento e escreva onde foi. Esse gasto entra no seu controle do período — consumo bruto, gráficos, estatísticas e exportação — mas com <b>0% de subsídio da FGV</b> e <b>fora do contracheque</b>, porque você pagou na hora, do seu bolso. O número grande da Home, que é a previsão de desconto em folha, não muda por causa dele.</p>
       </details>
       <details class="glass faq__item">
-        <summary>De onde vem o teto por refeição?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>É a regra do RH, cadastrada no app com data de vigência. Quando ela muda, o administrador cadastra a nova e os lançamentos antigos continuam calculados pela regra que valia na data deles.</p>
+        <summary>De onde vem o subsídio de R$ 35,00 por dia?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>É a regra do DRH para a Sede Botafogo, tabela 2026/2027, cadastrada no app com data de vigência. Quando ela muda, o administrador cadastra a nova e os lançamentos antigos continuam calculados pela regra que valia na data deles. Repare que o subsídio é <b>do dia</b>: se você almoça e janta na Sapore no mesmo dia, as duas notas dividem um único R$ 35,00.</p>
       </details>
       <details class="glass faq__item">
         <summary>Por que aparecem duas linhas no meu contracheque?<span class="faq__chev" aria-hidden="true"></span></summary>
@@ -548,7 +557,7 @@
       </details>
       <details class="glass faq__item">
         <summary>O app precisa do meu salário?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>Não. Nem pede nem guarda. É justamente por isso que a taxa de 0,15% por refeição não entra no cálculo.</p>
+        <p>Não. Nem pede nem guarda. O que ele aceita, no Perfil e só se você quiser, é a <b>participação já em reais</b> — o valor que aparece no seu contracheque. Sendo honesto com você: esse valor é 0,15% do salário, então dividir por 0,0015 devolve o salário. É menos dado do que o salário, não é dado nenhum. Deixando vazio, o app funciona como antes e avisa que o desconto está incompleto.</p>
       </details>
       <details class="glass faq__item">
         <summary>Como o app lê o cupom?<span class="faq__chev" aria-hidden="true"></span></summary>
@@ -682,6 +691,12 @@
             <button type="button" role="radio" aria-checked="false" data-local="Outro">Outro</button>
           </div>
           <p class="field__nota" id="avisoSemSubsidio" hidden>Fora da FGV: 0% de subsídio e não entra no contracheque. Entra só no seu controle de gastos do período.</p>
+        </div>
+
+        <div class="field" id="campoSemSubsidioWrap">
+          <span class="field__label">DESTE VALOR, SEM SUBSÍDIO</span>
+          <input type="text" inputmode="decimal" id="campoSemSubsidio" placeholder="0,00" aria-label="Valor de itens sem subsídio">
+          <p class="field__nota">Coca, refrigerante, bolo e salada de frutas vão integrais para a folha. Kilo, básico, suco de máquina, fruta e gelatina entram no subsídio.</p>
         </div>
 
         <label class="field" id="campoLocalNomeWrap" hidden>
@@ -913,15 +928,15 @@
       </label>
       <div class="field-row">
         <label class="field">
-          <span class="field__label">TETO POR REFEIÇÃO (R$)</span>
-          <input type="text" inputmode="decimal" id="polTeto" aria-label="Teto por refeição">
+          <span class="field__label">SUBSÍDIO POR DIA (R$)</span>
+          <input type="text" inputmode="decimal" id="polTeto" aria-label="Subsídio por dia">
         </label>
         <label class="field">
-          <span class="field__label">TAXA (% DO SALÁRIO)</span>
-          <input type="text" inputmode="decimal" id="polTaxa" aria-label="Taxa">
+          <span class="field__label">PARTICIPAÇÃO (% DO SALÁRIO)</span>
+          <input type="text" inputmode="decimal" id="polTaxa" aria-label="Participação em percentual do salário">
         </label>
       </div>
-      <p class="wip__text">A taxa fica registrada para memória da regra. Ela não entra no cálculo, porque isso exigiria o seu salário — que o app não pede.</p>
+      <p class="wip__text">O subsídio é do DIA: duas refeições no mesmo dia dividem um teto só. O percentual fica registrado como memória da regra — quem informa o valor em reais é cada usuário, no Perfil, porque o app não pede o salário.</p>
     </div>
     <div class="sheet__footer">
       <button class="btn btn--ghost" type="button" data-close>Cancelar</button>
@@ -934,6 +949,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

@@ -6,10 +6,17 @@ contracheque. Uso pessoal. **Não é uma aplicação oficial da FGV.**
 **No ar:** https://meu-bandejao.web.app
 
 ```
-Sapore        a FGV subsidia até o teto; você é descontado no excedente
-Rei do Mate   valor integral, descontado no contracheque
+Sapore        a FGV subsidia até R$ 35,00 POR DIA — duas refeições no mesmo dia
+              dividem um teto só. Geladeira e sobremesa elaborada não entram.
+Participação  0,15% do salário base por dia com consumo na Sapore
+Rei do Mate   valor integral, descontado no contracheque, sem subsídio
 Outro         bar, padaria, restaurante da rua: 0% de subsídio e fora da folha
 ```
+
+Regra do DRH para a Sede Botafogo, tabela 2026/2027 — escrita por inteiro, com procedência e o que
+ainda falta confirmar, em [`docs/Regra_DRH_Sapore.md`](docs/Regra_DRH_Sapore.md). O app **não pede
+o seu salário**: o valor da participação em reais é opcional, informado no Perfil. Sem ele, o
+desconto mostrado é uma estimativa por baixo e a tela diz isso.
 
 ## Como é feito
 

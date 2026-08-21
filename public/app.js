@@ -37,7 +37,7 @@ const DOC_POL  = "vigentes";
 
 /* Regra do RH usada quando o banco ainda não tem política. */
 const TETO_PADRAO = 31.59;   // R$ por refeição subsidiada na Sapore
-const TAXA_PADRAO = 0.15;    // % do salário base por ida — guardada, NÃO aplicada
+const TAXA_PADRAO = 0.15;    // % do salário base por refeição — guardada, NÃO aplicada
 
 /* Os três casos, que têm regra de dinheiro DIFERENTE:
    - Sapore: a FGV subsidia até o teto, você é descontado no excedente
@@ -147,7 +147,8 @@ function politicaEm(dataIso){
  * Quanto deste lançamento cai como desconto em folha.
  * Sapore: a FGV subsidia até o teto; o colaborador é descontado no excedente.
  * Rei do Mate: pago integralmente pelo colaborador.
- * NÃO inclui a taxa de 0,15% do salário base — exigiria o salário, que o app não pede.
+ * NÃO inclui a taxa de 0,15% do salário base por refeição — exigiria o salário,
+ * que o app não pede.
  */
 function descontoDe(l){
   const valor = num(l.valor);
@@ -798,7 +799,7 @@ function pintarPoliticas(){
         <span class="row__hint">USANDO O PADRÃO: TETO R$ ${brl(TETO_PADRAO)} · TAXA ${String(TAXA_PADRAO).replace(".", ",")}%</span>
       </span></li>`;
 
-  poe("polVigente", `Teto de R$ ${brl(vigente.teto)} por refeição na Sapore. A taxa de ${String(vigente.taxaPct).replace(".", ",")}% do salário base por ida fica registrada e fora da conta.`);
+  poe("polVigente", `Teto de R$ ${brl(vigente.teto)} por refeição na Sapore. A taxa de ${String(vigente.taxaPct).replace(".", ",")}% do salário base por refeição fica registrada e fora da conta.`);
 }
 
 /** Avisa quando o gasto do período passa o teto mensal informado. */

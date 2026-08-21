@@ -33,6 +33,22 @@ Consequência que exigiu cuidado: o aviso dos 0,15% tem redação fixa e começa
 Ele estava sob o número grande, apontando para o desconto em folha. Desceu para junto do
 desconto — o texto não mudou uma palavra.
 
+## A base da taxa de 0,15%
+
+O handoff se contradiz sobre a base da taxa. A regra 2 dele traz o aviso de redação fixa, texto do
+usuário, dizendo **"por refeição"**; mais abaixo, na lista de fatos do refeitório, a mesma página
+parafraseia como "por **ida** ao refeitório". Não é a mesma coisa: duas refeições num dia são duas
+incidências no primeiro caso e uma no segundo.
+
+O usuário confirmou: é **por refeição**. O app segue isso em todo texto — comentário de código,
+tela de Políticas, spec e PRD. O handoff continua como foi recebido, contradição inclusive.
+
+Sem efeito no cálculo: a taxa não é aplicada, porque o app não coleta salário. A distinção entra
+em vigor no dia em que alguém decidir aplicá-la — e aí é `0,15% × salário × nº de refeições`, não
+× nº de dias com consumo. A primeira versão do app fazia por dia
+(`sessaoSalario * 0.0015` uma vez por dia com consumo na Sapore, no commit inicial); é de lá que
+vinha o "por ida".
+
 ## Componentes acrescentados
 
 Todos usando os tokens do `style.css`, sem cor literal nova fora do que já existia:

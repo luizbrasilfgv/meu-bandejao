@@ -108,7 +108,7 @@ e vale a identidade:  gasto = desconto folha + subsídio FGV + pago por fora
   vigência**: o administrador cadastra a nova regra e os lançamentos antigos continuam calculados
   pela regra que valia na data deles. O padrão, quando não há nada cadastrado, é teto de
   R$ 31,59 e taxa de 0,15%.
-* **A taxa de 0,15% do salário base por ida fica registrada e FORA da conta**, porque aplicá-la
+* **A taxa de 0,15% do salário base por refeição fica registrada e FORA da conta**, porque aplicá-la
   exigiria o salário. Por isso todo valor exibido é uma estimativa por baixo, com este aviso de
   redação fixa (não reescrever), posicionado junto do número de **desconto em folha**:
 

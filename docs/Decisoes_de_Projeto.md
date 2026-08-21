@@ -24,7 +24,7 @@ uma ideia foi abandonada vale tanto quanto a ideia que ficou.
 * **O salário não entra no app.** *(revisão de uma decisão anterior)* A primeira versão previa
   guardar o salário criptografado, com PIN e reautenticação para editar. Foi abandonado: em vez
   de proteger um dado sensível, decidimos não coletá-lo. Consequência aceita: a taxa de 0,15% do
-  salário base por ida ao refeitório **não é calculada**, e todo valor exibido é uma estimativa
+  salário base por refeição **não é calculada**, e todo valor exibido é uma estimativa
   por baixo, sempre com o aviso literal ao lado.
 * **O CPF do cupom é ignorado.** O leitor extrai matrícula, nº do cupom e CNPJ; CPF não. E no
   painel de diagnóstico da leitura, que mostra o texto cru, o CPF é mascarado — é uma tela feita

@@ -38,7 +38,7 @@ aconteceu na primeira versão e o que motivou inverter a hierarquia.
 ## 4. Princípios que não se negociam
 
 * **O salário não entra no app.** Sem campo, sem criptografia, sem PIN. A consequência aceita é
-  que a taxa de 0,15% do salário base por ida ao refeitório não é calculada, e todo valor
+  que a taxa de 0,15% do salário base por refeição não é calculada, e todo valor
   exibido é uma estimativa por baixo, sempre declarada como tal.
 * **A foto do cupom não é armazenada.** É lida na memória do aparelho e descartada.
 * **Nenhum número inventado.** Onde falta dado, a tela mostra `—`. Onde o valor é estimativa,

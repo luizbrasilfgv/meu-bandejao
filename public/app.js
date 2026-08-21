@@ -122,14 +122,15 @@ function paraBR(dataHora){
   const [a, m, dia] = d.split("-");
   return `${dia}/${m}/${a}` + (h ? ` ${h.slice(0, 5)}` : "");
 }
-/** "19/08/2026 12:34" -> "2026-08-19T12:34" (vazio se inválido) */
-function paraIso(texto){
-  const t = String(texto || "").trim();
-  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?/);
-  if (!m) return "";
-  const [, dia, mes, ano, hh, mm] = m;
-  if (+mes < 1 || +mes > 12 || +dia < 1 || +dia > 31) return "";
-  return `${ano}-${pad2(mes)}-${pad2(dia)}` + (hh ? `T${pad2(hh)}:${mm}` : "T12:00");
+/**
+ * O que vem de um <input type="datetime-local"> -> "AAAA-MM-DDTHH:MM".
+ * O navegador já entrega no formato interno do app, então aqui não se
+ * interpreta texto: só corta segundos (que alguns navegadores acrescentam) e
+ * valida. Vazio quando o campo está vazio ou fora de faixa.
+ */
+function normalizaDataHora(valor){
+  const t = String(valor || "").slice(0, 16);
+  return /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : "";
 }
 /** "1.234,56" ou "28,90" ou "28.90" -> Number */
 function paraValor(texto){
@@ -1347,7 +1348,7 @@ function preencherFormulario(l, manual){
   const põe = (id, v) => { const x = el(id); if (x) x.value = v ?? ""; };
   põe("campoValor",     l ? brl(l.valor) : "");
   põe("campoSemSubsidio", l && num(l.valorSemSubsidio) ? brl(l.valorSemSubsidio) : "");
-  põe("campoData",      l ? paraBR(l.dataHora) : (manual ? paraBR(agoraIso()) : ""));
+  põe("campoData",      l ? l.dataHora : (manual ? agoraIso() : ""));
   põe("campoItens",     l ? l.itens : "");
   põe("campoMatricula", l ? l.matricula : prefs.matricula);
   põe("campoCupom",     l ? l.numeroCupom : "");
@@ -1359,6 +1360,16 @@ function preencherFormulario(l, manual){
   if (cat) cat.value = (l && l.categoria) || CATEGORIAS[0];
 
   marcarLocal((l && l.local) || "Sapore");
+
+  /* Zera o palpite do leitor anterior: nota e selo de CONFIRA são de UMA leitura,
+     e ficar na tela do lançamento seguinte apontaria para item que não existe. */
+  const notaSS = el("notaSemSubsidioOCR");
+  if (notaSS){ notaSS.hidden = true; notaSS.textContent = ""; }
+  const wrapSS = el("campoSemSubsidioWrap");
+  if (wrapSS){
+    wrapSS.classList.remove("field--check");
+    const emSS = wrapSS.querySelector("em"); if (emSS) emSS.hidden = true;
+  }
 
   const img = el("thumbImg");
   if (img){ img.hidden = true; img.removeAttribute("src"); }
@@ -1386,9 +1397,9 @@ function marcarLocal(local){
 }
 
 function lerFormulario(){
-  const dataIso = paraIso(el("campoData")?.value);
+  const dataIso = normalizaDataHora(el("campoData")?.value);
   const valor = paraValor(el("campoValor")?.value);
-  if (!dataIso) return { erro: "Data inválida. Use dd/mm/aaaa." };
+  if (!dataIso) return { erro: "Escolha a data e a hora." };
   if (!isFinite(valor) || valor <= 0) return { erro: "Informe um valor maior que zero." };
 
   const ativo = qs("#grupoLocal button.is-active");
@@ -1704,9 +1715,32 @@ async function lerCupom(file){
 
     const põe = (id, v) => { const x = el(id); if (x && v) x.value = v; };
     põe("campoValor", campos.valor != null ? brl(campos.valor) : "");
-    põe("campoData", paraBR(campos.dataHora || agoraIso()));
+    põe("campoData", campos.dataHora || agoraIso());
     põe("campoItens", campos.itens);
     põe("campoMatricula", campos.matricula || prefs.matricula);
+
+    /* O que o leitor achou de geladeira e sobremesa elaborada. Vai como
+       SUGESTÃO: o valor entra no campo e os itens reconhecidos aparecem escritos
+       do lado, para você conferir antes de salvar. Se ele errou, é só corrigir o
+       número — a lista de palavras não decide dinheiro sozinha. */
+    const notaSS = el("notaSemSubsidioOCR");
+    const wrapSS = el("campoSemSubsidioWrap");
+    const achouSS = campos.semSubsidio > 0;
+    if (achouSS){
+      põe("campoSemSubsidio", brl(campos.semSubsidio));
+      if (notaSS){
+        notaSS.hidden = false;
+        notaSS.textContent = `O leitor achou ${brl(campos.semSubsidio)} sem subsídio: `
+          + campos.itensSemSubsidio.join(", ").toLowerCase() + ". Confira.";
+      }
+    } else if (notaSS){
+      notaSS.hidden = true;
+      notaSS.textContent = "";
+    }
+    if (wrapSS){
+      wrapSS.classList.toggle("field--check", achouSS);
+      const emSS = wrapSS.querySelector("em"); if (emSS) emSS.hidden = !achouSS;
+    }
     põe("campoCupom", campos.numeroCupom);
     põe("campoCnpj", campos.cnpj);
     if (campos.local) marcarLocal(campos.local);
@@ -1747,7 +1781,7 @@ async function lerCupom(file){
     mostrarPasso("review");
     aviso("Não deu para ler o cupom (" + (err.message || "erro no leitor") + "). Preencha à mão.");
     const d = el("campoData");
-    if (d && !d.value) d.value = paraBR(agoraIso());
+    if (d && !d.value) d.value = agoraIso();
   } finally {
     if (worker){ try { await worker.terminate(); } catch(e){} }
     URL.revokeObjectURL(url);   // a imagem morre aqui
@@ -1803,6 +1837,30 @@ const RE_PAGAMENTO = /troco|dinheiro|cart[ãa]o|cr[eé]dito|d[eé]bito|\bpix\b|r
 const RE_RUIDO = /trib|aprox|federal|estadual|\blei\b\s*\d|procon|fone|icms|pis|cofins|\bcep\b|chave|acesso|aut\s*[:.]|consulte|nfc\s*-?\s*e|cpf|cnpj|\bqtde\b|aliq/i;
 
 /** Todos os valores monetários de um texto. */
+/* ---------- o que do cupom NÃO tem subsídio ----------
+   O critério do DRH é "nada de geladeira e nenhuma sobremesa elaborada". Isto
+   aqui NÃO é o critério: é uma lista de palavras que costumam aparecer no cupom
+   e que caem nele. Serve para o formulário já abrir com o valor sugerido — e
+   nunca decide sozinha. O campo fica visível, com a lista do que foi
+   reconhecido ao lado, e o lançamento vai marcado para revisão.
+   Os padrões são sem acento e em minúsculas porque a comparação passa por
+   chave(), que normaliza. */
+const SEM_SUBSIDIO = [
+  // de geladeira
+  /refrig/, /coca/, /guaran/, /fanta/, /sprite/, /pepsi/, /schwepp/, /tonica/,
+  /agua com gas/, /agua c\/ gas/, /agua mineral/, /agua sem gas/, /agua s\/ gas/,
+  /suco.*(lata|garrafa|cx|caixa|long neck)/, /del valle/, /cha gelado/, /mate leao/,
+  /cerveja/, /energetic/, /red bull/, /gatorade/, /isoton/, /h2oh/,
+  /iogurte/, /danone/, /leite ferment/, /yakult/, /chocolate ao leite/,
+  // sobremesa elaborada
+  /\bbolo/, /torta/, /pudim/, /mousse/, /brigadeir/, /doce de leite/, /beijinho/,
+  /salada de frut/, /sorvete/, /picole/, /acai/, /petit gateau/, /cheesecake/,
+  /brownie/, /pave/, /churros/, /cannoli/, /tiramisu/, /banoffee/,
+];
+
+/** Casa uma linha de cupom contra a lista do que não tem subsídio. */
+const naoTemSubsidio = linha => SEM_SUBSIDIO.some(re => re.test(chave(linha)));
+
 function valoresDe(s){
   const out = [];
   const re = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+|\d+)\s*[.,](\d{2})(?!\d)/g;
@@ -1827,7 +1885,8 @@ function extrairCampos(texto){
   const linhas = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const plano = chave(t);
   const out = { valor: null, dataHora: "", local: "", itens: "",
-                matricula: "", numeroCupom: "", cnpj: "" };
+                matricula: "", numeroCupom: "", cnpj: "",
+                semSubsidio: 0, itensSemSubsidio: [] };
 
   /* --- a chave de acesso impressa vale mais que tudo: 44 dígitos em grupos
          de 4, que o OCR acerta bem. Dela saem CNPJ e nº do cupom.
@@ -1902,6 +1961,22 @@ function extrairCampos(texto){
   }
 
   /* --- itens: linhas com valor que não são total, pagamento nem ruído --- */
+  /* --- a parte do cupom sem subsídio, para o formulário já abrir sugerindo ---
+     Percorre as linhas que têm valor e casa contra a lista SEM_SUBSIDIO. De cada
+     linha vale o MAIOR valor: numa linha "2 x 4,50   9,00" o total da linha é o
+     9,00, e é ele que vai para a folha — o 4,50 é o unitário. */
+  for (const l of linhas){
+    if (!util(l) || RE_TOTAL.test(l) || RE_SUBTOTAL.test(l) || RE_APAGAR.test(l)) continue;
+    const vals = valoresDe(l);
+    if (!vals.length || !naoTemSubsidio(l)) continue;
+    out.semSubsidio += Math.max(...vals);
+    const nome = l.replace(/(?:R\$\s*)?\b[\d.]*\d[.,]\d{2,}\b/g, "")
+                  .replace(/^\s*\d{1,3}\s*[-.)]?\s+/, "").replace(/^\s*\d{5,}\s*/, "")
+                  .replace(/\s{2,}/g, " ").trim();
+    if (nome) out.itensSemSubsidio.push(nome.slice(0, 24));
+  }
+  out.semSubsidio = Math.round(out.semSubsidio * 100) / 100;
+
   out.itens = linhas
     .filter(l => valoresDe(l).length)
     .filter(l => !RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l) && !RE_APAGAR.test(l))

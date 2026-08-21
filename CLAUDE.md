@@ -35,10 +35,12 @@ Cada uma destas já quebrou o app aqui. Estão detalhadas em
    tela: dá `PERMISSION_DENIED` silencioso, e o sintoma chega como "não salva". Mexeu em
    `COL_LANC`/`COL_POL`, mexa no `firestore.rules` no mesmo commit, e publique os dois juntos.
 3. **Nunca calcule parcela por subtração.** `subsidio = bruto − desconto` passou a atribuir à FGV
-   um dinheiro que ela não pagou no dia em que entrou gasto fora da instituição. Some cada
-   parcela pela sua regra e, ao mexer no cálculo, confira no navegador a identidade
-   `bruto = desconto + subsídio + fora`. Não existe suíte automatizada neste projeto: a
-   verificação é rodar o app (abaixo).
+   um dinheiro que ela não pagou no dia em que entrou gasto fora da instituição, e hoje ainda
+   produziria subsídio negativo por causa da participação de 0,15%. Some cada parcela pela sua
+   regra e, ao mexer no cálculo, confira no navegador a identidade
+   `bruto = subsídio + (desconto − participação) + fora`. A participação é encargo por dia de uso,
+   **não é comida**: `desconto + subsídio` passa do gasto exatamente nela, e isso é o certo. Não
+   existe suíte automatizada neste projeto: a verificação é rodar o app (abaixo).
 4. **Versione as duas coisas ao publicar:** `?v=N` dos assets no `index.html` **e** `VERSAO` no
    `sw.js`. O workflow do Actions falha o deploy se os assets mudaram e um dos dois ficou para
    trás.
@@ -47,7 +49,20 @@ Cada uma destas já quebrou o app aqui. Estão detalhadas em
    `sw.js`. Gerador: `node docs/ferramentas/gera-icone.js`.
 6. **Texto de redação fixa.** O aviso dos 0,15% ("Este valor é uma estimativa...") é literal, não
    reescreva. E ele fica **junto do desconto em folha** — se você reordenar o card herói, mova o
-   aviso também, senão a frase passa a apontar para outro número.
+   aviso também, senão a frase passa a apontar para outro número. Quando a participação está
+   informada ele é **escondido**, não reescrito: o texto afirma que os 0,15% estão fora da conta e
+   ali eles estão dentro.
+7. **O teto do subsídio é do DIA, não do lançamento.** R$ 35,00 por dia na Sapore: duas refeições
+   no mesmo dia dividem um teto só. Por isso `descontoDe(l)` não é função só de `l` — depende do
+   dia inteiro, via `calcularRateio`, que distribui o teto em ordem cronológica e é memoizado num
+   cache invalidado **num ponto único**, no topo de `pintar()`. Se você precisar invalidar em outro
+   lugar, pare e repense: cache de dinheiro com invalidação espalhada erra na tela sem erro no
+   console. E o rateio é sempre sobre a lista inteira, nunca sobre a filtrada, senão o mesmo
+   lançamento mostra subsídios diferentes em telas diferentes.
+8. **Nem todo item do cupom tem subsídio.** Geladeira e sobremesa elaborada vão integrais para a
+   folha; kilo, básico, suco de máquina, fruta e gelatina entram. Quem marca isso é o campo
+   `valorSemSubsidio` do lançamento — **não adivinhe pelo texto do cupom.** Dois cupons de mesmo
+   total e composição diferente dão descontos diferentes, e chutar erraria dinheiro em silêncio.
 
 ## Verificação: rode o app
 

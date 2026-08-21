@@ -33,21 +33,34 @@ Consequência que exigiu cuidado: o aviso dos 0,15% tem redação fixa e começa
 Ele estava sob o número grande, apontando para o desconto em folha. Desceu para junto do
 desconto — o texto não mudou uma palavra.
 
-## A base da taxa de 0,15%
+## A regra do desconto, contra o handoff
 
-O handoff se contradiz sobre a base da taxa. A regra 2 dele traz o aviso de redação fixa, texto do
-usuário, dizendo **"por refeição"**; mais abaixo, na lista de fatos do refeitório, a mesma página
-parafraseia como "por **ida** ao refeitório". Não é a mesma coisa: duas refeições num dia são duas
-incidências no primeiro caso e uma no segundo.
+O handoff descreve a regra do refeitório de segunda mão e erra em três pontos. O documento do DRH,
+de 21/08/2026, é a fonte normativa e vence:
 
-O usuário confirmou: é **por refeição**. O app segue isso em todo texto — comentário de código,
-tela de Políticas, spec e PRD. O handoff continua como foi recebido, contradição inclusive.
+| Handoff | Regra do DRH | O app segue |
+|---|---|---|
+| "teto mensal (valor fixo por mês). **O valor não foi informado**" | subsídio de **R$ 35,00 por dia** de consumo, tabela 2026/2027 | o DRH |
+| taxa de 0,15% "por **ida** ao refeitório" numa página, "por **refeição**" no aviso literal da outra | 0,15% do salário base **por dia com consumo** | o DRH |
+| nada sobre composição do cupom | **geladeira e sobremesa elaborada não têm subsídio**; kilo, básico, suco de máquina, fruta e gelatina têm | o DRH |
 
-Sem efeito no cálculo: a taxa não é aplicada, porque o app não coleta salário. A distinção entra
-em vigor no dia em que alguém decidir aplicá-la — e aí é `0,15% × salário × nº de refeições`, não
-× nº de dias com consumo. A primeira versão do app fazia por dia
-(`sessaoSalario * 0.0015` uma vez por dia com consumo na Sapore, no commit inicial); é de lá que
-vinha o "por ida".
+O `README.md` desta pasta continua como foi recebido, contradição interna inclusive — é handoff, não
+documentação viva. A regra em vigor está em `docs/Especificacao.md`, seção 4.
+
+Duas consequências de tela que divergem do handoff:
+
+* **O card herói ganhou a composição da folha escrita por extenso.** O handoff prevê dois números e
+  ponto. Com a participação valendo, os números do card deixam de somar o gasto — a participação é
+  encargo por dia de uso, não comida — e três valores que aparentam somar e não somam leem como
+  defeito. O rodapé do número da folha passou a mostrar `PARTICIPAÇÃO + EXCEDENTE + REI DO MATE`.
+* **O aviso de estimativa é escondido quando a participação está informada.** O texto é de redação
+  fixa e afirma que os 0,15% estão fora da conta; informado o valor, ele passaria a mentir.
+  Esconder respeita as duas regras do handoff ao mesmo tempo: não reescrever o texto do usuário e
+  não mostrar informação falsa. Ele volta assim que o campo é limpo.
+
+Nota histórica, porque explica a confusão: o commit inicial do app já calculava
+`(sessaoSalario * 0.0015) + max(0, dia.sapore - 31.59)` uma vez **por dia** com consumo na Sapore.
+A periodicidade estava certa desde o começo e se perdeu quando o salário saiu do app.
 
 ## Componentes acrescentados
 

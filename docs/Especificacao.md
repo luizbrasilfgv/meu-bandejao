@@ -137,18 +137,19 @@ e valem as identidades:
   **data de vigência**: o administrador cadastra a nova regra e os lançamentos antigos continuam
   calculados pela regra que valia na data deles. O padrão, quando não há nada cadastrado, é
   subsídio de R$ 35,00 por dia e participação de 0,15%.
-* **O salário não entra no app; o valor da participação, em reais, entra se o usuário quiser.**
-  Fica em `prefs.participacaoDia`, informado no Perfil a partir do contracheque — o app nunca
-  pergunta o salário. Vazio é o padrão: aí a participação vale zero, o desconto é estimativa por
+* **O salário entra, e não sai do aparelho.** Fica em `privado.salarioBase`, informado no Perfil,
+  gravado só no `localStorage` por `gravarPrivado()` — que **não chama `salvarPerfil`**. Nunca vai
+  para o Firestore: `prefs` sincroniza e é lido pelo administrador, `privado` não existe no
+  servidor. Daí sai `participacaoDoDia()`, que aplica o `taxaPct` da política vigente na data.
+  Vazio é o padrão: aí a participação vale zero, o desconto é estimativa por
   baixo, e aparece este aviso de **redação fixa** (não reescrever), posicionado junto do número de
   **desconto em folha**:
 
   > Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade
 
-  Informado o valor, a participação entra na conta e **o aviso sai de tela** — em vez de reescrever
-  um texto que passaria a mentir. Registro honesto: guardar a participação em reais é
-  matematicamente equivalente a guardar o salário, porque dividir por 0,0015 devolve o salário.
-  A diferença é que o app não pede, não sugere e funciona sem.
+  Informado o salário, a participação entra na conta e **o aviso sai de tela** — em vez de
+  reescrever um texto que passaria a mentir. Consequência aceita de não sincronizar: trocou de
+  aparelho ou limpou o navegador, digita de novo.
 
 ## 5. Telas
 
@@ -221,10 +222,21 @@ Um lançamento:
   matricula, numeroCupom, cnpj, observacao, confiancaOCR, origem, status, criadoEm }
 ```
 
-`prefs`: `{ alertaLimite, lembreteRecibo, tetoMensal, matricula, cnpjLocal, participacaoDia }` —
-sendo `cnpjLocal` o mapa CNPJ → `{ local, nome }` que o app aprende sozinho, e `participacaoDia`
-os 0,15% do salário base **já em reais**, informado pelo usuário e `null` por padrão. O lembrete
-de recibo registra a preferência mas **ainda não dispara notificação**, e a tela declara isso.
+`prefs`: `{ alertaLimite, lembreteRecibo, tetoMensal, matricula, cnpjLocal }` — sendo `cnpjLocal` o
+mapa CNPJ → `{ local, nome }` que o app aprende sozinho. **`prefs` sincroniza** e é lido pelo
+administrador: nada sensível aqui. O lembrete de recibo registra a preferência mas **ainda não
+dispara notificação**, e a tela declara isso.
+
+Fora do Firestore, só no `localStorage` da chave `meu_bandejao_privado`:
+
+```
+privado → { salarioBase }
+```
+
+É o único dado do app que **não existe no servidor**, e é deliberado — ver seção 4. Uma versão
+anterior guardava a participação em reais dentro de `prefs`, o que a mandava para o banco;
+`migrarParticipacao()` desfaz isso na primeira abertura, reconstruindo o salário localmente e
+apagando o campo das prefs, inclusive no servidor.
 
 Lançamento antigo, gravado antes deste campo existir, não tem `valorSemSubsidio` — `num()` resolve
 para zero, então o cálculo trata como nota inteiramente subsidiável. É o comportamento anterior,

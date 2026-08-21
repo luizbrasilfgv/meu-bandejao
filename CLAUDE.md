@@ -69,6 +69,13 @@ Cada uma destas já quebrou o app aqui. Estão detalhadas em
    folha; kilo, básico, suco de máquina, fruta e gelatina entram. Quem marca isso é o campo
    `valorSemSubsidio` do lançamento — **não adivinhe pelo texto do cupom.** Dois cupons de mesmo
    total e composição diferente dão descontos diferentes, e chutar erraria dinheiro em silêncio.
+9. **`prefs` sincroniza; `privado` não.** `prefs` vai para `users/{uid}.prefs` no Firestore, e a
+   regra é `allow get: if eu(uid) || ehAdmin()` — o administrador lê. **O salário mora em
+   `privado`**, um objeto separado que só existe no `localStorage`, gravado por `gravarPrivado()`,
+   que de propósito **não chama `salvarPerfil`**. Nunca ponha dado sensível em `prefs`, e nunca
+   acrescente chamada de rede em `gravarPrivado()`. Já vazou uma vez: a participação em reais
+   ficou em `prefs`, e `participação ÷ 0,15%` devolve o salário. Regra de Firestore não protege de
+   quem abre o console do projeto — a única garantia é o dado não estar lá.
 
 ## Verificação: rode o app
 

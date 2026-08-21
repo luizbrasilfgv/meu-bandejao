@@ -24,16 +24,27 @@ uma ideia foi abandonada vale tanto quanto a ideia que ficou.
 * **O salário não entra no app.** *(revisão de uma decisão anterior)* A primeira versão previa
   guardar o salário criptografado, com PIN e reautenticação para editar. Foi abandonado: em vez
   de proteger um dado sensível, decidimos não coletá-lo.
-* **A participação entra em reais, por opção, e o app nunca pergunta o salário.**
-  *(decisão de 21/08/2026)* Com a regra do DRH confirmada, a participação de 0,15% é parcela real
-  do desconto — ignorá-la deixava o número errado por larga margem: com salário de R$ 10.000 e 20
-  dias de consumo são R$ 300,00 no mês, contra R$ 37,00 de excedente do teto num mês típico. A
-  saída foi um campo opcional no Perfil (`prefs.participacaoDia`) onde o usuário informa **o valor
-  em reais**, lido do próprio contracheque. Vazio é o padrão e o comportamento antigo.
-  Registro honesto do custo: guardar a participação em reais é **matematicamente equivalente** a
-  guardar o salário, porque dividir por 0,0015 devolve o salário. O que muda é que o app não pede,
-  não sugere, não usa para mais nada e funciona sem — em vez de coletar salário como dado de
-  cadastro. Quem não quiser esse dado no app deixa vazio e continua com a estimativa por baixo.
+* **O salário entra no app, e não sai do aparelho.** *(decisão de 21/08/2026, revendo a decisão
+  acima)* Com a regra do DRH confirmada, a participação de 0,15% é a maior parcela do desconto —
+  com salário de R$ 10.000 e 20 dias de consumo são R$ 300,00 no mês, contra R$ 37,00 de excedente
+  do teto num mês típico. Ignorá-la deixava o número principal do app errado por larga margem.
+  A primeira tentativa foi pedir **a participação em reais** em vez do salário
+  (`prefs.participacaoDia`). Foi um erro por dois motivos, e os dois valem registro:
+  1. `participação ÷ 0,15%` devolve o salário. Não protegia nada.
+  2. Pior: `prefs` **sincroniza** para `users/{uid}.prefs`, cuja regra é
+     `allow get: if eu(uid) || ehAdmin()`. Ou seja, o valor foi para o banco, onde o administrador
+     lê. O dado sensível vazou pela porta que ninguém olhou.
+  A forma correta é o objeto `privado`, só no `localStorage`, gravado por `gravarPrivado()` — que
+  não chama `salvarPerfil`. Existe migração: quem tinha `participacaoDia` tem o salário
+  reconstruído localmente e o campo apagado das prefs, e como a gravação usa `updateDoc` com o mapa
+  `prefs` inteiro, o campo deixa de existir no servidor também.
+* **Sem criptografia, de propósito.** *(21/08/2026)* A alternativa a guardar local seria cifrar no
+  cliente e sincronizar o texto cifrado. Recusada: salário é um número curto e previsível, e com o
+  texto cifrado em mãos um atacante testa senhas offline com o AES-GCM confirmando o acerto. Ficar
+  seguro exigiria senha forte, digitada em cada aparelho e perdida para sempre se esquecida —
+  muito custo e muito risco para proteger um número que o dono redigita em cinco segundos.
+  Consequência aceita: **não sincroniza entre aparelhos.** Trocou de celular, digita de novo.
+  O que não está no banco não precisa ser protegido no banco.
 * **O aviso de estimativa sai de tela em vez de ser reescrito.** *(decisão de 21/08/2026)* O texto
   dos 0,15% é de redação fixa e afirma que a participação está fora da conta. Informado o valor,
   ela entra — e o texto passaria a mentir. Reescrever texto que não é nosso está proibido pelo

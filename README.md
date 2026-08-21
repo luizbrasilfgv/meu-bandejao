@@ -14,9 +14,11 @@ Outro         bar, padaria, restaurante da rua: 0% de subsídio e fora da folha
 ```
 
 Regra do DRH para a Sede Botafogo, tabela 2026/2027 — escrita por inteiro, com procedência e o que
-ainda falta confirmar, em [`docs/Regra_DRH_Sapore.md`](docs/Regra_DRH_Sapore.md). O app **não pede
-o seu salário**: o valor da participação em reais é opcional, informado no Perfil. Sem ele, o
-desconto mostrado é uma estimativa por baixo e a tela diz isso.
+ainda falta confirmar, em [`docs/Regra_DRH_Sapore.md`](docs/Regra_DRH_Sapore.md).
+
+O salário-base é informado no Perfil e **fica gravado só no aparelho** — não vai para o banco de
+dados, não sincroniza, e o administrador do app não tem como ver o de ninguém. Sem ele, a
+participação de 0,15% fica fora da conta e a tela diz que o desconto está incompleto.
 
 ## Como é feito
 

@@ -40,10 +40,11 @@ inverter a hierarquia.
 
 ## 4. Princípios que não se negociam
 
-* **O salário não entra no app.** Sem campo, sem criptografia, sem PIN. O app aceita, por opção do
-  usuário e lido do contracheque, o **valor da participação em reais** — nunca o salário. Vazio é o
-  padrão, e aí a participação de 0,15% não é calculada e todo valor exibido é uma estimativa por
-  baixo, sempre declarada como tal.
+* **O salário não sai do aparelho.** O app precisa dele para calcular os 0,15%, então tem campo —
+  mas o valor fica no `localStorage` e **nunca é enviado**: não vai para o Firestore, não sincroniza
+  e o administrador não tem como ver. Sem criptografia e sem PIN de propósito: o que não está no
+  banco não precisa ser protegido no banco. Vazio é o padrão, e aí a participação não é calculada e
+  o valor exibido é uma estimativa por baixo, sempre declarada como tal.
 * **A foto do cupom não é armazenada.** É lida na memória do aparelho e descartada.
 * **Nenhum número inventado.** Onde falta dado, a tela mostra `—`. Onde o valor é estimativa,
   está escrito que é.

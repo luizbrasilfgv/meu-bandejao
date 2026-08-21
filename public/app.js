@@ -70,11 +70,19 @@ let papeis      = [];
 let situacao    = "pendente";
 let lancamentos = [];                       // o estado do app
 let politicas   = [];                       // regras do RH, por vigência
-/* participacaoDia: os 0,15% do salário base, JÁ EM REAIS. O app não pede o
-   salário — quem informa o valor é o usuário, e sem ele a participação fica
-   fora da conta, como sempre esteve. */
+/* ATENÇÃO: prefs SINCRONIZA. Vai para users/{uid}.prefs no Firestore, e lá o
+   administrador lê (allow get: eu(uid) || ehAdmin()). Nada sensível aqui. */
 let prefs       = { alertaLimite: true, lembreteRecibo: false, tetoMensal: null,
-                    matricula: "", cnpjLocal: {}, participacaoDia: null };
+                    matricula: "", cnpjLocal: {} };
+
+/* O que NUNCA sai deste aparelho. Regra de Firestore não protege de quem abre
+   o console do projeto — ela vale para o SDK do cliente, não para o dono do
+   Firebase. Então a única forma de garantir que ninguém veja o salário de
+   ninguém no banco é NÃO COLOCAR o salário no banco. Daqui sai a participação
+   de 0,15%, calculada no navegador de cada um.
+   Consequência aceita: trocou de aparelho ou limpou o navegador, digita de
+   novo. É um número que a pessoa sabe de cabeça. */
+let privado     = { salarioBase: null };
 let periodo     = { preset: "atual", inicio: "", fim: "" };
 let modoSheet   = "scan";                   // scan | manual | editar
 let editandoId  = "";
@@ -240,15 +248,27 @@ function foraDaFolhaDe(l){
 }
 
 /**
- * A participação de 0,15% do salário base, uma vez por DIA com consumo na
- * Sapore. Dia em que você só passou no Rei do Mate não conta: o benefício
- * subsidiado é o do refeitório.
- * Vale zero enquanto o usuário não informar o valor no Perfil — o app não pede
- * o salário e não inventa número.
+ * A participação de UM dia: o percentual da política vigente naquela data,
+ * aplicado ao salário base que está guardado só neste aparelho, arredondado ao
+ * centavo. Zero enquanto ninguém informar o salário — o app não inventa número.
+ */
+function participacaoDoDia(dataIso){
+  const s = num(privado.salarioBase);
+  if (s <= 0) return 0;
+  const pct = num(politicaEm(dataIso || hojeIso()).taxaPct);
+  return Math.round(s * pct) / 100;      // pct vem em %, daí o /100 embutido
+}
+
+/**
+ * A participação do período: uma incidência por DIA com consumo na Sapore.
+ * Dia em que você só passou no Rei do Mate não conta — o benefício subsidiado é
+ * o do refeitório. Soma dia a dia em vez de multiplicar pela contagem, porque o
+ * percentual tem vigência e pode ser diferente em dias diferentes.
  */
 function participacaoDe(diasSapore){
-  const v = num(prefs.participacaoDia);
-  return v > 0 ? v * diasSapore.size : 0;
+  let total = 0;
+  for (const d of diasSapore) total += participacaoDoDia(d);
+  return total;
 }
 
 /**
@@ -333,8 +353,7 @@ function porDia(lista){
     mapa.set(d, atual);
   }
   // a participação é por dia com consumo na Sapore, uma vez em cada
-  const p = num(prefs.participacaoDia);
-  if (p > 0) for (const d of mapa.values()) if (d.sapore) d.desconto += p;
+  for (const d of mapa.values()) if (d.sapore) d.desconto += participacaoDoDia(d.data);
   return [...mapa.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
 
@@ -349,8 +368,7 @@ function porMes(lista){
     mapa.set(m, atual);
   }
   // tantas participações quantos dias com consumo na Sapore o mês tiver
-  const p = num(prefs.participacaoDia);
-  if (p > 0) for (const m of mapa.values()) m.desconto += p * m.dias.size;
+  for (const m of mapa.values()) m.desconto += participacaoDe(m.dias);
   return [...mapa.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
 
@@ -551,6 +569,10 @@ function carregarLocal(){
     if (p) prefs = { ...prefs, ...JSON.parse(p) };
   } catch(e){}
   try {
+    const s = localStorage.getItem(NS + "_privado");
+    if (s) privado = { ...privado, ...JSON.parse(s) };
+  } catch(e){}
+  try {
     const pol = localStorage.getItem(NS + "_politicas");
     if (pol) politicas = JSON.parse(pol) || [];
   } catch(e){}
@@ -559,6 +581,37 @@ function carregarLocal(){
 function gravarPrefs(){
   try { localStorage.setItem(NS + "_prefs", JSON.stringify(prefs)); } catch(e){}
   if (salvarPerfil) salvarPerfil({ prefs }).catch(() => {});
+}
+
+/**
+ * Grava o que é privado. Note a AUSÊNCIA de salvarPerfil aqui: é o ponto todo
+ * desta função existir separada de gravarPrefs. Se alguém um dia acrescentar
+ * uma chamada de rede nesta função, o salário vai para o banco.
+ */
+function gravarPrivado(){
+  try { localStorage.setItem(NS + "_privado", JSON.stringify(privado)); } catch(e){}
+}
+
+/**
+ * Migração de uma versão anterior deste mesmo app, que guardava a participação
+ * em reais dentro de `prefs` — e `prefs` sincroniza, ou seja: o valor foi para
+ * o Firestore, onde o administrador lê, e dividir por 0,15% devolve o salário.
+ *
+ * Aqui ele é convertido de volta para salário no armazenamento local e APAGADO
+ * das prefs. A gravação seguinte usa updateDoc com o mapa `prefs` inteiro, que
+ * substitui o mapa no servidor — então o campo deixa de existir lá, não fica
+ * órfão. Roda depois de carregar o local e depois de ler o perfil remoto.
+ */
+function migrarParticipacao(){
+  if (!("participacaoDia" in prefs)) return;
+  const v = num(prefs.participacaoDia);
+  const pct = num(politicaEm(hojeIso()).taxaPct);
+  if (v > 0 && pct > 0 && !num(privado.salarioBase)){
+    privado.salarioBase = Math.round((v / pct) * 100 * 100) / 100;
+    gravarPrivado();
+  }
+  delete prefs.participacaoDia;
+  gravarPrefs();
 }
 
 let gravarPoliticasRemoto = null;
@@ -658,7 +711,7 @@ function pintarHome(lista, ini, fim){
      da conta. Informado o valor, ela entra — e o aviso passaria a mentir. Em
      vez de reescrever um texto que não é meu, ele sai de tela. */
   const avisoEst = el("avisoEstimativa");
-  if (avisoEst) avisoEst.hidden = num(prefs.participacaoDia) > 0;
+  if (avisoEst) avisoEst.hidden = participacaoDoDia(fim) > 0;
 
   // quinzenas do mês em tela
   const ano = Number(fim.slice(0, 4)), mes = Number(fim.slice(5, 7));
@@ -909,10 +962,17 @@ function pintarPerfil(){
 
   const hPart = el("hParticipacao");
   if (hPart){
-    const p = num(prefs.participacaoDia);
-    hPart.textContent = p > 0
-      ? `R$ ${brl(p)} POR DIA COM CONSUMO NA SAPORE · ENTRA NO DESCONTO`
-      : "0,15% DO SALÁRIO BASE, POR DIA COM CONSUMO · A INFORMAR";
+    const s = num(privado.salarioBase);
+    const pct = String(politicaEm(hojeIso()).taxaPct).replace(".", ",");
+    hPart.textContent = s > 0
+      ? `${pct}% = R$ ${brl(participacaoDoDia())} POR DIA · SÓ NESTE APARELHO, NUNCA VAI PARA A NUVEM`
+      : `A INFORMAR · SEM ELE A PARTICIPAÇÃO DE ${pct}% FICA FORA DA CONTA`;
+  }
+  const vPart = el("pSalario");
+  if (vPart){
+    const s = num(privado.salarioBase);
+    vPart.textContent = s > 0 ? `R$ ${brl(s)}` : "a informar";
+    vPart.classList.toggle("stat__val--pending", !s);
   }
 
   const sw1 = el("swAlerta"), sw2 = el("swLembrete");
@@ -2003,16 +2063,16 @@ document.addEventListener("click", e => {
       });
   }
 
-  if (achar("data-participacao")){
-    return pedirCampo("Participação em folha", "0,15% DO SEU SALÁRIO BASE, EM REAIS (POR DIA)",
-      prefs.participacaoDia ? brl(prefs.participacaoDia) : "", "numero", v => {
+  if (achar("data-salario")){
+    return pedirCampo("Meu salário-base", "FICA SÓ NESTE APARELHO — NUNCA VAI PARA A NUVEM",
+      privado.salarioBase ? brl(privado.salarioBase) : "", "numero", v => {
         const n = paraValor(v);
-        prefs.participacaoDia = isFinite(n) && n > 0 ? n : null;
-        gravarPrefs();
-        pintar();   // muda o desconto em todas as telas, não só no Perfil
-        aviso(prefs.participacaoDia
-          ? "Participação salva. Ela passa a entrar no desconto em folha."
-          : "Participação removida. O desconto volta a ser estimativa por baixo.");
+        privado.salarioBase = isFinite(n) && n > 0 ? n : null;
+        gravarPrivado();   // de propósito: NÃO é gravarPrefs, que sincroniza
+        pintar();          // muda o desconto em todas as telas, não só no Perfil
+        aviso(privado.salarioBase
+          ? `Salário salvo neste aparelho. Participação de R$ ${brl(participacaoDoDia())} por dia.`
+          : "Salário removido. O desconto volta a ser estimativa por baixo.");
       });
   }
 
@@ -2159,6 +2219,7 @@ function sair(){
    =========================================================== */
 async function iniciar(){
   carregarLocal();
+  migrarParticipacao();   // tira do prefs local o que era sensível
   pintar();
 
   if (!CONFIGURADO){
@@ -2232,6 +2293,12 @@ async function iniciar(){
     if (dados.prefs) prefs = { ...prefs, ...dados.prefs };
 
     salvarPerfil = campos => updateDoc(refU, campos);
+
+    /* O perfil remoto acabou de ser mesclado: se ele trouxe a participação em
+       reais de uma versão anterior, ela volta a estar em prefs. Migra agora —
+       e só agora salvarPerfil existe, então é esta chamada que apaga o campo
+       no Firestore. */
+    migrarParticipacao();
 
     // PORTARIA: só quem foi aprovado passa
     if (situacao !== "aprovado") return mostrarEspera(u, situacao);

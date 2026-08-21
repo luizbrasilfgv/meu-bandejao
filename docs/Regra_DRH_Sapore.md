@@ -170,15 +170,21 @@ abertas — são respostas.
 | Periodicidade dos 0,15% | **Por dia.** Uma vez por dia com consumo, não por nota e não por mês | **[DRH]** confirmado pelo usuário e pela planilha de conferência, cuja coluna de participação tem uma incidência por dia |
 | Existe teto mensal? | **Não existe.** | **[DRH]** |
 | Dia sem consumo | Não paga nada. Sem consumo, sem participação | **[DRH]** |
-| Dia com consumo só de item sem subsídio (uma coca e nada mais) | **Paga os 0,15%.** A participação é pela passagem na roleta, não pelo subsídio recebido | **[DRH]** |
+| Dia com consumo só de item sem subsídio (uma coca e nada mais) | **Paga os 0,15% se passou na roleta.** O gatilho é a passagem pela identificação do refeitório, não o subsídio recebido nem o tipo de item | **[DRH]** |
 | Consumo exatamente igual a R$ 35,00 | Paga só os 0,15%. O excedente é zero | **[DRH]** |
 | Itens que o DRH não citou pelo nome | **Não precisa de lista.** O critério resolve: é de geladeira ou sobremesa elaborada? Vai integral. Senão, entra no subsídio. Café da máquina entra; água de garrafa e sorvete não | **[DRH]** — critério, não enumeração |
 | Rei do Mate consome o teto do dia? | **Não.** É integral, sem subsídio aplicado, e não toca nos R$ 35,00 | **[DRH]** |
 
 | Vigência do R$ 35,00 | **Sempre foi 35,00** no período que o app cobre. O R$ 31,59 é valor antigo, de tabela anterior aos lançamentos | **[DRH]** |
 
-Fica de fora só uma coisa, e ela não afeta conta nenhuma: se a regra é a mesma nas outras unidades
-da FGV. **[?]** O documento fala só da Sede Botafogo, e o uso é na Sede.
+Ficam de fora duas coisas, e nenhuma afeta o cálculo:
+
+* Se a regra é a mesma nas outras unidades da FGV. **[?]** O documento fala só da Sede Botafogo, e
+  o uso é na Sede.
+* Como a rubrica do contracheque agrupa o envio do consumo — se soma a quinzena anterior com a
+  atual, como o app assume. **[?]** **Isso não é pergunta para o DRH: quem sabe é a Sapore**, que é
+  quem envia o consumo. Enquanto não houver resposta, a tela mostra as duas quinzenas separadas,
+  que é a forma que não erra em nenhuma das hipóteses.
 
 ---
 

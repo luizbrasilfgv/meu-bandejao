@@ -125,8 +125,10 @@ Para saber se um item que não está nesta lista entra ou não, use o critério:
 
 ## Comprei só um refrigerante, sem almoçar. Como fica?
 
-O refrigerante é cobrado integralmente, porque item de geladeira não tem subsídio. E os 0,15% do
-seu salário-base incidem porque houve consumo no refeitório naquele dia.
+O refrigerante é cobrado integralmente, porque item de geladeira não tem subsídio.
+
+E os 0,15% do salário-base incidem **se você passou pela identificação do refeitório** — é a
+passagem que dispara a cobrança do dia, não o tipo de item nem o valor consumido.
 
 ---
 
@@ -142,10 +144,12 @@ no mesmo dia, o subsídio de R$ 35,00 continua inteiro para o almoço.
 ## Como isso aparece no meu contracheque?
 
 O consumo é identificado na entrada do refeitório (crachá / matrícula) e vai direto para a folha de
-pagamento, na rubrica de refeitório.
+pagamento, na **rubrica de refeitório**.
 
-O envio do consumo é feito **por quinzena**, e o fechamento da folha soma a quinzena anterior com a
-atual. Por isso a rubrica de um mês pode conter consumo de duas quinzenas diferentes.
+Se o valor de um mês parecer diferente do que você consumiu naquele mês, o motivo costuma ser a
+**data de corte do envio do consumo**: o período que a Sapore fecha e manda para a folha não é
+necessariamente igual ao mês do calendário. Para conferir dia a dia, procure o DRH com a sua
+matrícula e o mês em questão.
 
 ---
 

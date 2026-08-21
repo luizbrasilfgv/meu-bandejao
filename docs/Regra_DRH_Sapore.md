@@ -175,12 +175,10 @@ abertas — são respostas.
 | Itens que o DRH não citou pelo nome | **Não precisa de lista.** O critério resolve: é de geladeira ou sobremesa elaborada? Vai integral. Senão, entra no subsídio. Café da máquina entra; água de garrafa e sorvete não | **[DRH]** — critério, não enumeração |
 | Rei do Mate consome o teto do dia? | **Não.** É integral, sem subsídio aplicado, e não toca nos R$ 35,00 | **[DRH]** |
 
-Fica de fora só o que não afeta o cálculo de hoje:
+| Vigência do R$ 35,00 | **Sempre foi 35,00** no período que o app cobre. O R$ 31,59 é valor antigo, de tabela anterior aos lançamentos | **[DRH]** |
 
-* A data em que a tabela virou de R$ 31,59 para R$ 35,00. **[?]** Sem efeito prático: o R$ 35,00
-  vale desde o início dos lançamentos, por decisão do usuário.
-* Se a regra é a mesma nas outras unidades da FGV. **[?]** O documento fala só da Sede Botafogo, e
-  o uso é na Sede.
+Fica de fora só uma coisa, e ela não afeta conta nenhuma: se a regra é a mesma nas outras unidades
+da FGV. **[?]** O documento fala só da Sede Botafogo, e o uso é na Sede.
 
 ---
 
@@ -194,7 +192,7 @@ confundir com norma.
 | Duas notas no mesmo dia | Distribui o teto em **ordem cronológica**: a primeira nota consome, a seguinte pega o resto | O teto é do dia, e a tela mostra o rateio linha por linha — precisa de uma ordem. A cronológica é a que corresponde à roleta: quando você almoçou, o teto do dia estava inteiro |
 | Salário | **Não pede e não guarda** | O usuário informa a participação já em reais, lida do contracheque, e o campo é opcional |
 | Participação vazia | Fica **fora da conta**, e a tela declara que o número está incompleto | Nenhum número inventado |
-| Vigência do teto | R$ 35,00 valendo **desde o início dos lançamentos** | Escolha do usuário, na falta da data de virada da tabela |
+| Vigência do teto | R$ 35,00 valendo **desde o início dos lançamentos**, sem política de vigência cadastrada | Não é suposição: o R$ 35,00 é o valor de toda a janela que o app cobre. O R$ 31,59 é de tabela anterior a ela |
 | Gasto fora da FGV | Entra no controle do período, **fora** da folha e com 0% de subsídio | O gasto com comida é um só para quem paga |
 
 ---

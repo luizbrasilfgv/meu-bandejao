@@ -95,6 +95,13 @@ e dê cor e fundo explícitos em `option, optgroup`, para os navegadores que ren
 dentro da página. E se você usou `appearance: none` no select, reponha uma setinha por
 `background-image` — sem ela nada indica que o campo abre.
 
+A mesma armadilha pega **`input[type="datetime-local"]`**, e é mais fácil de não notar: um
+`appearance: none` aplicado a `.field input` em geral come o **ícone de calendário**, que é
+justamente o que abre o seletor no desktop. O campo continua funcionando no celular, onde o toque
+abre o picker, e parece quebrado no computador. Aqui a saída foi devolver o nativo
+(`appearance: auto` só para esse tipo) em vez de desenhar outro ícone: com `color-scheme: dark`
+declarado, o navegador já entrega o ícone claro.
+
 ---
 
 ## 6. Números na tela

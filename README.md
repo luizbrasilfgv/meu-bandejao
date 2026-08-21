@@ -91,6 +91,8 @@ O gerador não depende de nada: `node docs/ferramentas/gera-icone.js` a partir d
 
 | Arquivo | Para quê |
 |---|---|
+| `docs/Regra_DRH_Sapore.md` | **a regra do desconto**, com a procedência de cada afirmação. Leia antes de mexer em cálculo |
+| `docs/Bot_DRH_Refeitorio.md` | a mesma regra em linguagem de colaborador, para a base de conhecimento do bot do DRH |
 | `docs/Especificacao.md` | o que o app faz hoje, campo por campo |
 | `docs/Decisoes_de_Projeto.md` | **por quê** — inclusive o que foi tentado e abandonado |
 | `docs/PRD.md` | o problema e a hierarquia da informação |

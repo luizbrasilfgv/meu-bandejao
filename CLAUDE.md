@@ -4,6 +4,12 @@ App web pessoal de controle do gasto com comida no trabalho, com previsão do de
 No ar em **https://meu-bandejao.web.app**. Leia `README.md` para a visão geral e
 `docs/Especificacao.md` para o que o app faz hoje.
 
+**A regra do desconto mora em `docs/Regra_DRH_Sapore.md`** — é o documento único, com a
+procedência de cada afirmação marcada ([DRH] = norma, [APP] = decisão de implementação,
+[?] = não confirmado) e a lista do que ainda falta perguntar ao DRH. Antes de mexer em qualquer
+cálculo de dinheiro, leia esse arquivo. Se você descobrir algo novo sobre a regra, ele é o lugar
+de registrar — não o comentário do código.
+
 ## Arquitetura: o que não se negocia
 
 Vem de `scratch/kit-app/PADRAO.md`, e vale como regra:

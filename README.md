@@ -13,9 +13,10 @@ Rei do Mate   valor integral, descontado no contracheque, sem subsídio
 Outro         bar, padaria, restaurante da rua: 0% de subsídio e fora da folha
 ```
 
-Regra do DRH para a Sede Botafogo, tabela 2026/2027. O app **não pede o seu salário**: o valor da
-participação em reais é opcional, informado no Perfil. Sem ele, o desconto mostrado é uma
-estimativa por baixo e a tela diz isso.
+Regra do DRH para a Sede Botafogo, tabela 2026/2027 — escrita por inteiro, com procedência e o que
+ainda falta confirmar, em [`docs/Regra_DRH_Sapore.md`](docs/Regra_DRH_Sapore.md). O app **não pede
+o seu salário**: o valor da participação em reais é opcional, informado no Perfil. Sem ele, o
+desconto mostrado é uma estimativa por baixo e a tela diz isso.
 
 ## Como é feito
 

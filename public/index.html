@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=16">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -699,7 +699,7 @@
           <span class="field__label">DESTE VALOR, SEM SUBSÍDIO <em hidden>CONFIRA</em></span>
           <input type="text" inputmode="decimal" id="campoSemSubsidio" placeholder="0,00" aria-label="Valor de itens sem subsídio">
           <p class="field__nota" id="notaSemSubsidioOCR" hidden></p>
-          <p class="field__nota">Coca, refrigerante, bolo e salada de frutas vão integrais para a folha. Kilo, básico, suco de máquina, fruta e gelatina entram no subsídio.</p>
+          <p class="field__nota">Só o básico entra no subsídio: kilo, prato básico, suco de máquina, fruta e gelatina. Todo o resto vai integral para a folha — refrigerante, água de garrafa, bolo, salada de frutas, sorvete, açaí, café, salgado. Na dúvida, não entra.</p>
         </div>
 
         <label class="field" id="campoLocalNomeWrap" hidden>
@@ -952,6 +952,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

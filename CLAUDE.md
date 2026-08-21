@@ -65,10 +65,14 @@ Cada uma destas já quebrou o app aqui. Estão detalhadas em
    lugar, pare e repense: cache de dinheiro com invalidação espalhada erra na tela sem erro no
    console. E o rateio é sempre sobre a lista inteira, nunca sobre a filtrada, senão o mesmo
    lançamento mostra subsídios diferentes em telas diferentes.
-8. **Nem todo item do cupom tem subsídio.** Geladeira e sobremesa elaborada vão integrais para a
-   folha; kilo, básico, suco de máquina, fruta e gelatina entram. Quem marca isso é o campo
-   `valorSemSubsidio` do lançamento — **não adivinhe pelo texto do cupom.** Dois cupons de mesmo
-   total e composição diferente dão descontos diferentes, e chutar erraria dinheiro em silêncio.
+8. **Nem todo item do cupom tem subsídio, e na dúvida NÃO tem.** Entram só kilo, básico, suco de
+   máquina, fruta e gelatina — o que o DRH nomeou. Todo o resto vai integral para a folha,
+   inclusive o que o leitor não reconheceu. O padrão restritivo é deliberado: o app **prevê**
+   desconto, e prever desconto maior do que vem é susto que não acontece, enquanto prever menor é
+   susto no contracheque. Está em `COM_SUBSIDIO` / `SEM_SUBSIDIO` / `temSubsidio()`, com a ordem da
+   decisão comentada. O valor final é do campo `valorSemSubsidio` do lançamento: o leitor **sugere
+   e avisa**, a pessoa confirma. Dois cupons de mesmo total e composição diferente dão descontos
+   diferentes, e decidir sozinho erraria dinheiro em silêncio.
 9. **`prefs` sincroniza; `privado` não.** `prefs` vai para `users/{uid}.prefs` no Firestore, e a
    regra é `allow get: if eu(uid) || ehAdmin()` — o administrador lê. **O salário mora em
    `privado`**, um objeto separado que só existe no `localStorage`, gravado por `gravarPrivado()`,

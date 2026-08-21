@@ -615,6 +615,13 @@ a:hover { color: #8CC3FA; }
 .field select { font-family: var(--sans); font-size: 15px; font-weight: 500; }
 .field input::placeholder { color: var(--muted-2); }
 
+/* O appearance:none acima come o ícone de calendário do datetime-local, e é ele
+   que abre o seletor no desktop — mesma lição do chevron do select: tirou o
+   indicador nativo, nada mais diz que o campo abre. Aqui devolvemos o nativo em
+   vez de desenhar outro, porque o color-scheme:dark já o pinta claro. */
+.field input[type="datetime-local"] { appearance: auto; -webkit-appearance: auto; }
+.field input[type="datetime-local"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+
 /* appearance:none tira a setinha nativa — sem repor uma, nada indica que abre.
    Chevron por background-image, como manda o LICOES_APRENDIDAS.md. */
 .field select,

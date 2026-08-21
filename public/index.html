@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=14">
+<link rel="stylesheet" href="styles.css?v=15">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -681,7 +681,7 @@
           </label>
           <label class="field field--check" id="campoDataWrap">
             <span class="field__label">DATA E HORA <em>CONFIRA</em></span>
-            <input type="text" id="campoData" placeholder="dd/mm/aaaa hh:mm" aria-label="Data e hora">
+            <input type="datetime-local" id="campoData" aria-label="Data e hora">
           </label>
         </div>
 
@@ -696,8 +696,9 @@
         </div>
 
         <div class="field" id="campoSemSubsidioWrap">
-          <span class="field__label">DESTE VALOR, SEM SUBSÍDIO</span>
+          <span class="field__label">DESTE VALOR, SEM SUBSÍDIO <em hidden>CONFIRA</em></span>
           <input type="text" inputmode="decimal" id="campoSemSubsidio" placeholder="0,00" aria-label="Valor de itens sem subsídio">
+          <p class="field__nota" id="notaSemSubsidioOCR" hidden></p>
           <p class="field__nota">Coca, refrigerante, bolo e salada de frutas vão integrais para a folha. Kilo, básico, suco de máquina, fruta e gelatina entram no subsídio.</p>
         </div>
 
@@ -951,6 +952,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

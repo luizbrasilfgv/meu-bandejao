@@ -1420,10 +1420,31 @@ function pintarContaLanc(){
   const valor = paraValor(el("campoValor")?.value);
   const dataIso = normalizaDataHora(el("campoData")?.value);
 
-  if (local !== "Sapore" || !isFinite(valor) || valor <= 0 || !dataIso){
+  if (!isFinite(valor) || valor <= 0){
     alvo.hidden = true;
     return;
   }
+  const dizer = (r, v) =>
+    `<div class="formula__line"><span>${esc(r)}</span><b>${v}</b></div>`;
+
+  /* Os três casos têm regra de dinheiro DIFERENTE, e a tela do lançamento é
+     onde isso fica visível. Sem estas duas mensagens, quem lança no Rei do Mate
+     ou fora da FGV não vê conta nenhuma e fica sem saber por quê. */
+  if (local === "Rei do Mate"){
+    alvo.innerHTML = dizer("Rei do Mate", "sem subsídio")
+      + dizer("Não usa o teto de R$ " + brl(num(politicaEm(dataIso.slice(0, 10) || hojeIso()).teto)) + " do dia", "é da Sapore")
+      + `<div class="formula__line formula__line--result"><span>Vai para a sua folha</span><b>R$ ${brl(valor)} integral</b></div>`;
+    alvo.hidden = false;
+    return;
+  }
+  if (local === "Outro"){
+    alvo.innerHTML = dizer("Fora da FGV", "0% de subsídio")
+      + dizer("Você pagou na hora, do seu bolso", "não passa pela folha")
+      + `<div class="formula__line formula__line--result"><span>Entra só no seu gasto do período</span><b>R$ ${brl(valor)}</b></div>`;
+    alvo.hidden = false;
+    return;
+  }
+  if (!dataIso){ alvo.hidden = true; return; }   // Sapore precisa da data: o teto é do dia
   const dia = dataIso.slice(0, 10);
   const pol = politicaEm(dia);
   const teto = num(pol.teto);

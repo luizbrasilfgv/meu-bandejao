@@ -1455,9 +1455,14 @@ function marcarLocal(local){
   const aviso0 = el("avisoSemSubsidio");
   if (aviso0) aviso0.hidden = local !== "Outro";
   /* Item sem subsídio só existe na Sapore: no Rei do Mate tudo é integral e o
-     "Outro" nem passa pela folha. */
+     "Outro" nem passa pela folha. Na Sapore ele ganha destaque, porque é o
+     único número da tela que o app não tem como deduzir e que muda o dinheiro:
+     sem isso ele lê como campo opcional e fica em branco. */
   const semSub = el("campoSemSubsidioWrap");
-  if (semSub) semSub.hidden = local !== "Sapore";
+  if (semSub){
+    semSub.hidden = local !== "Sapore";
+    semSub.classList.toggle("field--sapore", local === "Sapore");
+  }
   pintarContaLanc();   // trocou de lugar, a conta muda
 }
 

@@ -69,7 +69,16 @@ mentir. O texto em si não foi tocado: é de redação fixa.
 O `README.md` desta pasta continua como foi recebido, contradição interna inclusive — é handoff, não
 documentação viva. A regra em vigor está em `docs/Especificacao.md`, seção 4.
 
-Duas consequências de tela que divergem do handoff:
+Três consequências de tela que divergem do handoff:
+
+* **O campo "deste valor, sem subsídio" tem tratamento próprio na Sapore.** O handoff dá a todos os
+  campos do formulário o mesmo vidro neutro. Este é o único da tela cujo valor o app **não tem como
+  deduzir** e que muda dinheiro — dois cupons de mesmo total e composição diferente dão descontos
+  diferentes — e com aparência de campo opcional ele passou em branco numa nota real. Ganhou borda e
+  fundo azuis (`.field--sapore`, ligada em `marcarLocal`) e uma instrução curta entre o rótulo e o
+  campo. Nos outros dois estabelecimentos ele nem existe, então o destaque não polui. O âmbar do
+  `.field--check`, que é o estado momentâneo de "confira o que o leitor achou", vence este destaque
+  permanente — por isso está declarado depois dele no CSS.
 
 * **O card herói ganhou a composição da folha escrita por extenso.** O handoff prevê dois números e
   ponto. Com a participação valendo, os números do card deixam de somar o gasto — a participação é

@@ -159,3 +159,46 @@ copiada e colada.
 Nome de loja no OCR sai com erro. CNPJ, vindo do QR ou da chave, não. Guarde o par CNPJ → local
 nas preferências do usuário na primeira vez que ele confirmar, e do segundo cupom em diante o
 reconhecimento não depende mais de ler o nome.
+
+### O valor tampouco é a soma dos itens: use o total IMPRESSO
+Somar as linhas parece mais robusto que caçar a palavra "TOTAL", e não é: a soma só vale se o OCR
+acertou **todas** as linhas, e ele não acerta. Num cupom de R$ 23,32 a soma deu R$ 51,84, porque o
+código do produto virou texto e linhas do rodapé entraram como item. O total impresso é **um**
+número rotulado, e costuma vir repetido (VALOR TOTAL, VALOR A PAGAR, linha do pagamento). Ordem que
+funcionou: o candidato que **bate com a soma dos itens** (duas contas independentes no mesmo número
+não é coincidência), senão o que **se repete** entre as linhas rotuladas, senão a cascata de
+rótulos. A soma continua servindo para separar categorias e para **acusar divergência**.
+
+### Delimite a tabela de itens; não confie em lista de ruído
+Excluir o rodapé por padrões ("trib", "PROCON", "lei") é apostar contra o OCR toda vez — basta uma
+letra trocada e o lixo entra. O cupom já delimita a tabela: um cabeçalho (`Descrição … Vl.Tot`) e um
+fecho (`QTDE. TOTAL DE ITENS`, ou o primeiro `VALOR TOTAL`). Procure item só ali. E faça o **fecho
+valer mesmo sem o cabeçalho**: depois dos totais nunca há item, e o cabeçalho é justamente a linha
+que mais se degrada — "Vl.Tot" veio como "VI Tot" e "Qtde" como "otde" numa leitura real, e a
+varredura do cupom inteiro contou `DEBITO CONSUM RJ 23,52` (lido "LL CONSUM RJ") como item.
+
+### O OCR come o separador decimal
+"23,32" volta como **"23 32"**, e qualquer regex que exija `[.,]` entre reais e centavos devolve
+nada. Isso derruba a defesa do total impresso em silêncio: não é um valor errado, é valor nenhum.
+Aceite o separador comido **só nas linhas já identificadas por rótulo** — solto no texto, `\d+\s\d{2}`
+casa com número de caixa, CEP e endereço. Deixe a maioria decidir: dois votos em 23,32 contra um em
+"23 52" (3 lido como 5) resolvem sozinhos.
+
+### Mascarar demais também é defeito
+`\d{3}\.?\d{3}\.?\d{3}-?\d{2}` para esconder CPF casa com **qualquer** corrida de 11 dígitos — e a
+chave de acesso da NFC-e tem 44. A URL do QR saía do diagnóstico sem chave, e quem a copiava recebia
+"chave de acesso inválida" da SEFAZ. Exija o hífen e os dois dígitos finais. Máscara é um bisturi,
+não um rolo.
+
+### O diagnóstico tem que sobreviver à tela
+O painel do texto cru vive na tela do lançamento e morre com ela — mas é **depois** de fechá-la,
+vendo o número errado no resumo, que a pessoa quer olhar o que o leitor leu. Guarde a última leitura
+no `localStorage` e dê um caminho para ela. Sem isso, diagnosticar leitura errada vira "escaneia de
+novo e não saia da tela", que é um pedido ruim de se fazer a quem já escaneou.
+
+### QR de nota fiscal: o link vale, a busca não
+O QR da NFC-e **é** a URL da consulta na SEFAZ, e dela sai a chave de 44 dígitos — CNPJ, número do
+cupom e data, exatos, sem OCR. Buscar a nota de lá, num app sem servidor, não dá: quem faz o pedido
+é o navegador, e um site só lê a resposta de outro se o outro autorizar. Mas **abrir** o link não
+precisa de nada disso, e resolve o caso em que o OCR errou um número. Só a versão 1 do QR carrega
+valor e data; a versão 2, que é a corrente, carrega só chave, versão, ambiente e token.

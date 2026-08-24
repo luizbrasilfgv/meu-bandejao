@@ -70,16 +70,34 @@ Na ordem, porque a ordem é a decisão:
    (`cUF(2) AAMM(4) CNPJ(14) mod(2) serie(3) nNF(9) …`). O QR versão 1 traz ainda `dhEmi` e
    `vNF` — data/hora e valor exatos.
 3. **OCR (Tesseract.js), só para o que faltou.** PSM 4 e, se não achar valor, segunda tentativa
-   com PSM 6. Extração tolerante: "VALOR A PAGAR" tem prioridade sobre "TOTAL"; linhas de
-   pagamento (troco, débito, valor pago) e de ruído (tributo aproximado, lei, PROCON, CEP) são
-   descartadas; o nome do estabelecimento aceita erro de OCR; a chave impressa é remontada mesmo
+   com PSM 6. O nome do estabelecimento aceita erro de OCR e a chave impressa é remontada mesmo
    quebrada em duas linhas.
+
+   **O item é procurado só DENTRO da tabela de itens**, entre o cabeçalho (`Descrição … Vl.Tot`) e
+   o fecho (`QTDE. TOTAL DE ITENS` ou o primeiro `VALOR TOTAL`). O fecho vale mesmo sem cabeçalho
+   reconhecido — depois dos totais nunca há item. Só sem nenhum dos dois marcos é que varre o cupom
+   inteiro. Depender de uma lista de padrões de ruído para excluir o rodapé é apostar contra o OCR
+   toda vez: numa leitura real, `DEBITO CONSUM RJ 23,52` veio como `LL CONSUM RJ` e entrou como
+   item sem subsídio numa nota de R$ 23,32.
+
+   **O valor vem do total IMPRESSO, não da soma das linhas.** É um número rotulado, contra uma soma
+   que depende de o OCR ter acertado todas as linhas. A escolha entre os totais candidatos, nesta
+   ordem: o que **bate com a soma dos itens** (duas contas independentes no mesmo número); senão o
+   que **se repete** em mais de uma linha rotulada; senão a cascata `A PAGAR` → `TOTAL` → `SUBTOTAL`.
+   Sem total legível, cai na soma dos itens; sem os dois, o campo fica **vazio** — melhor pedir para
+   digitar que inventar dinheiro. Divergindo soma e total, o app diz os dois números.
+
+   Nas linhas já identificadas como total, o separador decimal **comido pelo OCR** é aceito:
+   `VALOR TOTAL R$ 23 32` vale 23,32. Frouxo só ali — solto no texto isso casaria com número de
+   caixa, CEP e endereço.
 4. **Separa o que tem subsídio do que não tem.** Percorre as linhas que têm valor e decide nesta
    ordem: casou em `SEM_SUBSIDIO` (geladeira, freezer) → não tem; casou em `COM_SUBSIDIO` (o balcão
    das comidas, sobremesa elaborada inclusive) → tem; **não casou em nada → NÃO TEM**.
    De cada linha vale o **último** valor, que é a coluna `Vl.Tot` — o maior é o preço unitário, e
    pegar o maior foi o que gravou R$ 69,00 (preço por quilo) num almoço de R$ 23,32. A soma é
    limitada ao total do cupom, senão valor duplicado pelo OCR daria subsídio negativo.
+   O que o total impresso tem e os itens não explicam é consumo que o OCR não leu, e vai para o lado
+   **sem** subsídio: é a mesma regra do "na dúvida não entra", e é o erro que não machuca.
    O resultado é **sugestão, não decisão**: entra no campo `valorSemSubsidio`, com o selo `CONFIRA`
    e a lista do que foi reconhecido escrita ao lado. Quando **nenhum** item subsidiável é
    reconhecido — que quase sempre é falha de leitura, não refeição inteira sem subsídio — a nota
@@ -94,7 +112,18 @@ preenchendo os campos), cada uma com giro, tique verde ou traço quando não deu
 **A imagem é processada na memória e descartada** com `revokeObjectURL`. Nada de foto no banco.
 
 O painel **"Ver o que o leitor entendeu"** mostra o conteúdo do QR e o texto cru do OCR, com CPF
-mascarado. Serve de diagnóstico quando algum campo não vem.
+mascarado. Serve de diagnóstico quando algum campo não vem, e a leitura mais recente fica guardada
+**no aparelho** (`localStorage`), acessível pelo Perfil em *Última leitura de cupom* — o painel da
+tela do lançamento some quando ela fecha, que é justamente quando se percebe o número errado.
+Nunca vai para o Firestore: o cupom traz nome e CPF.
+
+A máscara de CPF exige o hífen e os dois dígitos finais. O padrão frouxo de antes casava com
+qualquer corrida de 11 dígitos e **comia a chave de acesso de 44** dentro da URL do QR — quem
+copiava a URL e abria na SEFAZ recebia "chave de acesso inválida". Mascarar demais também é defeito.
+
+Quando o QR trouxe a URL, a tela oferece **abrir a nota na SEFAZ**. O app não consegue *buscar* a
+nota de lá: sem servidor, quem faz o pedido é o navegador, e um site só lê a resposta de outro se o
+outro autorizar. Abrir o link não precisa disso, e lá a nota aparece item por item, na fonte.
 
 **O app aprende:** ao salvar, guarda o par CNPJ → local (e o nome, quando é `Outro`) em
 `prefs.cnpjLocal`. O cupom seguinte do mesmo CNPJ já vem identificado.

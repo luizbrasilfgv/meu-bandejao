@@ -31,7 +31,8 @@ A FGV subsidia até R$ 35,00 POR DIA de consumo na Sapore.
                             (tabela 2026/2027)
 
 Você paga:
-    0,15% do seu salário-base, por DIA em que consumiu
+    ATÉ 0,15% do seu salário-base, por DIA em que consumiu
+      — nunca mais do que o prato subsidiável daquele dia custou
   + tudo o que passar dos R$ 35,00 no dia
   + tudo o que não é do balcão das comidas (geladeira, sorvete, café, salgado)
   + todo o consumo no Rei do Mate, integral
@@ -43,11 +44,14 @@ Três pontos que costumam ser lidos errado:
    as duas notas dividem um único R$ 35,00. **[DRH]**
 2. **Sobra não acumula.** Gastou R$ 20,00 hoje? Os R$ 15,00 que faltaram não viram crédito para
    amanhã nem voltam para você. **[DRH]**
-3. **A participação de 0,15% não é comida, e incide SEMPRE.** É encargo pelo dia de uso. Num dia
-   de R$ 20,00 de consumo, a FGV paga os R$ 20,00 e você paga os 0,15% por cima — o que sai do seu
-   bolso não é uma fatia do prato, é uma taxa. Consequência de redação, corrigida pelo DRH:
-   **nunca escreva "a FGV cobre o prato inteiro" abaixo do teto.** Lê como refeição de graça, e não
-   é: o desconto existe em todo dia de uso. **[DRH]**
+3. **A participação é ATÉ 0,15%, não 0,15% cheio.** É o limite do que sai do seu bolso pelo prato,
+   não uma taxa fixa. Num dia em que o prato custou menos que os 0,15%, **você paga o valor do
+   prato e nada além**. Nas palavras do DRH, em 24/08/2026: *"não 0,15% cheio para toda vez que for
+   comer — se seu prato deu 5 reais, você vai pagar 5 reais na folha, mesmo seu 0,15% for 22,50."*
+   **[DRH]** Consequência: **o desconto nunca passa do que você consumiu.**
+   Cuidado com a outra ponta, também corrigida pelo DRH: **nunca escreva "a FGV cobre o prato
+   inteiro" abaixo do teto.** Lê como refeição de graça, e não é — você paga a sua parte em todo dia
+   de uso. **[DRH]**
 
 ---
 
@@ -116,10 +120,14 @@ pelo texto do cupom: chutar erraria dinheiro em silêncio. **[APP]**
 base(dia)      = soma dos itens COM subsídio, de todas as notas Sapore do dia
 extras(dia)    = soma dos itens SEM subsídio (geladeira, sorvete, café, salgado)
 
-subsídio(dia)  = MÍNIMO( base(dia) ; 35,00 )
-para a folha   = MÁXIMO( 0 ; base(dia) − 35,00 )  +  extras(dia)
-participação   = 0,15% do salário-base            (uma vez, se houve consumo no dia)
+subsídio bruto = MÍNIMO( base(dia) ; 35,00 )
+participação   = MÍNIMO( 0,15% do salário-base ; subsídio bruto )   <- é ATÉ 0,15%
+subsídio(dia)  = subsídio bruto − participação                      <- o que a FGV bancou
+para a folha   = participação + MÁXIMO( 0 ; base(dia) − 35,00 ) + extras(dia)
 ```
+
+O `MÍNIMO` da participação é a regra inteira do "até": sem ele, um prato de R$ 5,00 cobraria os
+0,15% cheios e o desconto passaria do consumo. **[DRH]**
 
 ### No fechamento da folha
 
@@ -137,8 +145,8 @@ subsídio da FGV   = soma dos subsídios de cada dia
 consumo = subsídio da FGV + o que foi para a folha + Rei do Mate + pago fora da FGV
 ```
 
-Repare que **desconto + subsídio passa do consumo** — passa exatamente na participação, porque ela
-não paga comida. Isso é o certo, não é erro de conta. **[DRH]**
+A soma **fecha sempre**, sem exceção, porque a participação é limitada ao subsídio bruto do dia:
+ela nunca cobra mais do que havia de comida subsidiada para cobrar. **[DRH]**
 
 ### Rei do Mate
 
@@ -155,26 +163,33 @@ paga. **[APP]**
 
 ## 5. Exemplo conferido
 
-Salário-base R$ 10.000,00 → participação de **R$ 15,00 por dia** com consumo.
+Salário-base R$ 10.000,00 → participação de **até R$ 15,00 por dia** com consumo. A coluna do
+subsídio é o que a FGV bancou de fato, já descontada a participação.
 
 | Dia | Consumo | Subsídio FGV | Vai para a folha |
 |---|---|---|---|
-| Kilo 30,00 | 30,00 | 30,00 | 15,00 *(só a participação)* |
-| Kilo 42,00 | 42,00 | 35,00 | 22,00 = 15,00 + 7,00 |
-| Kilo 28,00 + coca 8,00 | 36,00 | 28,00 | 23,00 = 15,00 + 8,00 |
-| Almoço 25,00 + jantar 25,00 | 50,00 | 35,00 | 30,00 = 15,00 + 15,00 |
+| Kilo 30,00 | 30,00 | 15,00 | 15,00 *(só a participação)* |
+| Kilo 42,00 | 42,00 | 20,00 | 22,00 = 15,00 + 7,00 |
+| Kilo 28,00 + coca 8,00 | 36,00 | 13,00 | 23,00 = 15,00 + 8,00 |
+| Almoço 25,00 + jantar 25,00 | 50,00 | 20,00 | 30,00 = 15,00 + 15,00 |
 | Só Rei do Mate 12,00 | 12,00 | 0,00 | 12,00 *(sem participação)* |
+| **Kilo 10,00** | 10,00 | 0,00 | **10,00** *(a participação para no prato)* |
+
+A última linha é a regra do "até": os 0,15% dariam R$ 15,00, mas o prato custou R$ 10,00 e é isso
+que sai. Confira em toda linha: **consumo = subsídio + folha**.
 
 Mês de agosto/2026, 14 dias de consumo, conferido contra planilha:
 
 ```
 consumo ................ R$ 429,00
-subsídio da FGV ........ R$ 383,00
+subsídio da FGV ........ R$ 173,00   (líquido: já sem a participação)
 
 desconto em folha ...... R$ 256,00
    participação (14 × 15) ... 210,00
    excedente do teto .........  46,00
 ```
+
+Repare que 173,00 + 256,00 = 429,00: a soma fecha.
 
 ---
 
@@ -186,37 +201,34 @@ abertas — são respostas.
 | Dúvida | Resposta | Procedência |
 |---|---|---|
 | Periodicidade dos 0,15% | **Por dia.** Uma vez por dia com consumo, não por nota e não por mês | **[DRH]** confirmado pelo usuário e pela planilha de conferência, cuja coluna de participação tem uma incidência por dia |
+| Os 0,15% são piso ou teto? | **Teto.** É *até* 0,15% — prato de R$ 5,00 com 0,15% de R$ 22,50 dá R$ 5,00 de folha. Ver abaixo | **[DRH]** 24/08/2026 |
 | Existe teto mensal? | **Não existe.** | **[DRH]** |
 | Dia sem consumo | Não paga nada. Sem consumo, sem participação | **[DRH]** |
-| Dia com consumo só de item sem subsídio (uma coca e nada mais) | **Paga os 0,15% se passou na roleta.** O gatilho é a passagem pela identificação do refeitório, não o subsídio recebido nem o tipo de item | **[DRH]** |
-| Consumo exatamente igual a R$ 35,00 | Paga só os 0,15%. O excedente é zero | **[DRH]** |
+| Dia com consumo só de item sem subsídio (uma coca e nada mais) | Paga a coca integral. A participação é **zero**: sendo "até 0,15% do prato", sem prato subsidiável não há do que tirar. Antes daqui estava anotado "paga os 0,15% se passou na roleta", pela leitura de piso que caiu em 24/08 | **[?]** — a resposta do "até" resolve o caso por construção, mas este sub-caso não foi perguntado ao DRH com estas palavras |
+| Consumo exatamente igual a R$ 35,00 | Paga os 0,15% (que cabem inteiros nos 35,00). O excedente é zero | **[DRH]** |
 | Itens que o DRH não citou pelo nome | **Não entram.** O subsídio cobre o balcão das comidas e nada além. Café, salgado, sopa: fora | **[DRH]** — leitura restritiva, ver abaixo |
 | Rei do Mate consome o teto do dia? | **Não.** É integral, sem subsídio aplicado, e não toca nos R$ 35,00 | **[DRH]** |
 | Vigência do R$ 35,00 | **Sempre foi 35,00** no período que o app cobre. O R$ 31,59 é valor antigo, de tabela anterior aos lançamentos | **[DRH]** |
 | Base dos 0,15%: salário-base ou bruto? | **É o mesmo número.** O documento escreve "Salário Base" e o DRH o entende como o **bruto** do contracheque — o valor antes dos descontos, não o líquido | **[DRH]** |
 
-### Uma consequência da regra que foi levada ao DRH em 24/08/2026
+### A pergunta do prato barato, respondida em 24/08/2026
 
-A regra "os 0,15% saem no mínimo" produz, num dia de prato barato, **desconto maior que o consumo**:
+Nenhum exemplo do documento do DRH tem consumo **abaixo** da participação, então por um tempo o app
+tratou os 0,15% como **piso** — cobrava-os inteiros e o desconto passava do consumo. Pergunta feita
+ao DRH, textual: *"quando os 0,15% do salário passam do valor que eu consumi de comida subsidiada
+no dia, a FGV cobra os 0,15% inteiros mesmo assim, ou cobra no máximo o que eu consumi?"*
 
-```
-salário-base 15.000  ->  participação 22,50
-nota: kilo 16,42 + refrigerante 6,90 = 23,32
+Resposta do Pedro Henrique, do DRH, também textual: **[DRH]**
 
-subsídio da FGV ... 0,00   (16,42 de kilo não cobre 22,50 de participação)
-desconto em folha . 29,40  = 22,50 + 6,90
-                             você pagou 6,08 a mais do que comeu
-```
+> Não. É **até 0,15%**. Não 0,15% cheio para toda vez que for comer. Se seu prato deu 5 reais, você
+> vai pagar 5 reais na folha, mesmo seu 0,15% for 22,50.
 
-Com essa participação, **todo dia de kilo abaixo de R$ 22,50 custa mais do que valeu a comida** — e
-a FGV recebe mais do que pagou à Sapore. Não é caso raro nem erro de conta: é o que a regra diz.
+E o enquadramento geral, na mesma conversa: *"eu pago até 0,15% do meu salário e a FGV paga o
+restante até o teto de R$ 35,00; se passar desse valor tem a diferença que a FGV paga e o que eu
+pago depois."*
 
-Nenhum exemplo do documento do DRH tem consumo abaixo da participação, então esse caso nunca foi
-ilustrado por eles. A pergunta feita, textual: *"quando os 0,15% passam do que eu consumi de comida
-subsidiada no dia, a FGV cobra os 0,15% inteiros mesmo assim, ou cobra no máximo o que eu
-consumi?"* **[?]** — enquanto não vier resposta, o app cobra inteiro, que é a leitura restritiva e a
-que o usuário confirmou como regra. Se o DRH disser que trunca no consumido, o ponto a mudar é o
-corte da participação em `calcularRateio`, e a soma passa a fechar sempre.
+Ou seja: **a participação é teto, não piso**, e o desconto nunca passa do consumo. Onde isso mora no
+código é o `Math.min` de `calcularRateio`, que limita o corte à soma do subsídio bruto do dia.
 
 Ficam de fora duas coisas, e nenhuma afeta o cálculo:
 
@@ -254,3 +266,4 @@ Registro do que já foi acreditado e caiu, porque saber o que foi descartado evi
 | Até 21/08/2026 | teto de **R$ 31,59 por refeição**, 0,15% "por ida" e depois "por refeição", fora da conta | Documento do DRH: é **R$ 35,00 por dia**, e a participação entra na conta |
 | Resumos de conversas internas | "a FGV paga até R$ 20,00" | Era a visão **líquida** (35,00 − 15,00 de participação), não o subsídio bruto |
 | Fórmula de terceiros | `0,15% + máx(0; total − 31,59)` | Usava o **total** da nota em vez da base subsidiável, e não tratava consumo abaixo do teto |
+| Até 24/08/2026 | os 0,15% como **piso**: saíam inteiros, e num dia de prato barato o desconto passava do consumo | Resposta do DRH: é **até** 0,15%. Prato de R$ 5,00 paga R$ 5,00, mesmo com os 0,15% em R$ 22,50. A soma voltou a fechar sempre |

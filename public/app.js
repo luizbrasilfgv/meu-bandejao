@@ -225,11 +225,16 @@ function calcularRateio(lista){
 
     /* 2) a participação do dia SAI do subsídio, porque subsídio da FGV é o que
        ela bancou de fato — não o que ela paga à Sapore e depois cobra de você.
-       Sai na mesma ordem cronológica. Se ela for maior que o subsídio do dia
-       inteiro (prato barato), o que restar é cobrado mesmo assim: a regra do
-       DRH é que os 0,15% saem no MÍNIMO, ainda que passem do consumido. Nesse
-       dia a soma não fecha com o gasto, e está certo não fechar. */
-    let falta = participacaoDoDia(d);
+       Sai na mesma ordem cronológica.
+
+       É ATÉ 0,15%, não 0,15% cheio. Resposta do DRH em 24/08/2026, textual:
+       "não 0,15% cheio para toda vez que for comer — se seu prato deu 5 reais,
+       você vai pagar 5 reais na folha, mesmo seu 0,15% for 22,50". Ou seja, a
+       participação é um TETO do que você paga, não um piso: ela nunca passa do
+       subsídio que a FGV daria naquele dia. Por isso o corte é limitado à soma
+       de `bruto`, e não ao percentual solto — e por isso a soma sempre fecha
+       com o gasto, sem exceção. */
+    let falta = Math.min(participacaoDoDia(d), bruto.reduce((a, v) => a + v, 0));
     notas.forEach((l, i) => {
       const corte = Math.min(bruto[i], falta);
       falta = c(falta - corte);
@@ -249,12 +254,9 @@ function calcularRateio(lista){
                  semSub: semSubsidioDe(l) },
       });
     });
-    // sobra da participação: entra na primeira nota do dia, que é onde ela nasce
-    if (falta > 0 && notas.length){
-      const primeira = mapa.get(notas[0].id);
-      primeira.excedente = c(primeira.excedente + falta);
-      primeira.parte.participacao = c(primeira.parte.participacao + falta);
-    }
+    /* Não há sobra de participação a distribuir: `falta` foi limitada à soma de
+       `bruto`, então os cortes a consomem inteira. Se algum dia aparecer sobra
+       aqui, a regra mudou de volta para piso e este é o ponto a rever. */
   }
   return mapa;
 }
@@ -297,9 +299,13 @@ function foraDaFolhaDe(l){
 }
 
 /**
- * A participação de UM dia: o percentual da política vigente naquela data,
- * aplicado ao salário base que está guardado só neste aparelho, arredondado ao
- * centavo. Zero enquanto ninguém informar o salário — o app não inventa número.
+ * O TETO da participação de um dia: o percentual da política vigente naquela
+ * data, aplicado ao salário base que está guardado só neste aparelho,
+ * arredondado ao centavo. Zero enquanto ninguém informar o salário — o app não
+ * inventa número.
+ * É um teto, não o valor cobrado: quem cobra menos que isso num dia de prato
+ * barato é `calcularRateio`, que limita o corte ao subsídio do dia. Para saber
+ * quanto saiu de fato, use `rateioDe(l).parte.participacao`.
  */
 function participacaoDoDia(dataIso){
   const s = num(privado.salarioBase);
@@ -312,10 +318,9 @@ function participacaoDoDia(dataIso){
  * Consolidado do período. A soma fecha assim, por construção:
  *   bruto = subsidio (FGV, LÍQUIDO) + desconto (folha) + fora
  * O subsídio é o que a FGV bancou de fato: o teto do dia menos a sua
- * participação, que sai dele no rateio. Por isso a soma fecha em três termos.
- * A exceção real: em dia de prato mais barato que a participação, ela é cobrada
- * mesmo assim (regra do DRH: sai no mínimo) e a soma passa do gasto nesse
- * resto. Não é erro de conta — é a regra.
+ * participação, que sai dele no rateio. Por isso a soma fecha em três termos —
+ * e fecha SEMPRE, sem exceção, porque a participação é "até 0,15%" e nunca
+ * passa do subsídio do dia.
  * Calcular o subsídio como "bruto − desconto" daria errado por dois motivos: o
  * gasto fora da FGV entraria como coisa subsidiada, e a participação viraria
  * subsídio negativo.
@@ -758,11 +763,12 @@ function pintarHome(lista, ini, fim){
   põeDestaque("vFolha", "hFolha", r.desconto,
     partes.length ? partes.join(" + ") : "NADA PASSOU DO TETO DIÁRIO");
   /* "A FGV COBRE ATÉ R$ 35,00" sozinho lê como refeição de graça abaixo do teto,
-     e não é: os 0,15% incidem sempre. Correção do DRH, e vale para todo texto
-     do app que fale do subsídio. */
+     e não é: você paga a sua parte em todo dia de uso. Correção do DRH, e vale
+     para todo texto do app que fale do subsídio. A parte é ATÉ o percentual —
+     em dia de prato barato sai o valor do prato, e nunca mais que ele. */
   põeDestaque("vSubsidio", "hSubsidio", r.subsidio,
-    `ATÉ R$ ${brl(pol.teto)} POR DIA NA SAPORE · VOCÊ PAGA SEMPRE OS `
-    + `${String(pol.taxaPct).replace(".", ",")}%`);
+    `ATÉ R$ ${brl(pol.teto)} POR DIA NA SAPORE · VOCÊ PAGA ATÉ `
+    + `${String(pol.taxaPct).replace(".", ",")}% DO SALÁRIO`);
 
   /* O aviso de estimativa tem redação fixa e diz que a participação está fora
      da conta. Informado o valor, ela entra — e o aviso passaria a mentir. Em
@@ -1512,9 +1518,13 @@ function pintarContaLanc(){
 
   const subBruto = Math.min(base, resta);
   const excedente = Math.round((base - subBruto) * 100) / 100;
+  /* `part` é o TETO da participação — é "até 0,15%", não 0,15% cheio. No dia de
+     prato mais barato que ela, sai o valor do prato. Sem esse limite a tela
+     mostraria desconto maior que o consumo, que foi o que o DRH desmentiu. */
   const part = participacaoDoDia(dia);
   const jaTemNoDia = usado > 0;   // a participação do dia já foi cobrada na 1ª nota
-  const partAqui = jaTemNoDia ? 0 : part;
+  const partAqui = jaTemNoDia ? 0 : Math.min(part, subBruto);
+  const partLimitada = !jaTemNoDia && part > 0 && partAqui < part;
   const folha = Math.round((partAqui + excedente + semSub) * 100) / 100;
   const linha = (r, v, cls) =>
     `<div class="formula__line${cls ? " " + cls : ""}"><span>${esc(r)}</span><b>R$ ${brl(v)}</b></div>`;
@@ -1524,11 +1534,14 @@ function pintarContaLanc(){
            + `<div class="formula__line"><span>Teto do dia</span><b>R$ ${brl(teto)}${
                jaTemNoDia ? ` · resta ${brl(resta)}` : ""}</b></div>`;
   if (excedente) html += linha("Passou do teto", excedente);
+  const pct = String(pol.taxaPct).replace(".", ",");
   html += part > 0
     ? (jaTemNoDia
-        ? `<div class="formula__line"><span>Participação de ${String(pol.taxaPct).replace(".", ",")}%</span><b>já cobrada hoje</b></div>`
-        : linha(`Participação de ${String(pol.taxaPct).replace(".", ",")}% do salário`, part))
-    : `<div class="formula__line"><span>Participação de ${String(pol.taxaPct).replace(".", ",")}%</span><b>informe o salário no Perfil</b></div>`;
+        ? `<div class="formula__line"><span>Participação de ${pct}%</span><b>já cobrada hoje</b></div>`
+        : linha(partLimitada
+                  ? `Participação · limitada ao prato (${pct}% daria R$ ${brl(part)})`
+                  : `Participação de ${pct}% do salário`, partAqui))
+    : `<div class="formula__line"><span>Participação de ${pct}%</span><b>informe o salário no Perfil</b></div>`;
   const subLiq = Math.max(0, Math.round((subBruto - partAqui) * 100) / 100);
   html += linha("Subsídio da FGV", subLiq)
         + linha("Vai para a sua folha", folha, "formula__line--result");

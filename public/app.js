@@ -1389,6 +1389,7 @@ function abrirLancamento(modo, id){
   if (ocrBar) ocrBar.hidden = revisao;
   if (thumb)  thumb.hidden  = revisao;
   mostrarDiagnostico("", "");
+  mostrarLinkSefaz("");
 
   const wrap = el("campoDataWrap");
   if (wrap){
@@ -1807,6 +1808,7 @@ async function lerCupom(file){
   if (ocrBar) ocrBar.hidden = false;
   if (thumb)  thumb.hidden  = false;
   mostrarDiagnostico("", "");
+  mostrarLinkSefaz("");   // link da leitura anterior apontaria para outra nota
 
   const t0 = Date.now();
   let worker = null, fonteQR = "", textoOCR = "", conf = 0;
@@ -1826,6 +1828,7 @@ async function lerCupom(file){
     leituraPasso("pQR", fonteQR ? "done" : "fail",
       fonteQR ? "QR code lido — dados exatos da nota" : "Sem QR legível nesta foto");
     leituraProgresso(30, fonteQR ? "QR code lido" : "Vamos pelo texto");
+    mostrarLinkSefaz(fonteQR);
 
     // ---- 2. OCR: preenche o que o QR não deu ----
     const faltaAlgo = campos.valor == null || !campos.dataHora || !campos.itens
@@ -1922,12 +1925,15 @@ async function lerCupom(file){
     const chaves = Object.keys(rotulos);
     const achou = chaves.filter(k => campos[k] !== "" && campos[k] != null);
     const faltou = chaves.filter(k => achou.indexOf(k) < 0);
-    /* Soma dos itens contra o total impresso: divergiu, um dos dois está errado
-       e o app não sabe qual. Dizer isso é o único caminho honesto — foi
-       escolhendo sozinho que ele gravou 69,00 num almoço de 23,32. */
+    /* Soma dos itens contra o total impresso: divergiu, alguma linha o OCR leu
+       errado. O app fica com o TOTAL IMPRESSO, que é um número rotulado, e diz
+       o outro em vez de escolher calado — foi escolhendo sozinho que ele gravou
+       69,00 num almoço de 23,32. Como a divergência mora numa linha de item, a
+       divisão entre com e sem subsídio pode estar torta mesmo com o total
+       certo: por isso o aviso manda conferir os dois campos. */
     if (campos.conflitoTotal != null){
-      aviso(`Confira o valor: os itens somam R$ ${brl(campos.valor)}, `
-          + `mas o total impresso é R$ ${brl(campos.conflitoTotal)}.`);
+      aviso(`Ficamos com o total impresso, R$ ${brl(campos.valor)}, mas os itens `
+          + `somam R$ ${brl(campos.conflitoTotal)}. Confira o valor e o que ficou sem subsídio.`);
     }
     const baixa = campos.valor == null || campos.conflitoTotal != null
                || (!fonteQR && conf < 75);
@@ -1968,6 +1974,23 @@ async function lerCupom(file){
 }
 
 /**
+ * O QR da NFC-e É a URL da consulta na SEFAZ. O app não consegue BUSCAR a nota
+ * de lá — sem servidor, quem faz o pedido é o navegador, e um site só lê a
+ * resposta de outro se o outro autorizar; portal de fazenda não autoriza. Mas
+ * abrir o link não precisa de nada disso, e lá a nota aparece item por item,
+ * na fonte. É o melhor que dá para fazer dentro da arquitetura, e resolve o
+ * caso em que o OCR errou um número e você precisa do valor certo.
+ */
+function mostrarLinkSefaz(qr){
+  const linha = el("linhaSefaz");
+  const link = el("linkSefaz");
+  if (!linha || !link) return;
+  const m = String(qr || "").match(/https?:\/\/\S+/i);
+  linha.hidden = !m;
+  if (m) link.href = m[0];
+}
+
+/**
  * A leitura mais recente, guardada NO APARELHO. O bloco de diagnóstico vive na
  * tela do lançamento e some quando ela fecha — que é justamente quando a pessoa
  * percebe que um campo veio errado e já não tem mais como mostrar o texto.
@@ -2002,8 +2025,13 @@ function mostrarDiagnostico(qr, ocr){
   if (qr)  partes.push("=== QR CODE ===\n" + qr);
   if (ocr) partes.push("=== TEXTO LIDO PELO OCR ===\n" + ocr);
   if (!qr && !ocr) partes.push("");
-  // CPF do cupom não interessa a ninguém, muito menos numa tela que você copia
-  const texto = partes.join("\n\n").replace(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g, "***.***.***-**");
+  /* CPF do cupom não interessa a ninguém, muito menos numa tela que você copia.
+     O padrão EXIGE o hífen e os dois dígitos finais: a versão frouxa de antes
+     casava com qualquer corrida de 11 dígitos e **comia a chave de acesso de 44
+     dígitos dentro da URL do QR** — quem copiava a URL e abria na SEFAZ recebia
+     "chave de acesso inválida". Mascarar demais também é defeito. */
+  const texto = partes.join("\n\n")
+    .replace(/\d{3}[.\s]\d{3}[.\s]\d{3}\s*-\s*\d{2}(?!\d)/g, "***.***.***-**");
   bloco.hidden = !texto.trim();
   pre.textContent = texto;
   if (!texto.trim()) bloco.removeAttribute("open");
@@ -2040,11 +2068,41 @@ function normalizarOCR(t){
        nunca pode juntar linhas. */
     .replace(/R[ \t]*[$Ss5][ \t]*(?=[\d.,])/gi, "R$ ")        // R$, RS, R5 -> R$
     .replace(/(\d)[ \t]+([.,])[ \t]*(\d{2})(?!\d)/g, "$1$2$3")// "44 ,40" -> "44,40"
+    .replace(/(\d)([.,])[ \t]+(\d{2})(?!\d)/g, "$1$2$3")      // "62, 00" -> "62,00"
     .replace(/(\d)[oO](?=\d)/g, "$10")                        // "1o,50" -> "10,50"
     .replace(/(\d)[ \t]+(\d{3})(?!\d)/g, "$1$2");             // "1 234,00" -> "1234,00"
 }
 
-const RE_APAGAR    = /a\s*p\s*a\s*g\s*a\s*r/i;
+/**
+ * Como `valoresDe`, mas aceitando o separador decimal que o OCR COMEU:
+ * "23 32" vale 23,32. Numa nota real da Sapore o Tesseract devolveu
+ *
+ *     VALOR TOTAL R$      23 32
+ *     VALOR A PAGAR R$    23 32
+ *     DEBITO CONSUM RJ    23 52
+ *
+ * — os três totais sem vírgula. Com `valoresDe` puro nenhum deles vira número,
+ * e a defesa do "total impresso ganha da soma das linhas" fica sem total para
+ * usar, justamente na hora em que ela mais importa.
+ *
+ * Só para linhas JÁ identificadas como total do cupom pelo rótulo. Solto no
+ * texto isso casaria com número de caixa, CEP e endereço; ali é dinheiro.
+ * A maioria continua sendo quem decide, e é ela que descarta o "23 52" acima.
+ */
+function valoresDeFrouxo(s){
+  const out = valoresDe(s);
+  if (out.length) return out;
+  const re = /(\d{1,4})[ \t]+(\d{2})(?!\d)/g;
+  let m;
+  while ((m = re.exec(String(s)))){
+    const v = parseFloat(m[1] + "." + m[2]);
+    if (isFinite(v) && v > 0 && v < 5000) out.push(v);
+  }
+  return out;
+}
+
+// o "À" de "VALOR À PAGAR" não é o "a" ASCII, e /a/i não casa com ele
+const RE_APAGAR    = /[aà]\s*p\s*a\s*g\s*a\s*r/i;
 const RE_TOTAL     = /t\s*[o0]\s*t\s*[a4]\s*[li1]/i;          // TOTAL, T0TAL, TOTAI
 const RE_SUBTOTAL  = /s\s*u\s*b\s*-?\s*t\s*[o0]/i;
 const RE_PAGAMENTO = /troco|dinheiro|cart[ãa]o|cr[eé]dito|d[eé]bito|\bpix\b|recebido|valor\s*pago|entregue|forma\s*(de\s*)?pag/i;
@@ -2213,7 +2271,7 @@ function extrairCampos(texto){
     : null;
 
   const doRotulo = (filtro) => {
-    const cands = linhas.filter(l => filtro(l) && util(l)).flatMap(valoresDe);
+    const cands = linhas.filter(l => filtro(l) && util(l)).flatMap(valoresDeFrouxo);
     return cands.length ? Math.max(...cands) : null;
   };
   /* "TOTAL DE ITENS 2" é contagem, não dinheiro, e "Saldo Total" é o saldo do
@@ -2223,7 +2281,7 @@ function extrairCampos(texto){
         || (RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l)) || RE_PAGAMENTO.test(l));
   const repetido = (() => {
     const n = new Map();
-    for (const v of linhas.filter(l => ehRotuloDeTotal(l) && !RE_RUIDO.test(l)).flatMap(valoresDe)){
+    for (const v of linhas.filter(l => ehRotuloDeTotal(l) && !RE_RUIDO.test(l)).flatMap(valoresDeFrouxo)){
       n.set(v, (n.get(v) || 0) + 1);
     }
     let melhor = null, vezes = 1;

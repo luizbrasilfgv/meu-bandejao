@@ -33,7 +33,7 @@ A FGV subsidia até R$ 35,00 POR DIA de consumo na Sapore.
 Você paga:
     0,15% do seu salário-base, por DIA em que consumiu
   + tudo o que passar dos R$ 35,00 no dia
-  + tudo o que não tem direito a subsídio (geladeira e sobremesa elaborada)
+  + tudo o que não é do balcão das comidas (geladeira, sorvete, café, salgado)
   + todo o consumo no Rei do Mate, integral
 ```
 
@@ -43,16 +43,21 @@ Três pontos que costumam ser lidos errado:
    as duas notas dividem um único R$ 35,00. **[DRH]**
 2. **Sobra não acumula.** Gastou R$ 20,00 hoje? Os R$ 15,00 que faltaram não viram crédito para
    amanhã nem voltam para você. **[DRH]**
-3. **A participação de 0,15% não é comida.** É encargo pelo dia de uso. Num dia de R$ 20,00 de
-   consumo, a FGV paga os R$ 20,00 e você paga os 0,15% por cima — o que sai do seu bolso não é
-   uma fatia do prato, é uma taxa. **[DRH]**
+3. **A participação de 0,15% não é comida, e incide SEMPRE.** É encargo pelo dia de uso. Num dia
+   de R$ 20,00 de consumo, a FGV paga os R$ 20,00 e você paga os 0,15% por cima — o que sai do seu
+   bolso não é uma fatia do prato, é uma taxa. Consequência de redação, corrigida pelo DRH:
+   **nunca escreva "a FGV cobre o prato inteiro" abaixo do teto.** Lê como refeição de graça, e não
+   é: o desconto existe em todo dia de uso. **[DRH]**
 
 ---
 
 ## 3. O que entra e o que não entra no subsídio
 
-O critério que o DRH deu, em uma frase: **"nada que é de geladeira ou sobremesa elaborada entra
-no subsídio."** **[DRH]**
+O critério, na frase do DRH: **"somente o que está no balcão das comidas."** **[DRH]**
+
+> **Mudou em 21/08/2026.** Até então valia *"nada que é de geladeira ou sobremesa elaborada entra
+> no subsídio"*, e a sobremesa elaborada ficava fora. O Fernando pediu a inclusão, e **sobremesa
+> elaborada passou a entrar**. O critério em vigor é o do balcão das comidas. **[DRH]**
 
 ### Entra no subsídio — confirmado **[DRH]**
 
@@ -63,6 +68,7 @@ no subsídio."** **[DRH]**
 | Suco de máquina | o do dispenser, não o de garrafa ou caixinha |
 | Fruta | a fruta em si |
 | Gelatina | |
+| Sobremesa do balcão | **elaborada inclusive**: bolo, torta, pudim, salada de frutas |
 
 ### NÃO entra no subsídio — confirmado **[DRH]**
 
@@ -70,16 +76,17 @@ Vai **integral** para a folha, mesmo que o seu dia tenha ficado abaixo dos R$ 35
 
 | Item | Por quê |
 |---|---|
-| Coca-Cola e refrigerante | item de geladeira |
+| Coca-Cola e refrigerante | bebida de geladeira |
+| Água de garrafa, suco de caixinha, iogurte | bebida de geladeira |
 | Qualquer coisa de geladeira | critério explícito do DRH |
-| Bolo | sobremesa elaborada |
-| Salada de frutas | sobremesa elaborada |
+| Sorvete, picolé, açaí | vem do freezer, não do balcão das comidas **[APP]** |
+| Café, salgado | não é do balcão das comidas **[APP]** |
 
 ### Na dúvida, não entra
 
-O DRH nomeou o que entra (kilo, básico, suco de máquina, fruta, gelatina) e o que não entra
-(geladeira, sobremesa elaborada), e não disse o que fazer com o resto — café, salgado, sopa. A regra
-adotada é a **restritiva: o que não foi nomeado como incluído fica de fora.** Dois motivos, e os
+O DRH nomeou o balcão das comidas como o que entra, e a geladeira como o que não entra. Não disse o
+que fazer com o que não está em nenhum dos dois — café, salgado, sopa, sorvete. A regra adotada é a
+**restritiva: o que não é do balcão das comidas fica de fora.** Dois motivos, e os
 dois apontam para o mesmo lado:
 
 1. Instituição lê benefício pelo lado que gasta menos, e é essa leitura que chega ao contracheque.
@@ -107,7 +114,7 @@ pelo texto do cupom: chutar erraria dinheiro em silêncio. **[APP]**
 
 ```
 base(dia)      = soma dos itens COM subsídio, de todas as notas Sapore do dia
-extras(dia)    = soma dos itens SEM subsídio (geladeira, sobremesa elaborada)
+extras(dia)    = soma dos itens SEM subsídio (geladeira, sorvete, café, salgado)
 
 subsídio(dia)  = MÍNIMO( base(dia) ; 35,00 )
 para a folha   = MÁXIMO( 0 ; base(dia) − 35,00 )  +  extras(dia)
@@ -183,7 +190,7 @@ abertas — são respostas.
 | Dia sem consumo | Não paga nada. Sem consumo, sem participação | **[DRH]** |
 | Dia com consumo só de item sem subsídio (uma coca e nada mais) | **Paga os 0,15% se passou na roleta.** O gatilho é a passagem pela identificação do refeitório, não o subsídio recebido nem o tipo de item | **[DRH]** |
 | Consumo exatamente igual a R$ 35,00 | Paga só os 0,15%. O excedente é zero | **[DRH]** |
-| Itens que o DRH não citou pelo nome | **Não entram.** O subsídio cobre o básico da refeição — o que o DRH nomeou — e nada além. Café, salgado, sopa: fora | **[DRH]** — leitura restritiva, ver abaixo |
+| Itens que o DRH não citou pelo nome | **Não entram.** O subsídio cobre o balcão das comidas e nada além. Café, salgado, sopa: fora | **[DRH]** — leitura restritiva, ver abaixo |
 | Rei do Mate consome o teto do dia? | **Não.** É integral, sem subsídio aplicado, e não toca nos R$ 35,00 | **[DRH]** |
 | Vigência do R$ 35,00 | **Sempre foi 35,00** no período que o app cobre. O R$ 31,59 é valor antigo, de tabela anterior aos lançamentos | **[DRH]** |
 

@@ -74,9 +74,8 @@ Na ordem, porque a ordem é a decisão:
    descartadas; o nome do estabelecimento aceita erro de OCR; a chave impressa é remontada mesmo
    quebrada em duas linhas.
 4. **Separa o que tem subsídio do que não tem.** Percorre as linhas que têm valor e decide nesta
-   ordem: casou em `SEM_SUBSIDIO` (geladeira, sobremesa elaborada) → não tem; casou em
-   `COM_SUBSIDIO` (kilo, básico, suco de máquina, fruta, gelatina) → tem; **não casou em nada →
-   NÃO TEM**. De cada linha vale o maior valor, que é o total da linha e não o unitário. A soma é
+   ordem: casou em `SEM_SUBSIDIO` (geladeira, freezer) → não tem; casou em `COM_SUBSIDIO` (o balcão
+   das comidas, sobremesa elaborada inclusive) → tem; **não casou em nada → NÃO TEM**. De cada linha vale o maior valor, que é o total da linha e não o unitário. A soma é
    limitada ao total do cupom, senão valor duplicado pelo OCR daria subsídio negativo.
    O resultado é **sugestão, não decisão**: entra no campo `valorSemSubsidio`, com o selo `CONFIRA`
    e a lista do que foi reconhecido escrita ao lado. Quando **nenhum** item subsidiável é
@@ -127,9 +126,10 @@ e valem as identidades:
   o teto em **ordem cronológica** — a primeira nota do dia consome o teto, a seguinte pega o que
   sobrou. O rateio é sempre calculado sobre a lista inteira, nunca sobre a lista filtrada da tela,
   senão o mesmo lançamento mostraria subsídios diferentes em telas diferentes.
-* **Nem tudo no cupom tem subsídio, e na dúvida não tem.** Entram só kilo, prato básico, suco de
-  máquina, fruta e gelatina — o que o DRH nomeou. Todo o resto vai integral para a folha: geladeira,
-  sobremesa elaborada, café, salgado, e também o que o leitor não conseguiu reconhecer. O padrão
+* **Nem tudo no cupom tem subsídio, e na dúvida não tem.** Entra o que vem do **balcão das
+  comidas**: prato (kilo ou básico), suco de máquina, fruta, gelatina e sobremesa — **elaborada
+  inclusive**, desde 21/08/2026. Vão integrais para a folha a bebida de geladeira, o sorvete, o que
+  não é do balcão (café, salgado) e também o que o leitor não conseguiu reconhecer. O padrão
   restritivo é deliberado, porque o app **prevê** desconto: errar prevendo mais é susto que não
   acontece, errar prevendo menos é susto no contracheque.
   O valor final é **marcado no lançamento** (`valorSemSubsidio`), nunca decidido pelo leitor: dois
@@ -227,7 +227,8 @@ não sai do aparelho. Vazio é o padrão.
 ### 5.6 Dúvidas
 
 Memória de cálculo linha por linha e FAQ. A memória lista, nesta ordem: consumo bruto, subsídio da
-Sapore (R$ 35,00 **por dia**), o que tem subsídio, o que não tem, participação, Rei do Mate, fora
+Sapore (R$ 35,00 **por dia**, e não é de graça abaixo do teto), o que tem subsídio, o que não tem,
+participação, Rei do Mate, fora
 da FGV, quinzenas e o resultado. **A ordem importa:** o que entra vem antes do que não entra,
 porque começar pela lista de exclusão faz parecer que todo o resto entra — foi assim que a tela
 passou a contradizer o cálculo uma vez.

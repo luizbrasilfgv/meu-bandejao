@@ -201,14 +201,36 @@ function calcularRateio(lista){
     if (!dias.has(d)) dias.set(d, []);
     dias.get(d).push(l);
   }
+  const c = v => Math.round(v * 100) / 100;
   const mapa = new Map();
   for (const [d, doDia] of dias){
     let resta = num(politicaEm(d).teto);
-    for (const l of doDia.sort(cronologico)){
+    const notas = doDia.sort(cronologico);
+
+    // 1) o teto do dia, em ordem cronológica: a primeira nota consome primeiro
+    const bruto = notas.map(l => {
       const sub = Math.min(baseSubsidiavel(l), Math.max(0, resta));
       resta -= sub;
-      // excedente = tudo o que a FGV não cobriu, inclusive os itens sem subsídio
-      mapa.set(l.id, { subsidio: sub, excedente: num(l.valor) - sub });
+      return sub;
+    });
+
+    /* 2) a participação do dia SAI do subsídio, porque subsídio da FGV é o que
+       ela bancou de fato — não o que ela paga à Sapore e depois cobra de você.
+       Sai na mesma ordem cronológica. Se ela for maior que o subsídio do dia
+       inteiro (prato barato), o que restar é cobrado mesmo assim: a regra do
+       DRH é que os 0,15% saem no MÍNIMO, ainda que passem do consumido. Nesse
+       dia a soma não fecha com o gasto, e está certo não fechar. */
+    let falta = participacaoDoDia(d);
+    notas.forEach((l, i) => {
+      const corte = Math.min(bruto[i], falta);
+      falta = c(falta - corte);
+      const sub = c(bruto[i] - corte);
+      mapa.set(l.id, { subsidio: sub, excedente: c(num(l.valor) - sub) });
+    });
+    // sobra da participação: entra na primeira nota do dia, que é onde ela nasce
+    if (falta > 0 && notas.length){
+      const primeira = mapa.get(notas[0].id);
+      primeira.excedente = c(primeira.excedente + falta);
     }
   }
   return mapa;
@@ -274,11 +296,12 @@ function participacaoDe(diasSapore){
 
 /**
  * Consolidado do período. A soma fecha assim, por construção:
- *   bruto = subsidio (FGV) + excedente + rei + fora
- *   desconto (folha) = excedente + rei + participacao
- * Ou seja: desconto + subsidio = bruto + participacao. A participação NÃO é
- * parcela do consumo — é encargo por dia de uso, e não paga comida. Por isso
- * ela sobra na conta, e é isso que a tela precisa deixar claro.
+ *   bruto = subsidio (FGV, LÍQUIDO) + desconto (folha) + fora
+ * O subsídio é o que a FGV bancou de fato: o teto do dia menos a sua
+ * participação, que sai dele no rateio. Por isso a soma fecha em três termos.
+ * A exceção real: em dia de prato mais barato que a participação, ela é cobrada
+ * mesmo assim (regra do DRH: sai no mínimo) e a soma passa do gasto nesse
+ * resto. Não é erro de conta — é a regra.
  * Calcular o subsídio como "bruto − desconto" daria errado por dois motivos: o
  * gasto fora da FGV entraria como coisa subsidiada, e a participação viraria
  * subsídio negativo.
@@ -307,8 +330,12 @@ function resumo(lista){
     const alvo = r.porLocal[l.local] || (r.porLocal[l.local] = { n: 0, bruto: 0, desconto: 0 });
     alvo.n++; alvo.bruto += bruto; alvo.desconto += desc;
   }
+  /* A participação NÃO se soma aqui: ela já saiu do subsídio no rateio e por
+     isso está dentro do excedente de cada lançamento. Somar de novo contaria
+     duas vezes. Ela continua sendo calculada só para a tela poder mostrar a
+     composição da folha. */
   r.participacao = participacaoDe(r.diasSapore);
-  r.desconto = r.excedente + r.rei + r.participacao;
+  r.desconto = r.excedente + r.rei;
   return r;
 }
 
@@ -353,8 +380,7 @@ function porDia(lista){
     if (l.local === "Sapore") atual.sapore = true;
     mapa.set(d, atual);
   }
-  // a participação é por dia com consumo na Sapore, uma vez em cada
-  for (const d of mapa.values()) if (d.sapore) d.desconto += participacaoDoDia(d.data);
+  // a participação já está dentro do desconto de cada lançamento, via rateio
   return [...mapa.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
 
@@ -368,8 +394,7 @@ function porMes(lista){
     if (l.local === "Sapore" && dataDe(l)) atual.dias.add(dataDe(l));
     mapa.set(m, atual);
   }
-  // tantas participações quantos dias com consumo na Sapore o mês tiver
-  for (const m of mapa.values()) m.desconto += participacaoDe(m.dias);
+  // a participação já está dentro do desconto de cada lançamento, via rateio
   return [...mapa.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
 
@@ -1477,7 +1502,8 @@ function pintarContaLanc(){
         ? `<div class="formula__line"><span>Participação de ${String(pol.taxaPct).replace(".", ",")}%</span><b>já cobrada hoje</b></div>`
         : linha(`Participação de ${String(pol.taxaPct).replace(".", ",")}% do salário`, part))
     : `<div class="formula__line"><span>Participação de ${String(pol.taxaPct).replace(".", ",")}%</span><b>informe o salário no Perfil</b></div>`;
-  html += linha("Subsídio da FGV", Math.max(0, Math.round((subBruto - partAqui) * 100) / 100))
+  const subLiq = Math.max(0, Math.round((subBruto - partAqui) * 100) / 100);
+  html += linha("Subsídio da FGV", subLiq)
         + linha("Vai para a sua folha", folha, "formula__line--result");
 
   alvo.innerHTML = html;

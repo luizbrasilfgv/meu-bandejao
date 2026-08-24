@@ -113,12 +113,17 @@ NO PERÍODO
   gasto          = soma de tudo que foi registrado
   subsídio FGV   = Σ subsídio(d)
   participação   = 0,15% do salário base × nº de dias com consumo na Sapore
-  desconto folha = participação + Σ excedente(d) + Σ Rei do Mate integral
+  subsídio(d)    = min(base(d), teto) − participação(d)   ← LÍQUIDO, e no mínimo 0
+  desconto folha = Σ excedente(d) + Σ Rei do Mate integral
   pago por fora  = Σ Outro valor integral
 
-e valem as identidades:
-  gasto = subsídio FGV + Σ excedente + Rei do Mate + pago por fora
-  gasto = subsídio FGV + (desconto folha − participação) + pago por fora
+e vale a identidade:
+  gasto = subsídio FGV + desconto folha + pago por fora
+
+A participação não se soma ao desconto: ela já saiu do subsídio no rateio, e por
+isso está dentro do excedente. Somar de novo contaria duas vezes.
+Exceção real: em dia de prato mais barato que a participação, ela é cobrada
+mesmo assim — os 0,15% saem no mínimo — e a soma passa do gasto nesse resto.
 ```
 
 * **O teto é DIÁRIO, não por nota.** Duas refeições no mesmo dia dividem um único R$ 35,00. Isso

@@ -195,6 +195,29 @@ abertas — são respostas.
 | Vigência do R$ 35,00 | **Sempre foi 35,00** no período que o app cobre. O R$ 31,59 é valor antigo, de tabela anterior aos lançamentos | **[DRH]** |
 | Base dos 0,15%: salário-base ou bruto? | **É o mesmo número.** O documento escreve "Salário Base" e o DRH o entende como o **bruto** do contracheque — o valor antes dos descontos, não o líquido | **[DRH]** |
 
+### Uma consequência da regra que foi levada ao DRH em 24/08/2026
+
+A regra "os 0,15% saem no mínimo" produz, num dia de prato barato, **desconto maior que o consumo**:
+
+```
+salário-base 15.000  ->  participação 22,50
+nota: kilo 16,42 + refrigerante 6,90 = 23,32
+
+subsídio da FGV ... 0,00   (16,42 de kilo não cobre 22,50 de participação)
+desconto em folha . 29,40  = 22,50 + 6,90
+                             você pagou 6,08 a mais do que comeu
+```
+
+Com essa participação, **todo dia de kilo abaixo de R$ 22,50 custa mais do que valeu a comida** — e
+a FGV recebe mais do que pagou à Sapore. Não é caso raro nem erro de conta: é o que a regra diz.
+
+Nenhum exemplo do documento do DRH tem consumo abaixo da participação, então esse caso nunca foi
+ilustrado por eles. A pergunta feita, textual: *"quando os 0,15% passam do que eu consumi de comida
+subsidiada no dia, a FGV cobra os 0,15% inteiros mesmo assim, ou cobra no máximo o que eu
+consumi?"* **[?]** — enquanto não vier resposta, o app cobra inteiro, que é a leitura restritiva e a
+que o usuário confirmou como regra. Se o DRH disser que trunca no consumido, o ponto a mudar é o
+corte da participação em `calcularRateio`, e a soma passa a fechar sempre.
+
 Ficam de fora duas coisas, e nenhuma afeta o cálculo:
 
 * Se a regra é a mesma nas outras unidades da FGV. **[?]** O documento fala só da Sede Botafogo, e

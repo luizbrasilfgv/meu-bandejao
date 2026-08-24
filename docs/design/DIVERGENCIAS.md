@@ -74,7 +74,12 @@ Duas consequências de tela que divergem do handoff:
 * **O card herói ganhou a composição da folha escrita por extenso.** O handoff prevê dois números e
   ponto. Com a participação valendo, os números do card deixam de somar o gasto — a participação é
   encargo por dia de uso, não comida — e três valores que aparentam somar e não somam leem como
-  defeito. O rodapé do número da folha passou a mostrar `PARTICIPAÇÃO + EXCEDENTE + REI DO MATE`.
+  defeito. O rodapé do número da folha mostra
+  `PARTICIPAÇÃO + PASSOU DO TETO + SEM SUBSÍDIO + REI DO MATE`, e as parcelas somam exatamente o
+  número acima delas. A primeira versão listava `PARTICIPAÇÃO + EXCEDENTE`, o que **contava a
+  participação duas vezes** — o excedente já a contém desde que o subsídio passou a ser líquido — e
+  a legenda exibia R$ 63,40 embaixo de um total de R$ 41,65. As parcelas vêm do rateio, e não de
+  uma conta própria da tela, justamente para não poderem divergir do total outra vez.
 * **O aviso de estimativa é escondido quando a participação está informada.** O texto é de redação
   fixa e afirma que os 0,15% estão fora da conta; informado o valor, ele passaria a mentir.
   Esconder respeita as duas regras do handoff ao mesmo tempo: não reescrever o texto do usuário e

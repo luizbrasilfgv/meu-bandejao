@@ -158,14 +158,23 @@ function politicaEm(dataIso){
 }
 
 /**
- * O que o subsídio cobre neste lançamento. Nem tudo no cupom entra: item de
- * geladeira (refrigerante em lata ou garrafa) e sobremesa elaborada (bolo,
- * salada de frutas) vão integrais para a folha. Kilo, prato básico, suco de
- * máquina, fruta e gelatina entram.
+ * O que o subsídio cobre neste lançamento. Nem tudo no cupom entra: o critério
+ * do DRH é "somente o que está no balcão das comidas". Kilo, prato básico, suco
+ * de máquina, fruta, gelatina e sobremesa — elaborada inclusive, desde agosto de
+ * 2026. Bebida de geladeira, sorvete, café e salgado vão integrais para a folha.
  */
 function baseSubsidiavel(l){
   if (l.local !== "Sapore") return 0;
-  return Math.max(0, num(l.valor) - num(l.valorSemSubsidio));
+  return Math.max(0, num(l.valor) - semSubsidioDe(l));
+}
+
+/**
+ * A parte do lançamento que não tem subsídio. Limitada ao valor da nota porque
+ * `baseSubsidiavel` já trunca em zero: sem o mesmo teto aqui, um "sem subsídio"
+ * maior que o valor faria as parcelas da folha somarem mais que o excedente.
+ */
+function semSubsidioDe(l){
+  return Math.min(num(l.valorSemSubsidio), num(l.valor));
 }
 
 /* ---------- rateio do teto diário ----------
@@ -225,12 +234,26 @@ function calcularRateio(lista){
       const corte = Math.min(bruto[i], falta);
       falta = c(falta - corte);
       const sub = c(bruto[i] - corte);
-      mapa.set(l.id, { subsidio: sub, excedente: c(num(l.valor) - sub) });
+      /* O excedente sai aberto nas três parcelas que o compõem, e não é
+         decoração: a tela precisa mostrar de onde vem cada real da folha, e
+         recalcular isso lá fora foi exatamente o que fez o card da Home somar
+         a participação duas vezes. Aqui ela é subtraída do subsídio no mesmo
+         lugar em que é atribuída, então as parcelas não têm como divergir do
+         total. Vale a identidade, por lançamento:
+             excedente = participacao + acimaDoTeto + semSub          */
+      mapa.set(l.id, {
+        subsidio: sub,
+        excedente: c(num(l.valor) - sub),
+        parte: { participacao: corte,
+                 acimaDoTeto: c(baseSubsidiavel(l) - bruto[i]),
+                 semSub: semSubsidioDe(l) },
+      });
     });
     // sobra da participação: entra na primeira nota do dia, que é onde ela nasce
     if (falta > 0 && notas.length){
       const primeira = mapa.get(notas[0].id);
       primeira.excedente = c(primeira.excedente + falta);
+      primeira.parte.participacao = c(primeira.parte.participacao + falta);
     }
   }
   return mapa;
@@ -244,7 +267,10 @@ function rateioDe(l){
   const r = rateio().get(l.id);
   if (r) return r;
   const sub = Math.min(baseSubsidiavel(l), num(politicaEm(dataDe(l)).teto));
-  return { subsidio: sub, excedente: num(l.valor) - sub };
+  return { subsidio: sub, excedente: num(l.valor) - sub,
+           parte: { participacao: 0,
+                    acimaDoTeto: baseSubsidiavel(l) - sub,
+                    semSub: semSubsidioDe(l) } };
 }
 
 /**
@@ -283,18 +309,6 @@ function participacaoDoDia(dataIso){
 }
 
 /**
- * A participação do período: uma incidência por DIA com consumo na Sapore.
- * Dia em que você só passou no Rei do Mate não conta — o benefício subsidiado é
- * o do refeitório. Soma dia a dia em vez de multiplicar pela contagem, porque o
- * percentual tem vigência e pode ser diferente em dias diferentes.
- */
-function participacaoDe(diasSapore){
-  let total = 0;
-  for (const d of diasSapore) total += participacaoDoDia(d);
-  return total;
-}
-
-/**
  * Consolidado do período. A soma fecha assim, por construção:
  *   bruto = subsidio (FGV, LÍQUIDO) + desconto (folha) + fora
  * O subsídio é o que a FGV bancou de fato: o teto do dia menos a sua
@@ -308,7 +322,7 @@ function participacaoDe(diasSapore){
  */
 function resumo(lista){
   const r = { n: lista.length, bruto: 0, desconto: 0, subsidio: 0, fora: 0,
-              excedente: 0, rei: 0, participacao: 0, diasSapore: new Set(),
+              excedente: 0, rei: 0, participacao: 0, acimaDoTeto: 0, semSub: 0,
               nFora: 0, revisar: 0, porLocal: {} };
   for (const nome of LOCAIS) r.porLocal[nome] = { n: 0, bruto: 0, desconto: 0 };
 
@@ -321,7 +335,14 @@ function resumo(lista){
     r.fora     += fora;
     if (l.local === "Sapore"){
       r.excedente += desc;
-      if (dataDe(l)) r.diasSapore.add(dataDe(l));
+      /* As parcelas vêm do rateio, não de um cálculo próprio daqui: é o rateio
+         que sabe quanto da participação coube a este lançamento. Somadas, elas
+         dão exatamente r.excedente — inclusive na lista filtrada, porque cada
+         parcela viaja junto do lançamento a que pertence. */
+      const p = rateioDe(l).parte;
+      r.participacao += p.participacao;
+      r.acimaDoTeto  += p.acimaDoTeto;
+      r.semSub       += p.semSub;
     } else if (l.local === "Rei do Mate"){
       r.rei += desc;
     }
@@ -330,11 +351,11 @@ function resumo(lista){
     const alvo = r.porLocal[l.local] || (r.porLocal[l.local] = { n: 0, bruto: 0, desconto: 0 });
     alvo.n++; alvo.bruto += bruto; alvo.desconto += desc;
   }
-  /* A participação NÃO se soma aqui: ela já saiu do subsídio no rateio e por
-     isso está dentro do excedente de cada lançamento. Somar de novo contaria
-     duas vezes. Ela continua sendo calculada só para a tela poder mostrar a
-     composição da folha. */
-  r.participacao = participacaoDe(r.diasSapore);
+  /* A participação NÃO entra aqui: ela já saiu do subsídio no rateio e por isso
+     está DENTRO de r.excedente. Somá-la de novo contaria duas vezes — foi o que
+     o card da Home fez, mostrando "participação + excedente + Rei" numa soma que
+     não batia com o próprio total ao lado. Por isso r.participacao é parcela de
+     r.excedente, nunca uma quarta parcela ao lado dele. */
   r.desconto = r.excedente + r.rei;
   return r;
 }
@@ -723,10 +744,16 @@ function pintarHome(lista, ini, fim){
   /* A composição da folha, escrita por extenso. Com a participação valendo, os
      números do card deixam de somar o gasto — a participação é encargo por dia
      de uso, não comida — e a única forma de isso não parecer defeito é mostrar
-     de onde vem cada parcela. */
+     de onde vem cada parcela.
+     As parcelas são as do rateio e somam EXATAMENTE o número ao lado. Não é
+     detalhe de estilo: a versão anterior listava "participação + excedente",
+     e o excedente já contém a participação — o card exibia R$ 41,65 e uma
+     conta que dava R$ 63,40 logo abaixo. Ao mexer aqui, confira que as
+     parcelas ainda somam r.desconto. */
   const partes = [];
   if (r.participacao) partes.push(`PARTICIPAÇÃO R$ ${brl(r.participacao)}`);
-  if (r.excedente)    partes.push(`EXCEDENTE R$ ${brl(r.excedente)}`);
+  if (r.acimaDoTeto)  partes.push(`PASSOU DO TETO R$ ${brl(r.acimaDoTeto)}`);
+  if (r.semSub)       partes.push(`SEM SUBSÍDIO R$ ${brl(r.semSub)}`);
   if (r.rei)          partes.push(`REI DO MATE R$ ${brl(r.rei)}`);
   põeDestaque("vFolha", "hFolha", r.desconto,
     partes.length ? partes.join(" + ") : "NADA PASSOU DO TETO DIÁRIO");

@@ -1762,7 +1762,15 @@ async function lerCupom(file){
     const chaves = Object.keys(rotulos);
     const achou = chaves.filter(k => campos[k] !== "" && campos[k] != null);
     const faltou = chaves.filter(k => achou.indexOf(k) < 0);
-    const baixa = campos.valor == null || (!fonteQR && conf < 75);
+    /* Soma dos itens contra o total impresso: divergiu, um dos dois está errado
+       e o app não sabe qual. Dizer isso é o único caminho honesto — foi
+       escolhendo sozinho que ele gravou 69,00 num almoço de 23,32. */
+    if (campos.conflitoTotal != null){
+      aviso(`Confira o valor: os itens somam R$ ${brl(campos.valor)}, `
+          + `mas o total impresso é R$ ${brl(campos.conflitoTotal)}.`);
+    }
+    const baixa = campos.valor == null || campos.conflitoTotal != null
+               || (!fonteQR && conf < 75);
 
     poe("thumbMeta", `${((Date.now() - t0) / 1000).toFixed(1).replace(".", ",")} S · `
       + (fonteQR ? "QR CODE LIDO" : `OCR ${conf}%`) + ` · ${achou.length} DE 7 CAMPOS`);
@@ -1833,10 +1841,16 @@ function normalizarOCR(t){
   return String(t)
     .replace(/[   ]/g, " ")
     .replace(/[|¦]/g, " ")
-    .replace(/R\s*[$Ss5]\s*(?=[\d.,])/gi, "R$ ")           // R$, RS, R5 -> R$
-    .replace(/(\d)\s+([.,])\s*(\d{2})(?!\d)/g, "$1$2$3")   // "44 ,40" -> "44,40"
-    .replace(/(\d)[oO](?=\d)/g, "$10")                     // "1o,50" -> "10,50"
-    .replace(/(\d)\s+(\d{3})(?!\d)/g, "$1$2");             // "1 234,00" -> "1234,00"
+    /* ATENÇÃO ao [ \t] em vez de \s nas regras numéricas: \s casa QUEBRA DE
+       LINHA, e aí "6,90" no fim de uma linha de item colava no "002" do começo
+       da seguinte. As duas linhas viravam uma, o item de baixo emprestava o
+       valor para o de cima e a classificação de subsídio ia junto — foi o que
+       fez um almoço de 23,32 ser gravado como 69,00. Consertar espaçamento
+       nunca pode juntar linhas. */
+    .replace(/R[ \t]*[$Ss5][ \t]*(?=[\d.,])/gi, "R$ ")        // R$, RS, R5 -> R$
+    .replace(/(\d)[ \t]+([.,])[ \t]*(\d{2})(?!\d)/g, "$1$2$3")// "44 ,40" -> "44,40"
+    .replace(/(\d)[oO](?=\d)/g, "$10")                        // "1o,50" -> "10,50"
+    .replace(/(\d)[ \t]+(\d{3})(?!\d)/g, "$1$2");             // "1 234,00" -> "1234,00"
 }
 
 const RE_APAGAR    = /a\s*p\s*a\s*g\s*a\s*r/i;
@@ -1934,7 +1948,8 @@ function extrairCampos(texto){
   const plano = chave(t);
   const out = { valor: null, dataHora: "", local: "", itens: "",
                 matricula: "", numeroCupom: "", cnpj: "",
-                semSubsidio: 0, itensSemSubsidio: [], achouSubsidiavel: false };
+                semSubsidio: 0, itensSemSubsidio: [], achouSubsidiavel: false,
+                conflitoTotal: null };
 
   /* --- a chave de acesso impressa vale mais que tudo: 44 dígitos em grupos
          de 4, que o OCR acerta bem. Dela saem CNPJ e nº do cupom.
@@ -1952,16 +1967,47 @@ function extrairCampos(texto){
     }
   }
 
-  /* --- valor: "A PAGAR" manda, depois "TOTAL", depois o maior valor limpo --- */
+  /* --- valor ---
+     A regra antiga pegava o MAIOR valor da linha e, em último recurso, o maior
+     valor do cupom inteiro. Os dois erram no cupom da Sapore:
+
+       002 BUFFET KILO - KG   0,24 KG   69,00   16,42
+                                          ↑        ↑
+                                  preço por kg   Vl.Tot
+
+     O maior é o preço unitário. Numa linha de item o que vale é o ÚLTIMO valor,
+     que é a coluna Vl.Tot. E "o maior do cupom" fez o app gravar 69,00 num
+     almoço de 23,32 — chute que passa por leitura.
+     Agora o valor vem da SOMA DOS ITENS, que não depende de o OCR acertar a
+     palavra "TOTAL", e o total lido serve de conferência. Sem nenhum dos dois,
+     o campo fica VAZIO: melhor pedir para digitar que inventar dinheiro. */
   const util = l => !RE_PAGAMENTO.test(l) && !RE_RUIDO.test(l);
-  const primeiro = (filtro) => {
+  const ehResumo = l => RE_TOTAL.test(l) || RE_SUBTOTAL.test(l) || RE_APAGAR.test(l);
+  const ehItem = l => util(l) && !ehResumo(l) && valoresDe(l).length > 0;
+
+  /** O total de uma linha de item: o último valor, que é a coluna Vl.Tot. */
+  const totalDaLinha = l => { const v = valoresDe(l); return v[v.length - 1]; };
+
+  const itens = linhas.filter(ehItem);
+  const somaItens = itens.length
+    ? Math.round(itens.reduce((a, l) => a + totalDaLinha(l), 0) * 100) / 100
+    : null;
+
+  const doRotulo = (filtro) => {
     const cands = linhas.filter(l => filtro(l) && util(l)).flatMap(valoresDe);
     return cands.length ? Math.max(...cands) : null;
   };
-  out.valor = primeiro(l => RE_APAGAR.test(l));
-  if (out.valor == null) out.valor = primeiro(l => RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l));
-  if (out.valor == null) out.valor = primeiro(l => RE_SUBTOTAL.test(l));
-  if (out.valor == null) out.valor = primeiro(() => true);
+  const totalLido = doRotulo(l => RE_APAGAR.test(l))
+                 ?? doRotulo(l => RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l))
+                 ?? doRotulo(l => RE_SUBTOTAL.test(l));
+
+  if (somaItens != null && totalLido != null){
+    out.valor = somaItens;
+    // divergiu: um dos dois está errado e o app não sabe qual. Fala.
+    if (Math.abs(somaItens - totalLido) > 0.01) out.conflitoTotal = totalLido;
+  } else {
+    out.valor = somaItens ?? totalLido;   // pode ficar null, e é de propósito
+  }
 
   /* --- data e hora --- */
   const md = t.match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})(?:[^\d\n]{0,8}(\d{1,2})\s*[:.h]\s*(\d{2}))?/);
@@ -2014,12 +2060,9 @@ function extrairCampos(texto){
      as que o leitor não reconheceu, porque na dúvida não entra. De cada linha
      vale o MAIOR valor: numa linha "2 x 4,50   9,00" o total da linha é o 9,00,
      e é ele que vai para a folha; o 4,50 é o unitário. */
-  for (const l of linhas){
-    if (!util(l) || RE_TOTAL.test(l) || RE_SUBTOTAL.test(l) || RE_APAGAR.test(l)) continue;
-    const vals = valoresDe(l);
-    if (!vals.length) continue;
+  for (const l of itens){
     if (temSubsidio(l)){ out.achouSubsidiavel = true; continue; }
-    out.semSubsidio += Math.max(...vals);
+    out.semSubsidio += totalDaLinha(l);
     const nome = l.replace(/(?:R\$\s*)?\b[\d.]*\d[.,]\d{2,}\b/g, "")
                   .replace(/^\s*\d{1,3}\s*[-.)]?\s+/, "").replace(/^\s*\d{5,}\s*/, "")
                   .replace(/\s{2,}/g, " ").trim();

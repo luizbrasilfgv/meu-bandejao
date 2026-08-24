@@ -1023,6 +1023,11 @@ function pintarPerfil(){
     teto.classList.toggle("stat__val--pending", !prefs.tetoMensal);
   }
 
+  const u = lerUltimaLeitura();
+  poe("pUltimaLeitura", u
+    ? `${paraBR(u.quando.slice(0, 10))} ÀS ${u.quando.slice(11, 16)} · SÓ NESTE APARELHO`
+    : "NENHUMA LEITURA NESTE APARELHO");
+
   const hPart = el("hParticipacao");
   if (hPart){
     const s = num(privado.salarioBase);
@@ -1962,6 +1967,32 @@ async function lerCupom(file){
   }
 }
 
+/**
+ * A leitura mais recente, guardada NO APARELHO. O bloco de diagnóstico vive na
+ * tela do lançamento e some quando ela fecha — que é justamente quando a pessoa
+ * percebe que um campo veio errado e já não tem mais como mostrar o texto.
+ * Fica no localStorage, nunca no Firestore: o cupom traz nome e CPF, e a regra
+ * do projeto é que dado sensível não sobe. Uma leitura só, sempre a última.
+ */
+function guardarUltimaLeitura(texto){
+  try {
+    if (texto && texto.trim()){
+      localStorage.setItem(NS + "_ultimaLeitura",
+        JSON.stringify({ quando: new Date().toISOString(), texto }));
+    } else {
+      localStorage.removeItem(NS + "_ultimaLeitura");
+    }
+  } catch(e){}
+  /* Mudou estado, repinta: a navegação entre abas não repinta o Perfil, e sem
+     isto a linha ficava dizendo "nenhuma leitura" até recarregar a página. */
+  pintarPerfil();
+}
+
+function lerUltimaLeitura(){
+  try { return JSON.parse(localStorage.getItem(NS + "_ultimaLeitura") || "null"); }
+  catch(e){ return null; }
+}
+
 /** O que veio de cada fonte, na tela. Sem isto, "não reconheceu nada" é palpite. */
 function mostrarDiagnostico(qr, ocr){
   const bloco = el("ocrDiag");
@@ -1976,6 +2007,10 @@ function mostrarDiagnostico(qr, ocr){
   bloco.hidden = !texto.trim();
   pre.textContent = texto;
   if (!texto.trim()) bloco.removeAttribute("open");
+  /* Só grava leitura de verdade. As duas chamadas de reset passam vazio, e
+     apagar a leitura anterior ao abrir o formulário seguinte devolveria o
+     problema que esta função existe para resolver. */
+  if (texto.trim()) guardarUltimaLeitura(texto);
 }
 
 /** Junta duas leituras: o que já existe em `base` só é sobrescrito por `extra`. */
@@ -2461,8 +2496,9 @@ document.addEventListener("click", e => {
   if (achar("data-exportar")) return exportarCSV();
   if (achar("data-sair")) return sair();
 
-  if (achar("data-copiar-ocr")){
-    const txt = el("ocrTexto")?.textContent || "";
+  if (achar("data-copiar-ocr") || achar("data-copiar-leitura")){
+    const alvo = achar("data-copiar-leitura") ? "leiTexto" : "ocrTexto";
+    const txt = el(alvo)?.textContent || "";
     if (!txt) return aviso("Nada lido ainda.");
     if (navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(txt)
@@ -2471,6 +2507,24 @@ document.addEventListener("click", e => {
     } else {
       aviso("Seu navegador não deixa copiar daqui. Selecione o texto à mão.");
     }
+    return;
+  }
+
+  if (achar("data-ultima-leitura")){
+    const u = lerUltimaLeitura();
+    if (!u) return aviso("Nenhum cupom foi escaneado neste aparelho ainda.");
+    poe("leiTexto", u.texto);
+    poe("leiSub", `Lida em ${paraBR(u.quando.slice(0, 10))} às ${u.quando.slice(11, 16)}. `
+      + "É o texto cru que o leitor extraiu — serve para entender por que um campo veio errado.");
+    abrirSheet("sheetLeitura");
+    return;
+  }
+
+  if (achar("data-apagar-leitura")){
+    guardarUltimaLeitura("");
+    pintarPerfil();
+    fecharSheet("sheetLeitura");
+    aviso("Leitura apagada deste aparelho.");
     return;
   }
 

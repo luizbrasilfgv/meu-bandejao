@@ -705,8 +705,12 @@ function pintarHome(lista, ini, fim){
   if (r.rei)          partes.push(`REI DO MATE R$ ${brl(r.rei)}`);
   põeDestaque("vFolha", "hFolha", r.desconto,
     partes.length ? partes.join(" + ") : "NADA PASSOU DO TETO DIÁRIO");
+  /* "A FGV COBRE ATÉ R$ 35,00" sozinho lê como refeição de graça abaixo do teto,
+     e não é: os 0,15% incidem sempre. Correção do DRH, e vale para todo texto
+     do app que fale do subsídio. */
   põeDestaque("vSubsidio", "hSubsidio", r.subsidio,
-    `A FGV COBRE ATÉ R$ ${brl(pol.teto)} POR DIA NA SAPORE`);
+    `ATÉ R$ ${brl(pol.teto)} POR DIA NA SAPORE · VOCÊ PAGA SEMPRE OS `
+    + `${String(pol.taxaPct).replace(".", ",")}%`);
 
   /* O aviso de estimativa tem redação fixa e diz que a participação está fora
      da conta. Informado o valor, ela entra — e o aviso passaria a mentir. Em
@@ -1850,10 +1854,13 @@ const RE_RUIDO = /trib|aprox|federal|estadual|\blei\b\s*\d|procon|fone|icms|pis|
      2. casou em COM_SUBSIDIO  -> tem subsídio
      3. não casou em nada      -> NÃO TEM SUBSÍDIO
 
-   O passo 3 é a escolha que importa. O DRH nomeou o que entra (kilo, básico,
-   suco de máquina, fruta, gelatina) e o que não entra (geladeira, sobremesa
-   elaborada), e não disse o que fazer com o resto. Duas razões para o resto
-   ficar de fora:
+   O critério do DRH é o BALCÃO DAS COMIDAS: o que é servido ali entra. Sobremesa
+   elaborada — bolo, torta, pudim, salada de frutas — **passou a entrar** em
+   21/08/2026, por pedido do Fernando; antes disso ficava fora. O que continua
+   fora é bebida embalada de geladeira e o que vem do freezer.
+
+   O passo 3 é a escolha que importa: o DRH não disse o que fazer com o que não
+   está no balcão das comidas (café, salgado). Duas razões para ficar de fora:
    — a instituição lê benefício pelo lado que gasta menos, e é essa leitura que
      aparece no contracheque;
    — este app PREVÊ desconto. Prever desconto maior do que vem é susto que não
@@ -1861,39 +1868,42 @@ const RE_RUIDO = /trib|aprox|federal|estadual|\blei\b\s*\d|procon|fone|icms|pis|
    Os padrões são sem acento e em minúsculas porque a comparação passa por
    chave(), que normaliza. */
 const SEM_SUBSIDIO = [
-  // de geladeira
+  // bebida embalada, de geladeira
   /refrig/, /coca/, /guaran/, /fanta/, /sprite/, /pepsi/, /schwepp/, /tonica/,
   /agua com gas/, /agua c\/ gas/, /agua mineral/, /agua sem gas/, /agua s\/ gas/,
   /suco.*(lata|garrafa|cx|caixa|long neck)/, /del valle/, /cha gelado/, /mate leao/,
   /cerveja/, /energetic/, /red bull/, /gatorade/, /isoton/, /h2oh/,
   /iogurte/, /danone/, /leite ferment/, /yakult/, /chocolate ao leite/,
-  // sobremesa elaborada
-  /\bbolo/, /torta/, /pudim/, /mousse/, /brigadeir/, /doce de leite/, /beijinho/,
-  /salada de frut/, /sorvete/, /picole/, /acai/, /petit gateau/, /cheesecake/,
-  /brownie/, /pave/, /churros/, /cannoli/, /tiramisu/, /banoffee/,
+  // do freezer, que não é o balcão das comidas
+  /sorvete/, /picole/, /acai/,
 ];
 
-/* O que tem subsídio: o basicão e mais nada. É a lista fechada que o DRH
-   nomeou — kilo, prato básico, suco de máquina, fruta e gelatina — com as
-   variações de escrita que o cupom e o OCR produzem para a MESMA coisa
-   (self-service, por peso, refeição, quilo com q). Não acrescente item aqui
-   sem o DRH ter dito que entra: cada palavra a mais é dinheiro que o app
-   deixa de prever como desconto. */
+/* O que tem subsídio: o balcão das comidas. Prato — com as variações de escrita
+   que o cupom e o OCR produzem para a MESMA coisa (self-service, por peso,
+   refeição, quilo com q) — mais fruta, gelatina, suco de máquina e a sobremesa
+   do balcão, elaborada inclusive.
+   Não acrescente item aqui sem o DRH ter dito que entra: cada palavra a mais é
+   dinheiro que o app deixa de prever como desconto. */
 const COM_SUBSIDIO = [
+  // o prato
   /\bkilo\b/, /\bquilo\b/, /\bkg\b/, /self.?serv/, /por peso/, /a peso/,
   /\bbasic/, /prato basic/, /refeic/, /\bbufe\b/, /buffet/,
-  /suco/, /\bfruta/, /gelatina/,
+  // o resto do balcão
+  /suco/, /\bfruta/, /gelatina/, /sobremesa/,
+  /\bbolo/, /torta/, /pudim/, /mousse/, /salada de frut/, /brigadeir/,
+  /beijinho/, /doce de leite/, /pave/, /cheesecake/, /brownie/, /petit gateau/,
+  /churros/, /cannoli/, /tiramisu/, /banoffee/, /flan/, /manjar/,
 ];
 
 /**
  * Uma linha do cupom tem subsídio? A ordem decide, e o padrão é NÃO.
- * O que não está nomeado pelo DRH como incluído fica de fora: na dúvida, vai
- * integral para a folha. Ver o comentário de SEM_SUBSIDIO para o porquê.
+ * O que não está no balcão das comidas fica de fora: na dúvida, vai integral
+ * para a folha. Ver o comentário de SEM_SUBSIDIO para o porquê.
  */
 function temSubsidio(linha){
   const t = chave(linha);
-  if (SEM_SUBSIDIO.some(re => re.test(t))) return false;   // geladeira, sobremesa elaborada
-  return COM_SUBSIDIO.some(re => re.test(t));              // não nomeado = não entra
+  if (SEM_SUBSIDIO.some(re => re.test(t))) return false;   // geladeira e freezer
+  return COM_SUBSIDIO.some(re => re.test(t));              // fora do balcão = não entra
 }
 
 /** O contrário, que é o que o formulário precisa somar. */

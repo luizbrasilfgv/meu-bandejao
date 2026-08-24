@@ -19,8 +19,10 @@ A FGV paga até **R$ 35,00 por dia** da sua refeição no refeitório da Sede. D
 
 Até **R$ 35,00 por dia** de consumo no refeitório da Sede Botafogo (valor da tabela 2026/2027).
 
-Se o seu prato custou até R$ 35,00, a FGV cobre o prato inteiro. Se passou, a FGV cobre R$ 35,00 e
-a diferença é descontada do seu salário.
+Atenção a uma coisa: **não é refeição de graça abaixo de R$ 35,00.** Há sempre um desconto de
+**0,15% do seu salário** na folha. Se o seu prato custar até R$ 35,00, a FGV cobre o valor
+restante. Caso ultrapasse esse limite, a FGV cobre até o teto de R$ 35,00 e a diferença também é
+descontada do seu salário.
 
 ---
 
@@ -31,8 +33,8 @@ Duas coisas somadas:
 1. **0,15% do seu salário-base**, em cada dia que você consumiu no refeitório.
 2. **O que passou de R$ 35,00** naquele dia.
 
-Mais o valor integral de tudo que não é o básico da refeição — bebida de geladeira, sobremesa
-elaborada, café, salgado — e de todo consumo no Rei do Mate.
+Mais o valor integral do que não vem do balcão das comidas — bebida de geladeira, sorvete, café,
+salgado — e de todo consumo no Rei do Mate.
 
 ---
 
@@ -95,39 +97,38 @@ prato inteiro.
 
 ## O que entra no subsídio de R$ 35,00?
 
-Só o básico da refeição. Entram, e **apenas** estes:
+O que vem do **balcão das comidas**:
 
 * **Kilo** (self-service por peso)
 * **Prato básico**
 * **Sucos de máquina**
 * **Frutas**
 * **Gelatina**
+* **Sobremesas do balcão, elaboradas inclusive** — bolo, torta, pudim, salada de frutas
+
+> **Mudança de agosto de 2026:** as sobremesas elaboradas **passaram a entrar** no subsídio, a
+> pedido do Fernando. Antes ficavam de fora.
 
 ---
 
 ## O que NÃO entra no subsídio?
 
-Tudo o que não é o básico da refeição. **Na dúvida, não entra.**
-
-Em particular, **nada que seja de geladeira e nenhuma sobremesa elaborada**:
+O que **não** vem do balcão das comidas. **Na dúvida, não entra.**
 
 * **Refrigerante e outras bebidas de geladeira** (lata, garrafa)
 * **Água mineral**, com ou sem gás
 * **Suco de caixinha ou garrafa** — diferente do suco de máquina, que entra
 * **Iogurte, leite fermentado**
-* **Sorvete, picolé**
-* **Bolo, torta, pudim, mousse**
-* **Salada de frutas** — diferente da fruta, que entra
-* **Açaí**
-
-E também **café** e **salgado** (pão de queijo, coxinha, sanduíche), que não fazem parte do básico.
+* **Sorvete, picolé, açaí**
+* **Café e capuccino**
+* **Salgado** (pão de queijo, coxinha, sanduíche)
 
 Esses itens são cobrados **integralmente** de você, além dos 0,15% do dia, **mesmo que o seu
 consumo do dia não tenha chegado a R$ 35,00**.
 
 ## O item que eu comprei entra no subsídio?
 
-O subsídio cobre **o básico da refeição, e só ele**:
+O subsídio cobre **o que vem do balcão das comidas**:
 
 | Entra no subsídio | Não entra — é cobrado integralmente |
 |---|---|
@@ -136,17 +137,13 @@ O subsídio cobre **o básico da refeição, e só ele**:
 | Suco de máquina | Suco de caixinha ou garrafa |
 | Fruta | Iogurte, leite fermentado |
 | Gelatina | Sorvete, picolé |
-| | Bolo, torta, pudim, mousse |
-| | Salada de frutas |
-| | Açaí |
-| | Café e capuccino |
-| | Salgado, pão de queijo, sanduíche |
+| Bolo, torta, pudim, mousse | Açaí |
+| Salada de frutas | Café e capuccino |
+| Outras sobremesas do balcão | Salgado, pão de queijo, sanduíche |
 
 **Na dúvida, não entra.** Se o item não está na coluna da esquerda, considere que vai integral para
-a folha. Duas diferenças que costumam confundir:
-
-* **Fruta entra, salada de frutas não.** A fruta é fruta; a salada de frutas é sobremesa preparada.
-* **Suco de máquina entra, suco de garrafa não.** O de garrafa vem da geladeira.
+a folha. A diferença que costuma confundir: **suco de máquina entra, suco de garrafa não** — o de
+garrafa vem da geladeira.
 
 ---
 
@@ -213,16 +210,18 @@ contracheque. O consumo detalhado por dia é registrado no sistema de identifica
 
 | Pergunta | Resposta curta |
 |---|---|
-| Quanto a FGV paga? | Até R$ 35,00 por dia |
+| Quanto a FGV paga? | Até R$ 35,00 por dia. Mas **não é de graça abaixo do teto**: os 0,15% incidem sempre |
+| Café ou salgado entram? | Não. Não são do balcão das comidas |
 | Por dia ou por refeição? | Por dia. Duas refeições dividem um R$ 35,00 |
 | Quanto sai do meu salário? | 0,15% do salário-base por dia de uso, mais o que passar dos R$ 35,00 |
 | Sobra do dia acumula? | Não |
 | Existe teto mensal? | Não |
 | Coca-Cola entra no subsídio? | Não. Nada de geladeira entra |
-| Bolo e salada de frutas entram? | Não. São sobremesa elaborada |
+| Bolo e salada de frutas entram? | **Sim**, desde agosto de 2026. Sobremesa do balcão entra |
 | Fruta e gelatina entram? | Sim |
 | Suco de máquina entra? | Sim. O de garrafa ou caixinha, não |
 | Kilo e prato básico entram? | Sim |
+| Sorvete ou açaí entram? | Não |
 | Item que não está na lista? | Na dúvida, não entra |
 | Rei do Mate tem subsídio? | Não. É integral, e não usa os R$ 35,00 |
 | Dia que eu não fui, pago algo? | Não |

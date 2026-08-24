@@ -1381,6 +1381,8 @@ function preencherFormulario(l, manual){
   if (icone) icone.hidden = false;
   poe("thumbNome", l ? "lançamento salvo" : "nenhum arquivo");
   poe("thumbMeta", l ? `ORIGEM ${String(l.origem || "manual").toUpperCase()}` : "");
+
+  pintarContaLanc();
 }
 
 function marcarLocal(local){
@@ -1398,6 +1400,67 @@ function marcarLocal(local){
      "Outro" nem passa pela folha. */
   const semSub = el("campoSemSubsidioWrap");
   if (semSub) semSub.hidden = local !== "Sapore";
+  pintarContaLanc();   // trocou de lugar, a conta muda
+}
+
+/**
+ * A conta deste lançamento, na tela, enquanto a pessoa digita. Existe porque o
+ * app pode classificar certo e ainda assim parecer errado: sem ver a conta, um
+ * subsídio de R$ 1,42 num almoço de R$ 23,32 parece defeito, e é a regra.
+ *
+ * Usa o salário que JÁ ESTÁ no aparelho — não pede de novo e não supõe valor.
+ * Considera o teto do dia já consumido pelas OUTRAS notas do mesmo dia, senão
+ * a segunda refeição do dia mostraria um teto inteiro que já foi gasto.
+ */
+function pintarContaLanc(){
+  const alvo = el("contaLanc");
+  if (!alvo) return;
+  const ativo = qs("#grupoLocal button.is-active");
+  const local = ativo ? ativo.dataset.local : "Sapore";
+  const valor = paraValor(el("campoValor")?.value);
+  const dataIso = normalizaDataHora(el("campoData")?.value);
+
+  if (local !== "Sapore" || !isFinite(valor) || valor <= 0 || !dataIso){
+    alvo.hidden = true;
+    return;
+  }
+  const dia = dataIso.slice(0, 10);
+  const pol = politicaEm(dia);
+  const teto = num(pol.teto);
+  const semSub = Math.min(Math.max(0, paraValor(el("campoSemSubsidio")?.value) || 0), valor);
+  const base = Math.round((valor - semSub) * 100) / 100;
+
+  /* Teto que as outras notas Sapore do mesmo dia já consumiram. Exclui a que
+     está sendo editada, senão ela contaria duas vezes. */
+  const usado = lancamentos
+    .filter(l => l.local === "Sapore" && dataDe(l) === dia && l.id !== editandoId)
+    .reduce((a, l) => a + baseSubsidiavel(l), 0);
+  const resta = Math.max(0, Math.round((teto - usado) * 100) / 100);
+
+  const subBruto = Math.min(base, resta);
+  const excedente = Math.round((base - subBruto) * 100) / 100;
+  const part = participacaoDoDia(dia);
+  const jaTemNoDia = usado > 0;   // a participação do dia já foi cobrada na 1ª nota
+  const partAqui = jaTemNoDia ? 0 : part;
+  const folha = Math.round((partAqui + excedente + semSub) * 100) / 100;
+  const linha = (r, v, cls) =>
+    `<div class="formula__line${cls ? " " + cls : ""}"><span>${esc(r)}</span><b>R$ ${brl(v)}</b></div>`;
+
+  let html = linha("Com subsídio (balcão)", base)
+           + (semSub ? linha("Sem subsídio (geladeira, fora do balcão)", semSub) : "")
+           + `<div class="formula__line"><span>Teto do dia</span><b>R$ ${brl(teto)}${
+               jaTemNoDia ? ` · resta ${brl(resta)}` : ""}</b></div>`;
+  if (excedente) html += linha("Passou do teto", excedente);
+  html += part > 0
+    ? (jaTemNoDia
+        ? `<div class="formula__line"><span>Participação de ${String(pol.taxaPct).replace(".", ",")}%</span><b>já cobrada hoje</b></div>`
+        : linha(`Participação de ${String(pol.taxaPct).replace(".", ",")}% do salário`, part))
+    : `<div class="formula__line"><span>Participação de ${String(pol.taxaPct).replace(".", ",")}%</span><b>informe o salário no Perfil</b></div>`;
+  html += linha("Subsídio da FGV", Math.max(0, Math.round((subBruto - partAqui) * 100) / 100))
+        + linha("Vai para a sua folha", folha, "formula__line--result");
+
+  alvo.innerHTML = html;
+  alvo.hidden = false;
 }
 
 function lerFormulario(){
@@ -1781,6 +1844,7 @@ async function lerCupom(file){
       const em = wrap.querySelector("em"); if (em) em.hidden = !baixa;
     }
 
+    pintarContaLanc();   // com os campos preenchidos, mostra a conta já feita
     leituraPasso("pCampos", "done", `${achou.length} de 7 campos preenchidos`);
     leituraProgresso(100, faltou.length ? "Confira o que faltou" : "Cupom lido inteiro");
     await espera(650);            // deixa o 100% aparecer antes de trocar de tela
@@ -2356,6 +2420,12 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") fecharSheet(
 el("q-ac")?.addEventListener("input", e => { qAc = e.target.value; pintarAc(); });
 
 /* filtro da tela de transações: digitar já filtra, sem botão de "buscar" */
+/* A conta do lançamento se refaz enquanto a pessoa digita: valor, parte sem
+   subsídio e data mudam o resultado, e ver a conta mudar é o que faz a regra
+   parecer regra em vez de defeito. */
+["campoValor", "campoSemSubsidio"].forEach(id => el(id)?.addEventListener("input", pintarContaLanc));
+el("campoData")?.addEventListener("change", pintarContaLanc);
+
 ["fTexto", "fMin", "fMax"].forEach(id => el(id)?.addEventListener("input", lerFiltroDaTela));
 ["fCategoria", "fSituacao", "fIni", "fFim"].forEach(id => el(id)?.addEventListener("change", lerFiltroDaTela));
 

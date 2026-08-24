@@ -3,6 +3,10 @@
 Documento único da regra. Serve para três coisas: conferir o contracheque, alimentar o cálculo do
 app e ser levado ao DRH quando alguma linha estiver em dúvida.
 
+Para circular entre colegas há duas versões desta mesma regra, e **as três mudam juntas**:
+`Regra_Refeitorio_Infografico.html`, uma folha A4 em linguagem de chão de fábrica com os exemplos
+por faixa de salário, e `Bot_DRH_Refeitorio.md`, que alimenta o bot do DRH.
+
 Cada afirmação vem marcada com a **procedência**, porque neste assunto já circulou muita
 informação de segunda mão que não se sustentou:
 

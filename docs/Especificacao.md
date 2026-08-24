@@ -17,8 +17,9 @@
   antiga, o app o conserta no login.
 * **Ninguém se promove:** as Rules impedem que o cliente altere `roles`, `status` ou `papel` do
   próprio documento. O dono só pode mexer em `prefs`, `nome`, `email` e `foto`.
-* **Salário não entra no app.** Não há campo, não há criptografia, não há PIN e não há
-  reautenticação — porque não existe dado sensível a proteger.
+* **O salário fica só no aparelho.** Existe campo, no Perfil, porque a participação de 0,15% é a
+  maior parcela do desconto. Mas o valor vive em `privado`, no `localStorage`, e **nunca vai para o
+  Firestore** — ver seção 4 e a armadilha nº 9 do `CLAUDE.md`.
 
 ## 2. Lançamentos
 
@@ -75,7 +76,9 @@ Na ordem, porque a ordem é a decisão:
    quebrada em duas linhas.
 4. **Separa o que tem subsídio do que não tem.** Percorre as linhas que têm valor e decide nesta
    ordem: casou em `SEM_SUBSIDIO` (geladeira, freezer) → não tem; casou em `COM_SUBSIDIO` (o balcão
-   das comidas, sobremesa elaborada inclusive) → tem; **não casou em nada → NÃO TEM**. De cada linha vale o maior valor, que é o total da linha e não o unitário. A soma é
+   das comidas, sobremesa elaborada inclusive) → tem; **não casou em nada → NÃO TEM**.
+   De cada linha vale o **último** valor, que é a coluna `Vl.Tot` — o maior é o preço unitário, e
+   pegar o maior foi o que gravou R$ 69,00 (preço por quilo) num almoço de R$ 23,32. A soma é
    limitada ao total do cupom, senão valor duplicado pelo OCR daria subsídio negativo.
    O resultado é **sugestão, não decisão**: entra no campo `valorSemSubsidio`, com o selo `CONFIRA`
    e a lista do que foi reconhecido escrita ao lado. Quando **nenhum** item subsidiável é
@@ -106,19 +109,24 @@ implementada em funções puras — `baseSubsidiavel`, `calcularRateio`, `descon
 POR DIA d com consumo na Sapore
   base(d)      = Σ (valor − valorSemSubsidio) das notas Sapore do dia
   extras(d)    = Σ valorSemSubsidio
-  subsídio(d)  = min( base(d), teto )            teto = R$ 35,00/DIA (tabela 2026/2027)
-  excedente(d) = max( 0, base(d) − teto ) + extras(d)
+  participação(d) = 0,15% do salário base           (uma vez, se houve consumo)
+  subsídio(d)  = max( 0, min( base(d), teto ) − participação(d) )   ← LÍQUIDO
+                                                 teto = R$ 35,00/DIA (2026/2027)
+  excedente(d) = base(d) + extras(d) − subsídio(d)
 
 NO PERÍODO
   gasto          = soma de tudo que foi registrado
   subsídio FGV   = Σ subsídio(d)
-  participação   = 0,15% do salário base × nº de dias com consumo na Sapore
-  desconto folha = participação + Σ excedente(d) + Σ Rei do Mate integral
+  desconto folha = Σ excedente(d) + Σ Rei do Mate integral
   pago por fora  = Σ Outro valor integral
 
-e valem as identidades:
-  gasto = subsídio FGV + Σ excedente + Rei do Mate + pago por fora
-  gasto = subsídio FGV + (desconto folha − participação) + pago por fora
+e vale a identidade:
+  gasto = subsídio FGV + desconto folha + pago por fora
+
+A participação não se soma ao desconto: ela já saiu do subsídio no rateio, e por
+isso está dentro do excedente. Somar de novo contaria duas vezes.
+Exceção real: em dia de prato mais barato que a participação, ela é cobrada
+mesmo assim — os 0,15% saem no mínimo — e a soma passa do gasto nesse resto.
 ```
 
 * **O teto é DIÁRIO, não por nota.** Duas refeições no mesmo dia dividem um único R$ 35,00. Isso

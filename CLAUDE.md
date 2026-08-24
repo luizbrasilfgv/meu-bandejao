@@ -44,12 +44,13 @@ Cada uma destas já quebrou o app aqui. Estão detalhadas em
    tela: dá `PERMISSION_DENIED` silencioso, e o sintoma chega como "não salva". Mexeu em
    `COL_LANC`/`COL_POL`, mexa no `firestore.rules` no mesmo commit, e publique os dois juntos.
 3. **Nunca calcule parcela por subtração.** `subsidio = bruto − desconto` passou a atribuir à FGV
-   um dinheiro que ela não pagou no dia em que entrou gasto fora da instituição, e hoje ainda
-   produziria subsídio negativo por causa da participação de 0,15%. Some cada parcela pela sua
-   regra e, ao mexer no cálculo, confira no navegador a identidade
-   `bruto = subsídio + (desconto − participação) + fora`. A participação é encargo por dia de uso,
-   **não é comida**: `desconto + subsídio` passa do gasto exatamente nela, e isso é o certo. Não
-   existe suíte automatizada neste projeto: a verificação é rodar o app (abaixo).
+   um dinheiro que ela não pagou no dia em que entrou gasto fora da instituição. Some cada parcela
+   pela sua regra e, ao mexer no cálculo, confira no navegador a identidade
+   `bruto = subsídio + desconto + fora`. **O subsídio é LÍQUIDO:** a participação de 0,15% sai dele
+   no rateio, porque subsídio da FGV é o que ela bancou de fato, não o que ela paga à Sapore e
+   depois cobra de você. Uma exceção real: em dia de prato mais barato que a participação, ela é
+   cobrada mesmo assim e a soma passa do gasto nesse resto — é a regra do DRH, não erro de conta.
+   Não existe suíte automatizada neste projeto: a verificação é rodar o app (abaixo).
 4. **Versione as duas coisas ao publicar:** `?v=N` dos assets no `index.html` **e** `VERSAO` no
    `sw.js`. O workflow do Actions falha o deploy se os assets mudaram e um dos dois ficou para
    trás.

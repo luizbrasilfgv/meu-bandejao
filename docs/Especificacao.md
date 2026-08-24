@@ -103,15 +103,15 @@ mascarado. Serve de diagnóstico quando algum campo não vem.
 
 A regra é do DRH, para funcionários da **Sede Botafogo** em sistema de consumo direto. Está
 implementada em funções puras — `baseSubsidiavel`, `calcularRateio`, `descontoDe`, `subsidioDe`,
-`foraDaFolhaDe`, `participacaoDe`, `resumo`:
+`foraDaFolhaDe`, `participacaoDoDia`, `resumo`:
 
 ```
 POR DIA d com consumo na Sapore
   base(d)      = Σ (valor − valorSemSubsidio) das notas Sapore do dia
   extras(d)    = Σ valorSemSubsidio
-  participação(d) = 0,15% do salário base           (uma vez, se houve consumo)
-  subsídio(d)  = max( 0, min( base(d), teto ) − participação(d) )   ← LÍQUIDO
-                                                 teto = R$ 35,00/DIA (2026/2027)
+  subBruto(d)  = min( base(d), teto )               teto = R$ 35,00/DIA (2026/2027)
+  participação(d) = min( 0,15% do salário base, subBruto(d) )   ← é ATÉ 0,15%
+  subsídio(d)  = subBruto(d) − participação(d)                  ← LÍQUIDO
   excedente(d) = base(d) + extras(d) − subsídio(d)
 
 NO PERÍODO
@@ -125,8 +125,9 @@ e vale a identidade:
 
 A participação não se soma ao desconto: ela já saiu do subsídio no rateio, e por
 isso está dentro do excedente. Somar de novo contaria duas vezes.
-Exceção real: em dia de prato mais barato que a participação, ela é cobrada
-mesmo assim — os 0,15% saem no mínimo — e a soma passa do gasto nesse resto.
+A identidade fecha SEMPRE, sem exceção, porque a participação é limitada ao
+subsídio bruto do dia: é "até 0,15%", nunca 0,15% cheio. Prato de R$ 5,00 com
+0,15% em R$ 22,50 paga R$ 5,00.
 ```
 
 * **O teto é DIÁRIO, não por nota.** Duas refeições no mesmo dia dividem um único R$ 35,00. Isso
@@ -161,7 +162,7 @@ mesmo assim — os 0,15% saem no mínimo — e a soma passa do gasto nesse resto
 * **Subsídio e participação são política, não constante.** Ficam em `politicas/vigentes`, com
   **data de vigência**: o administrador cadastra a nova regra e os lançamentos antigos continuam
   calculados pela regra que valia na data deles. O padrão, quando não há nada cadastrado, é
-  subsídio de R$ 35,00 por dia e participação de 0,15%.
+  subsídio de R$ 35,00 por dia e participação de até 0,15%.
 * **O salário entra, e não sai do aparelho.** Fica em `privado.salarioBase`, informado no Perfil,
   gravado só no `localStorage` por `gravarPrivado()` — que **não chama `salvarPerfil`**. Nunca vai
   para o Firestore: `prefs` sincroniza e é lido pelo administrador, `privado` não existe no

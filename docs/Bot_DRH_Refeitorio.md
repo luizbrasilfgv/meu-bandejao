@@ -11,7 +11,8 @@ Base de conhecimento para o bot do DRH. Escrito para o colaborador, em linguagem
 ## Em uma frase
 
 A FGV paga até **R$ 35,00 por dia** da sua refeição no refeitório da Sede. Do seu salário sai
-**0,15% do salário-base em cada dia que você consumir**, mais o que passar dos R$ 35,00 naquele dia.
+**até 0,15% do salário-base em cada dia que você consumir**, mais o que passar dos R$ 35,00 naquele
+dia. É *até*: se o seu prato custar menos que os 0,15%, você paga só o valor do prato.
 
 ---
 
@@ -19,10 +20,12 @@ A FGV paga até **R$ 35,00 por dia** da sua refeição no refeitório da Sede. D
 
 Até **R$ 35,00 por dia** de consumo no refeitório da Sede Botafogo (valor da tabela 2026/2027).
 
-Atenção a uma coisa: **não é refeição de graça abaixo de R$ 35,00.** Há sempre um desconto de
-**0,15% do seu salário** na folha. Se o seu prato custar até R$ 35,00, a FGV cobre o valor
-restante. Caso ultrapasse esse limite, a FGV cobre até o teto de R$ 35,00 e a diferença também é
-descontada do seu salário.
+Atenção a uma coisa: **não é refeição de graça abaixo de R$ 35,00.** Você paga **até 0,15% do seu
+salário** na folha e a FGV cobre o restante do prato, até o teto. Caso ultrapasse esse limite, a FGV
+cobre até R$ 35,00 e a diferença também é descontada do seu salário.
+
+E é **até** 0,15%, não 0,15% cheio: se o seu prato custar menos que esse valor, você paga o valor do
+prato. **O desconto nunca passa do que você consumiu.**
 
 ---
 
@@ -30,7 +33,8 @@ descontada do seu salário.
 
 Duas coisas somadas:
 
-1. **0,15% do seu salário-base**, em cada dia que você consumiu no refeitório.
+1. **Até 0,15% do seu salário-base**, em cada dia que você consumiu no refeitório — e nunca mais do
+   que o seu prato custou naquele dia.
 2. **O que passou de R$ 35,00** naquele dia.
 
 Mais o valor integral do que não vem do balcão das comidas — bebida de geladeira, sorvete, café,
@@ -53,9 +57,10 @@ R$ 35,00 e os R$ 15,00 que passaram são descontados, além dos 0,15% do dia.
 **Qual salário?** O **salário-base**, que é o **bruto do seu contracheque** — o valor antes dos
 descontos, não o líquido que cai na conta.
 
-Conta rápida: **divida o seu salário-base por 1.000 e multiplique por 1,5.**
+Conta rápida: **divida o seu salário-base por 1.000 e multiplique por 1,5.** O resultado é o
+**máximo** que sai por dia de uso — se o seu prato custar menos que ele, sai o valor do prato.
 
-| Salário-base | 0,15% = o que você paga por dia de uso |
+| Salário-base | 0,15% = o MÁXIMO que você paga por dia de uso |
 |---|---|
 | R$ 5.000,00 | R$ 7,50 |
 | R$ 8.000,00 | R$ 12,00 |
@@ -64,7 +69,7 @@ Conta rápida: **divida o seu salário-base por 1.000 e multiplique por 1,5.**
 | R$ 15.000,00 | R$ 22,50 |
 
 Esse valor incide **uma vez por dia** em que você consumiu no refeitório. Em dia que você não foi,
-não há cobrança.
+não há cobrança. E é um **limite**: em dia de prato mais barato que ele, sai o valor do prato.
 
 ---
 
@@ -81,9 +86,11 @@ valor da tabela acima.
 | R$ 40,00 | R$ 35,00 | **R$ 20,00** (15,00 + 5,00) |
 | R$ 50,00 | R$ 35,00 | **R$ 30,00** (15,00 + 15,00) |
 | R$ 80,00 | R$ 35,00 | **R$ 60,00** (15,00 + 45,00) |
+| R$ 10,00 | R$ 0,00 | **R$ 10,00** *(o prato custou menos que os 0,15%)* |
 
-Repare: até R$ 35,00 você paga sempre o mesmo, porque só incidem os 0,15%. Acima disso, cada real a
-mais no prato é um real a mais no seu desconto.
+Repare em duas coisas. Entre R$ 15,00 e R$ 35,00 você paga sempre o mesmo, porque só incidem os
+0,15%; acima de R$ 35,00, cada real a mais no prato é um real a mais no seu desconto. E **abaixo dos
+0,15% você paga o valor do prato**, nunca mais que ele — é a regra do "até".
 
 ---
 
@@ -92,9 +99,10 @@ mais no prato é um real a mais no seu desconto.
 **Não.** O subsídio é diário e não acumula: o que não foi usado num dia não vira crédito para outro
 dia, não é devolvido e não entra no mês seguinte.
 
-Consequência prática: num dia de consumo baixo, os 0,15% do salário podem representar quase todo o
-valor do prato. Num prato de R$ 15,00, quem tem salário de R$ 10.000,00 paga R$ 15,00 — ou seja, o
-prato inteiro.
+Consequência prática: num dia de consumo baixo, os 0,15% do salário podem representar todo o valor
+do prato. Num prato de R$ 15,00, quem tem salário-base de R$ 10.000,00 paga R$ 15,00 — o prato
+inteiro, sem subsídio nenhum. O que **não** acontece é pagar mais que o prato: o desconto para no
+valor consumido.
 
 ---
 
@@ -154,8 +162,9 @@ garrafa vem da geladeira.
 
 O refrigerante é cobrado integralmente, porque item de geladeira não tem subsídio.
 
-E os 0,15% do salário-base incidem **se você passou pela identificação do refeitório** — é a
-passagem que dispara a cobrança do dia, não o tipo de item nem o valor consumido.
+E a participação de até 0,15% não incide sobre ele: ela é o **limite do que você paga pela comida
+subsidiada** do dia, e refrigerante não é comida subsidiada. Num dia em que você só comprou item de
+geladeira, sai o valor do item e mais nada.
 
 ---
 
@@ -182,7 +191,8 @@ matrícula e o mês em questão.
 
 ## Exemplo de um mês inteiro
 
-Salário-base de R$ 10.000,00, portanto **R$ 15,00 por dia** de uso. Vinte dias de consumo no mês:
+Salário-base de R$ 10.000,00, portanto **até R$ 15,00 por dia** de uso. Vinte dias de consumo no
+mês, todos com prato acima de R$ 15,00 — então nesses dias os 0,15% saem inteiros:
 
 * 15 dias com prato de R$ 30,00 — abaixo dos R$ 35,00, então só os 0,15%
 * 3 dias com prato de R$ 42,00 — passou R$ 7,00 em cada
@@ -190,7 +200,7 @@ Salário-base de R$ 10.000,00, portanto **R$ 15,00 por dia** de uso. Vinte dias 
 
 ```
 Consumo total no mês ................. R$ 648,00
-Subsídio da FGV ...................... R$ 611,00
+Subsídio da FGV ...................... R$ 311,00
 
 Descontado do seu salário ............ R$ 337,00
    0,15% × 20 dias de uso ........  300,00
@@ -213,10 +223,12 @@ contracheque. O consumo detalhado por dia é registrado no sistema de identifica
 
 | Pergunta | Resposta curta |
 |---|---|
-| Quanto a FGV paga? | Até R$ 35,00 por dia. Mas **não é de graça abaixo do teto**: os 0,15% incidem sempre |
+| Quanto a FGV paga? | Até R$ 35,00 por dia. Mas **não é de graça abaixo do teto**: você paga até 0,15% do salário-base |
+| Os 0,15% são fixos? | **Não, são um teto.** Prato mais barato que os 0,15% custa o valor do prato |
+| Posso pagar mais do que comi? | **Não.** O desconto nunca passa do que você consumiu |
 | Café ou salgado entram? | Não. Não são do balcão das comidas |
 | Por dia ou por refeição? | Por dia. Duas refeições dividem um R$ 35,00 |
-| Quanto sai do meu salário? | 0,15% do salário-base por dia de uso, mais o que passar dos R$ 35,00 |
+| Quanto sai do meu salário? | Até 0,15% do salário-base por dia de uso, mais o que passar dos R$ 35,00 |
 | Sobra do dia acumula? | Não |
 | Existe teto mensal? | Não |
 | Coca-Cola entra no subsídio? | Não. Nada de geladeira entra |
@@ -228,3 +240,4 @@ contracheque. O consumo detalhado por dia é registrado no sistema de identifica
 | Item que não está na lista? | Na dúvida, não entra |
 | Rei do Mate tem subsídio? | Não. É integral, e não usa os R$ 35,00 |
 | Dia que eu não fui, pago algo? | Não |
+| Comprei só um refrigerante | Paga o refrigerante integral. Sem prato subsidiado, não há participação |

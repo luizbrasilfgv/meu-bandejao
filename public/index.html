@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=28">
+<link rel="stylesheet" href="styles.css?v=29">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -761,6 +761,11 @@
         </label>
       </form>
 
+      <!-- a nota oficial, quando o QR trouxe a URL da SEFAZ -->
+      <p class="field__nota" id="linhaSefaz" hidden>
+        Conferindo um valor? <a id="linkSefaz" href="#" target="_blank" rel="noopener noreferrer">Abrir esta nota na SEFAZ</a> — lá ela aparece item por item, do jeito que foi emitida.
+      </p>
+
       <!-- o que o leitor entendeu, para quando algum campo não vier -->
       <details class="glass faq__item ocr-diag" id="ocrDiag" hidden>
         <summary>Ver o que o leitor entendeu<span class="faq__chev" aria-hidden="true"></span></summary>
@@ -993,6 +998,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
 </body>
 </html>

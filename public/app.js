@@ -2116,9 +2116,27 @@ function extrairCampos(texto){
      O maior é o preço unitário. Numa linha de item o que vale é o ÚLTIMO valor,
      que é a coluna Vl.Tot. E "o maior do cupom" fez o app gravar 69,00 num
      almoço de 23,32 — chute que passa por leitura.
-     Agora o valor vem da SOMA DOS ITENS, que não depende de o OCR acertar a
-     palavra "TOTAL", e o total lido serve de conferência. Sem nenhum dos dois,
-     o campo fica VAZIO: melhor pedir para digitar que inventar dinheiro. */
+
+     Depois disso o valor passou a vir da SOMA DOS ITENS, e essa também caiu: a
+     soma só vale se o OCR acertou TODAS as linhas do cupom, e ele não acerta.
+     Na mesma nota de 23,32 o Tesseract leu o código do produto como texto
+     ("7894900700015" virou "Saad00TOD015"), linhas do rodapé entraram como item
+     e a soma deu R$ 51,84 — num cupom que traz 23,32 impresso em TRÊS lugares
+     (VALOR TOTAL, VALOR A PAGAR e a linha do débito).
+
+     Daí as duas defesas de agora, as duas estruturais:
+
+     1) O item só é procurado DENTRO da tabela de itens, entre o cabeçalho
+        ("Descrição ... Vl.Tot") e o fecho ("QTDE. TOTAL DE ITENS"). Confiar numa
+        lista de padrões de ruído para excluir o rodapé é apostar contra o OCR
+        toda vez; o delimitador não depende de adivinhar como o lixo se parece.
+     2) O total IMPRESSO ganha da soma. É um número rotulado, e quando o mesmo
+        valor aparece em mais de uma linha rotulada ele ganha por maioria — três
+        linhas dizendo 23,32 não é coincidência de OCR.
+
+     A soma dos itens continua servindo para separar o que tem subsídio do que
+     não tem, e para acusar divergência. Sem total e sem itens, o campo fica
+     VAZIO: melhor pedir para digitar que inventar dinheiro. */
   const util = l => !RE_PAGAMENTO.test(l) && !RE_RUIDO.test(l);
   const ehResumo = l => RE_TOTAL.test(l) || RE_SUBTOTAL.test(l) || RE_APAGAR.test(l);
   const ehItem = l => util(l) && !ehResumo(l) && valoresDe(l).length > 0;
@@ -2126,7 +2144,17 @@ function extrairCampos(texto){
   /** O total de uma linha de item: o último valor, que é a coluna Vl.Tot. */
   const totalDaLinha = l => { const v = valoresDe(l); return v[v.length - 1]; };
 
-  const itens = linhas.filter(ehItem);
+  /* A tabela de itens, quando o cupom a delimita. Sem os dois marcos, varre o
+     cupom inteiro como antes — melhor o comportamento antigo que nenhum item. */
+  const ehCabecalho = l => /vl\s*\.?\s*tot/i.test(l)
+                        || (/descri/i.test(l) && /qtde|c[oó]d/i.test(l));
+  const ehFechoDaTabela = l => /total\s*de\s*itens/i.test(l)
+                            || /valor\s*(total|a\s*pagar)/i.test(l);
+  const iCab = linhas.findIndex(ehCabecalho);
+  const iFim = iCab < 0 ? -1 : linhas.findIndex((l, i) => i > iCab && ehFechoDaTabela(l));
+  const bloco = iFim > iCab ? linhas.slice(iCab + 1, iFim) : linhas;
+
+  const itens = bloco.filter(ehItem);
   const somaItens = itens.length
     ? Math.round(itens.reduce((a, l) => a + totalDaLinha(l), 0) * 100) / 100
     : null;
@@ -2135,16 +2163,29 @@ function extrairCampos(texto){
     const cands = linhas.filter(l => filtro(l) && util(l)).flatMap(valoresDe);
     return cands.length ? Math.max(...cands) : null;
   };
-  const totalLido = doRotulo(l => RE_APAGAR.test(l))
-                 ?? doRotulo(l => RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l))
+  /* "TOTAL DE ITENS 2" é contagem, não dinheiro, e "Saldo Total" é o saldo do
+     cartão — os dois casam com RE_TOTAL e nenhum é o valor da compra. */
+  const ehRotuloDeTotal = l => !/total\s*de\s*itens|saldo/i.test(l)
+    && (RE_APAGAR.test(l) || /valor\s*(total|pago)/i.test(l)
+        || (RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l)) || RE_PAGAMENTO.test(l));
+  const repetido = (() => {
+    const n = new Map();
+    for (const v of linhas.filter(l => ehRotuloDeTotal(l) && !RE_RUIDO.test(l)).flatMap(valoresDe)){
+      n.set(v, (n.get(v) || 0) + 1);
+    }
+    let melhor = null, vezes = 1;
+    for (const [v, q] of n) if (q > vezes){ vezes = q; melhor = v; }
+    return melhor;   // null quando nenhum valor se repete
+  })();
+  const totalLido = repetido
+                 ?? doRotulo(l => RE_APAGAR.test(l))
+                 ?? doRotulo(l => RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l) && !/total\s*de\s*itens|saldo/i.test(l))
                  ?? doRotulo(l => RE_SUBTOTAL.test(l));
 
-  if (somaItens != null && totalLido != null){
-    out.valor = somaItens;
-    // divergiu: um dos dois está errado e o app não sabe qual. Fala.
-    if (Math.abs(somaItens - totalLido) > 0.01) out.conflitoTotal = totalLido;
-  } else {
-    out.valor = somaItens ?? totalLido;   // pode ficar null, e é de propósito
+  out.valor = totalLido ?? somaItens;      // pode ficar null, e é de propósito
+  // divergiu: o app fica com o total impresso e diz o outro número, sem escolher calado
+  if (somaItens != null && totalLido != null && Math.abs(somaItens - totalLido) > 0.01){
+    out.conflitoTotal = somaItens;
   }
 
   /* --- data e hora --- */
@@ -2192,12 +2233,11 @@ function extrairCampos(texto){
     }
   }
 
-  /* --- itens: linhas com valor que não são total, pagamento nem ruído --- */
   /* --- a parte do cupom sem subsídio, para o formulário já abrir sugerindo ---
-     Percorre as linhas que têm valor e soma as que NÃO têm subsídio — incluindo
-     as que o leitor não reconheceu, porque na dúvida não entra. De cada linha
-     vale o MAIOR valor: numa linha "2 x 4,50   9,00" o total da linha é o 9,00,
-     e é ele que vai para a folha; o 4,50 é o unitário. */
+     Percorre as linhas da tabela de itens e soma as que NÃO têm subsídio —
+     incluindo as que o leitor não reconheceu, porque na dúvida não entra. De
+     cada linha vale o ÚLTIMO valor, que é a coluna Vl.Tot: numa linha
+     "0,24 KG 69,00 16,42" o 69,00 é o preço por quilo, não o que você pagou. */
   for (const l of itens){
     if (temSubsidio(l)){ out.achouSubsidiavel = true; continue; }
     out.semSubsidio += totalDaLinha(l);
@@ -2206,12 +2246,19 @@ function extrairCampos(texto){
                   .replace(/\s{2,}/g, " ").trim();
     if (nome) out.itensSemSubsidio.push(nome.slice(0, 24));
   }
+  /* O que o total impresso tem e os itens não explicam é consumo que o OCR não
+     conseguiu ler. Ele vai para o lado SEM subsídio: é a regra do projeto — o
+     que o leitor não reconheceu não entra — e é o erro que não machuca, porque
+     prevê desconto maior do que vem em vez de susto no contracheque. */
+  if (somaItens != null && totalLido != null && totalLido - somaItens > 0.01){
+    out.semSubsidio += totalLido - somaItens;
+  }
   /* Nunca pode passar do total do cupom: a soma por linha erra para cima quando
      o OCR duplica um valor, e semSubsidio maior que valor daria subsídio
      negativo. O formulário já recusa, mas melhor não sugerir o impossível. */
   out.semSubsidio = Math.min(Math.round(out.semSubsidio * 100) / 100, num(out.valor) || Infinity);
 
-  out.itens = linhas
+  out.itens = bloco
     .filter(l => valoresDe(l).length)
     .filter(l => !RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l) && !RE_APAGAR.test(l))
     .filter(util)

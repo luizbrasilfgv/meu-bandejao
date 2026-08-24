@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=27">
+<link rel="stylesheet" href="styles.css?v=28">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -467,6 +467,13 @@
           <span class="row__hint">CSV DO PERÍODO SELECIONADO, COM A MEMÓRIA DE CÁLCULO</span>
         </span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C9CB2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20h14M12 4v11M7.5 10.5 12 15l4.5-4.5"></path></svg>
+      </li>
+      <li class="glass row" data-ultima-leitura>
+        <span class="row__body">
+          <span class="row__label">Última leitura de cupom</span>
+          <span class="row__hint" id="pUltimaLeitura">NENHUMA LEITURA NESTE APARELHO</span>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C9CB2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
       </li>
       <li class="glass row" data-sair>
         <span class="row__body">
@@ -958,10 +965,34 @@
   </div>
 </div>
 
+<!-- ============================================ MODAL: ÚLTIMA LEITURA -->
+<div class="sheet" id="sheetLeitura" role="dialog" aria-modal="true" aria-labelledby="leiTit">
+  <div class="sheet__panel">
+    <div class="sheet__grip"></div>
+    <div class="sheet__head">
+      <div>
+        <div class="sheet__title" id="leiTit">Última leitura de cupom</div>
+        <p class="sheet__sub" id="leiSub">O texto cru que o leitor extraiu. Serve para entender por que um campo veio errado.</p>
+      </div>
+      <button class="icon-btn icon-btn--square" type="button" data-close aria-label="Fechar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </button>
+    </div>
+    <div class="fields">
+      <pre class="ocr-cru" id="leiTexto"></pre>
+      <p class="wip__text">Fica <b>só neste aparelho</b>: não é salvo com o lançamento, não vai para a nuvem e some quando você limpa o navegador. Guarda apenas a leitura mais recente.</p>
+    </div>
+    <div class="sheet__footer">
+      <button class="btn btn--ghost" type="button" data-apagar-leitura>Apagar</button>
+      <button class="btn" type="button" data-copiar-leitura>Copiar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======================================================= TOAST -->
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=27"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>

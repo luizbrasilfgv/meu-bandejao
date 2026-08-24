@@ -696,6 +696,7 @@ function pintar(){
   pintarEstatisticas(doPeriodo, ini, fim, rotulo);
   pintarConciliar();
   pintarPerfil();
+  pintarExemplos();
   pintarPoliticas();
   pintarGraficos(doPeriodo);
 }
@@ -985,6 +986,48 @@ function poe(id, texto, pendente){
   if (!x) return;
   x.textContent = texto;
   if (arguments.length > 2) x.classList.toggle("stat__val--pending", !!pendente);
+}
+
+/**
+ * Os quatro casos da regra, calculados com o salário de quem está lendo. Uma
+ * tabela genérica não convence ninguém: "até 0,15%" só fica claro quando a
+ * pessoa vê o próprio número parando no valor do prato. Sem salário informado,
+ * usa um exemplo declarado como exemplo — nunca um número do usuário inventado.
+ *
+ * Os casos "abaixo" e "exatamente" são relativos ao salário, porque os 0,15%
+ * mudam; os dois de cima são fixos (R$ 30,00 e R$ 42,00) para dar comparação.
+ */
+function pintarExemplos(){
+  const alvo = el("exemplosRegra");
+  if (!alvo) return;
+  const pol = politicaEm(hojeIso());
+  const teto = num(pol.teto), refri = 6.90;
+  const meu = num(privado.salarioBase);
+  const salario = meu > 0 ? meu : 5500;
+  const part = Math.round(salario * num(pol.taxaPct)) / 100;
+
+  poe("exemplosHint", (meu > 0 ? "COM O SEU SALÁRIO" : "EXEMPLO COM SALÁRIO DE R$ 5.500")
+    + ` · 0,15% = R$ ${brl(part)} POR DIA · SEMPRE COM UM REFRIGERANTE DE R$ ${brl(refri)}`);
+
+  /* A regra inteira, em duas linhas — as mesmas do rateio, sem o teto do dia
+     dividido entre notas, porque aqui é sempre uma refeição só. */
+  const folha = p => Math.round((Math.min(p, part) + Math.max(0, p - teto) + refri) * 100) / 100;
+  const fgv   = p => Math.round((Math.min(p, teto) - Math.min(p, part)) * 100) / 100;
+
+  /* O prato do caso "abaixo" é derivado, não escolhido: 80% dos 0,15%, em reais
+     inteiros. Assim o app e o infográfico de docs/ mostram o mesmo exemplo para
+     o mesmo salário — número de exemplo divergente entre dois documentos da
+     mesma regra é exatamente o que faz alguém desconfiar dos dois. */
+  const abaixo = Math.max(1, Math.floor(part * 0.8));
+  const casos = [
+    ["Prato abaixo dos 0,15%", abaixo],
+    ["Prato exatamente nos 0,15%", part],
+    ["Prato acima dos 0,15%, dentro do teto", 30],
+    [`Prato acima do teto de R$ ${brl(teto)}`, 42],
+  ];
+  alvo.innerHTML = casos.map(([nome, p]) =>
+    `<div class="formula__line"><span>${esc(nome)} · prato R$ ${brl(p)}`
+    + ` · FGV paga R$ ${brl(fgv(p))}</span><b>R$ ${brl(folha(p))}</b></div>`).join("");
 }
 
 function pintarConciliar(){

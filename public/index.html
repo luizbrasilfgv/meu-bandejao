@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=30">
+<link rel="stylesheet" href="styles.css?v=31">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -530,6 +530,15 @@
       <p class="wip__text" style="margin-top:14px">Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
     </section>
 
+    <section class="glass card">
+      <div class="card__head">
+        <h3 class="card__title">Quatro exemplos, com o seu salário</h3>
+        <span class="card__hint" id="exemplosHint">SEMPRE COM UM REFRIGERANTE DE R$ 6,90</span>
+      </div>
+      <div class="formula" id="exemplosRegra"></div>
+      <p class="wip__text" style="margin-top:14px">Repare no que acontece entre o segundo e o terceiro caso: o desconto <b>não muda</b>. Passando dos 0,15%, cada real a mais no prato é pago pela FGV — até o teto de R$ 35,00, quando volta a ser seu.</p>
+    </section>
+
     <section class="glass wip">
       <span class="wip__icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"></rect><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"></path></svg>
@@ -998,6 +1007,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

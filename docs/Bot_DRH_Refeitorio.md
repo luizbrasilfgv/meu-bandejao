@@ -94,6 +94,63 @@ Repare em duas coisas. Entre R$ 15,00 e R$ 35,00 você paga sempre o mesmo, porq
 
 ---
 
+## Quanto eu pago, no meu salário? Quatro exemplos
+
+Todos com um **refrigerante de R$ 6,90** junto do prato — porque bebida de geladeira nunca tem
+subsídio, e é o caso mais comum de confusão no contracheque.
+
+Procure a sua faixa de salário. Se o seu prato de hoje custou mais que os 0,15% e menos que
+R$ 35,00, o seu desconto é o mesmo do terceiro caso, seja qual for o valor do prato.
+
+### Salário-base R$ 3.300,00 — 0,15% = R$ 4,95 por dia
+
+| Seu prato | A FGV paga | Sai do seu salário |
+|---|---|---|
+| R$ 3,00 *(abaixo dos 0,15%)* | R$ 0,00 | **R$ 9,90** |
+| R$ 4,95 *(igual aos 0,15%)* | R$ 0,00 | **R$ 11,85** |
+| R$ 30,00 *(acima dos 0,15%, abaixo do teto)* | R$ 25,05 | **R$ 11,85** |
+| R$ 42,00 *(passou dos R$ 35,00)* | R$ 30,05 | **R$ 18,85** |
+
+### Salário-base R$ 5.500,00 — 0,15% = R$ 8,25 por dia
+
+| Seu prato | A FGV paga | Sai do seu salário |
+|---|---|---|
+| R$ 6,00 *(abaixo dos 0,15%)* | R$ 0,00 | **R$ 12,90** |
+| R$ 8,25 *(igual aos 0,15%)* | R$ 0,00 | **R$ 15,15** |
+| R$ 30,00 *(acima dos 0,15%, abaixo do teto)* | R$ 21,75 | **R$ 15,15** |
+| R$ 42,00 *(passou dos R$ 35,00)* | R$ 26,75 | **R$ 22,15** |
+
+### Salário-base R$ 7.900,00 — 0,15% = R$ 11,85 por dia
+
+| Seu prato | A FGV paga | Sai do seu salário |
+|---|---|---|
+| R$ 9,00 *(abaixo dos 0,15%)* | R$ 0,00 | **R$ 15,90** |
+| R$ 11,85 *(igual aos 0,15%)* | R$ 0,00 | **R$ 18,75** |
+| R$ 30,00 *(acima dos 0,15%, abaixo do teto)* | R$ 18,15 | **R$ 18,75** |
+| R$ 42,00 *(passou dos R$ 35,00)* | R$ 23,15 | **R$ 25,75** |
+
+### Salário-base R$ 12.000,00 — 0,15% = R$ 18,00 por dia
+
+| Seu prato | A FGV paga | Sai do seu salário |
+|---|---|---|
+| R$ 14,00 *(abaixo dos 0,15%)* | R$ 0,00 | **R$ 20,90** |
+| R$ 18,00 *(igual aos 0,15%)* | R$ 0,00 | **R$ 24,90** |
+| R$ 30,00 *(acima dos 0,15%, abaixo do teto)* | R$ 12,00 | **R$ 24,90** |
+| R$ 42,00 *(passou dos R$ 35,00)* | R$ 17,00 | **R$ 31,90** |
+
+### O que essas tabelas mostram
+
+Três coisas, em qualquer faixa de salário:
+
+1. **Nos dois primeiros casos a FGV paga zero.** Enquanto o prato custar menos que os 0,15%, o
+   subsídio não tem o que cobrir — você paga o prato e o refrigerante.
+2. **Do segundo para o terceiro caso o seu desconto não muda**, embora o prato tenha ficado muito
+   mais caro. Entre os 0,15% e os R$ 35,00, **cada real a mais no prato é pago pela FGV**.
+3. **Acima de R$ 35,00 volta a subir.** O que passou do teto é seu, somado aos 0,15% e ao
+   refrigerante.
+
+---
+
 ## Se eu gastar menos que R$ 35,00, o que sobra fica para mim?
 
 **Não.** O subsídio é diário e não acumula: o que não foi usado num dia não vira crédito para outro
@@ -240,4 +297,5 @@ contracheque. O consumo detalhado por dia é registrado no sistema de identifica
 | Item que não está na lista? | Na dúvida, não entra |
 | Rei do Mate tem subsídio? | Não. É integral, e não usa os R$ 35,00 |
 | Dia que eu não fui, pago algo? | Não |
+| Prato de R$ 30 ou de R$ 20, muda meu desconto? | **Não**, se os dois passam dos seus 0,15% e ficam abaixo de R$ 35,00 |
 | Comprei só um refrigerante | Paga o refrigerante integral. Sem prato subsidiado, não há participação |

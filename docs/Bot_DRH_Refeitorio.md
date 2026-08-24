@@ -50,6 +50,9 @@ R$ 35,00 e os R$ 15,00 que passaram são descontados, além dos 0,15% do dia.
 
 ## Como eu calculo os 0,15% do meu salário?
 
+**Qual salário?** O **salário-base**, que é o **bruto do seu contracheque** — o valor antes dos
+descontos, não o líquido que cai na conta.
+
 Conta rápida: **divida o seu salário-base por 1.000 e multiplique por 1,5.**
 
 | Salário-base | 0,15% = o que você paga por dia de uso |

@@ -193,6 +193,7 @@ abertas — são respostas.
 | Itens que o DRH não citou pelo nome | **Não entram.** O subsídio cobre o balcão das comidas e nada além. Café, salgado, sopa: fora | **[DRH]** — leitura restritiva, ver abaixo |
 | Rei do Mate consome o teto do dia? | **Não.** É integral, sem subsídio aplicado, e não toca nos R$ 35,00 | **[DRH]** |
 | Vigência do R$ 35,00 | **Sempre foi 35,00** no período que o app cobre. O R$ 31,59 é valor antigo, de tabela anterior aos lançamentos | **[DRH]** |
+| Base dos 0,15%: salário-base ou bruto? | **É o mesmo número.** O documento escreve "Salário Base" e o DRH o entende como o **bruto** do contracheque — o valor antes dos descontos, não o líquido | **[DRH]** |
 
 Ficam de fora duas coisas, e nenhuma afeta o cálculo:
 

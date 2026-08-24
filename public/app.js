@@ -971,7 +971,7 @@ function pintarPerfil(){
     const pct = String(politicaEm(hojeIso()).taxaPct).replace(".", ",");
     hPart.textContent = s > 0
       ? `${pct}% = R$ ${brl(participacaoDoDia())} POR DIA · SÓ NESTE APARELHO, NUNCA VAI PARA A NUVEM`
-      : `A INFORMAR · SEM ELE A PARTICIPAÇÃO DE ${pct}% FICA FORA DA CONTA`;
+      : `O BRUTO DO CONTRACHEQUE · SEM ELE A PARTICIPAÇÃO DE ${pct}% FICA FORA DA CONTA`;
   }
   const vPart = el("pSalario");
   if (vPart){
@@ -2192,7 +2192,7 @@ document.addEventListener("click", e => {
   }
 
   if (achar("data-salario")){
-    return pedirCampo("Meu salário-base", "FICA SÓ NESTE APARELHO — NUNCA VAI PARA A NUVEM",
+    return pedirCampo("Meu salário-base", "O BRUTO DO CONTRACHEQUE · SÓ NESTE APARELHO",
       privado.salarioBase ? brl(privado.salarioBase) : "", "numero", v => {
         const n = paraValor(v);
         privado.salarioBase = isFinite(n) && n > 0 ? n : null;

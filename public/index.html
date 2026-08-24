@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=18">
+<link rel="stylesheet" href="styles.css?v=19">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -450,7 +450,7 @@
       <li class="glass row" data-salario>
         <span class="row__body">
           <span class="row__label">Meu salário-base <span id="pSalario" class="stat__val--pending">a informar</span></span>
-          <span class="row__hint" id="hParticipacao">A INFORMAR · SEM ELE A PARTICIPAÇÃO DE 0,15% FICA FORA DA CONTA</span>
+          <span class="row__hint" id="hParticipacao">O BRUTO DO CONTRACHEQUE · SEM ELE A PARTICIPAÇÃO DE 0,15% FICA FORA DA CONTA</span>
         </span>
         <button class="link-btn" type="button" data-salario>Editar</button>
       </li>
@@ -564,7 +564,7 @@
       </details>
       <details class="glass faq__item">
         <summary>O app precisa do meu salário? Quem consegue ver?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>Precisa, para calcular os 0,15% — e <b>só você consegue ver</b>. O salário é gravado no armazenamento do seu próprio navegador e nunca é enviado: não passa pela internet, não fica no banco de dados, não aparece para o administrador do app. Cada pessoa informa o seu no seu aparelho, e o cálculo de cada um sai certo sem ninguém saber o valor de ninguém.</p>
+        <p>Precisa, para calcular os 0,15%. É o <b>salário-base</b>, que é o bruto do contracheque, antes dos descontos — e <b>só você consegue ver</b>. O salário é gravado no armazenamento do seu próprio navegador e nunca é enviado: não passa pela internet, não fica no banco de dados, não aparece para o administrador do app. Cada pessoa informa o seu no seu aparelho, e o cálculo de cada um sai certo sem ninguém saber o valor de ninguém.</p>
         <p>Por que não guardar criptografado na nuvem, para sincronizar entre aparelhos? Porque salário é um número curto e previsível: com o texto cifrado em mãos, quem tenta adivinhar uma senha simples testa tudo offline até acertar. Ficar seguro exigiria uma senha forte, digitada em cada aparelho e perdida para sempre se esquecida — muito trabalho para proteger um número que você redigita em cinco segundos. Preferimos não ter o dado a ter o dado protegido pela metade.</p>
         <p>O campo é opcional. Vazio, o app funciona como antes e avisa que o desconto está incompleto.</p>
       </details>
@@ -959,6 +959,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=18"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

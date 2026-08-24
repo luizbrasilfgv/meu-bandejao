@@ -2257,12 +2257,20 @@ function extrairCampos(texto){
 
   /* A tabela de itens, quando o cupom a delimita. Sem os dois marcos, varre o
      cupom inteiro como antes — melhor o comportamento antigo que nenhum item. */
-  const ehCabecalho = l => /vl\s*\.?\s*tot/i.test(l)
-                        || (/descri/i.test(l) && /qtde|c[oó]d/i.test(l));
+  /* O "l" de "Vl.Tot" volta do OCR como I, 1 ou |, e "Qtde" já veio "otde" —
+     por isso as classes de caractere. Vale para o cabeçalho da Sapore em
+     qualquer uma das formas que ele apareceu até aqui. */
+  const ehCabecalho = l => /v[li1|]\s*\.?\s*t[o0]t/i.test(l)
+                        || (/descri/i.test(l) && /[oq0]tde|unit|c[oó]d/i.test(l));
   const ehFechoDaTabela = l => /total\s*de\s*itens/i.test(l)
                             || /valor\s*(total|a\s*pagar)/i.test(l);
   const iCab = linhas.findIndex(ehCabecalho);
-  const iFim = iCab < 0 ? -1 : linhas.findIndex((l, i) => i > iCab && ehFechoDaTabela(l));
+  /* O fecho vale MESMO sem cabeçalho reconhecido: depois do bloco de totais
+     nunca há item, então cortar ali é sempre melhor que varrer o cupom
+     inteiro. Foi essa varredura que fez "DEBITO CONSUM RJ 23,52" — lido como
+     "LL CONSUM RJ" — entrar como item de R$ 23,52 sem subsídio numa nota de
+     R$ 23,32. Sem nenhum dos dois marcos, aí sim varre tudo. */
+  const iFim = linhas.findIndex((l, i) => i > iCab && ehFechoDaTabela(l));
   const bloco = iFim > iCab ? linhas.slice(iCab + 1, iFim) : linhas;
 
   const itens = bloco.filter(ehItem);
@@ -2288,7 +2296,16 @@ function extrairCampos(texto){
     for (const [v, q] of n) if (q > vezes){ vezes = q; melhor = v; }
     return melhor;   // null quando nenhum valor se repete
   })();
-  const totalLido = repetido
+  /* Um total impresso que BATE com a soma dos itens ganha de tudo: são duas
+     contas independentes chegando no mesmo número, e OCR não erra igual duas
+     vezes. É o que salva a nota em que o "VALOR TOTAL" veio 28,32 (o 3 lido
+     como 8) enquanto o "VALOR A PAGAR" veio 23,32, igual à soma dos itens. */
+  const bateComItens = somaItens == null ? null
+    : (linhas.filter(l => ehRotuloDeTotal(l) && !RE_RUIDO.test(l)).flatMap(valoresDeFrouxo)
+             .find(v => Math.abs(v - somaItens) <= 0.01) ?? null);
+
+  const totalLido = bateComItens
+                 ?? repetido
                  ?? doRotulo(l => RE_APAGAR.test(l))
                  ?? doRotulo(l => RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l) && !/total\s*de\s*itens|saldo/i.test(l))
                  ?? doRotulo(l => RE_SUBTOTAL.test(l));

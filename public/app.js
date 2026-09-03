@@ -415,7 +415,22 @@ function limitesPeriodo(){
       ? [periodo.inicio, periodo.fim] : [periodo.fim, periodo.inicio];
     return { ini: a, fim: b, rotulo: `${paraBR(a).slice(0, 5)} – ${paraBR(b).slice(0, 5)}` };
   }
-  if (periodo.preset === "anterior"){ mes--; if (mes === 0){ mes = 12; ano--; } }
+
+  /* Período completo: do primeiro lançamento ao último. Sem isto, ver o
+     histórico inteiro exigia escolher datas E saber de cabeça a data do
+     primeiro lançamento.
+
+     Com a lista vazia, cai no mês atual de propósito: intervalo vazio
+     deixaria o rótulo e os gráficos sem referência nenhuma, e o estado
+     "sem lançamentos" já é dito pelo vazio de cada card. */
+  if (periodo.preset === "tudo" && lancamentos.length){
+    const datas = lancamentos.map(dataDe).filter(Boolean).sort();
+    const a = datas[0], b = datas[datas.length - 1];
+    return {
+      ini: a, fim: b,
+      rotulo: `${paraBR(a).slice(0, 5)} – ${paraBR(b).slice(0, 5)} · período completo`
+    };
+  }
 
   const fim = ultimoDia(ano, mes);
   return {

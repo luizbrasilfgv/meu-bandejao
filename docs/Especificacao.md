@@ -17,8 +17,9 @@
   antiga, o app o conserta no login.
 * **Ninguém se promove:** as Rules impedem que o cliente altere `roles`, `status` ou `papel` do
   próprio documento. O dono só pode mexer em `prefs`, `nome`, `email` e `foto`.
-* **Salário não entra no app.** Não há campo, não há criptografia, não há PIN e não há
-  reautenticação — porque não existe dado sensível a proteger.
+* **O salário fica só no aparelho.** Existe campo, no Perfil, porque a participação de 0,15% é a
+  maior parcela do desconto. Mas o valor vive em `privado`, no `localStorage`, e **nunca vai para o
+  Firestore** — ver seção 4 e a armadilha nº 9 do `CLAUDE.md`.
 
 ## 2. Lançamentos
 
@@ -43,9 +44,13 @@ também. O resto é opcional: `categoria`, `itens`, `matricula`, `numeroCupom`, 
 * **Estabelecimentos:** `Sapore`, `Rei do Mate` e `Outro`. Ao escolher `Outro` aparece o campo
   **ONDE FOI** e um aviso de que aquilo é 0% FGV e não vai para a folha.
 * **Categorias:** almoço, jantar, café/lanche e outro.
-* **`valorSemSubsidio`** — quanto, dentro do `valor`, é item de geladeira ou sobremesa elaborada.
-  Só aparece quando o local é `Sapore`; nos outros é sempre zero. Nunca pode passar do `valor`, e
-  o formulário recusa. É o campo que separa a base subsidiável do resto da nota.
+* **`valorSemSubsidio`** — quanto, dentro do `valor`, não tem direito a subsídio. Só aparece quando
+  o local é `Sapore`; nos outros é sempre zero. Nunca pode passar do `valor`, e o formulário
+  recusa. É o campo que separa a base subsidiável do resto da nota.
+* **Data e hora é `<input type="datetime-local">`**, não texto com máscara. O valor que o navegador
+  entrega já é o formato interno (`AAAA-MM-DDTHH:MM`), então não há texto para interpretar:
+  `normalizaDataHora()` só corta segundos e valida. O formato **exibido** segue o idioma do
+  aparelho; o gravado, não.
 
 ### 2.3 Editar e excluir
 
@@ -65,11 +70,39 @@ Na ordem, porque a ordem é a decisão:
    (`cUF(2) AAMM(4) CNPJ(14) mod(2) serie(3) nNF(9) …`). O QR versão 1 traz ainda `dhEmi` e
    `vNF` — data/hora e valor exatos.
 3. **OCR (Tesseract.js), só para o que faltou.** PSM 4 e, se não achar valor, segunda tentativa
-   com PSM 6. Extração tolerante: "VALOR A PAGAR" tem prioridade sobre "TOTAL"; linhas de
-   pagamento (troco, débito, valor pago) e de ruído (tributo aproximado, lei, PROCON, CEP) são
-   descartadas; o nome do estabelecimento aceita erro de OCR; a chave impressa é remontada mesmo
+   com PSM 6. O nome do estabelecimento aceita erro de OCR e a chave impressa é remontada mesmo
    quebrada em duas linhas.
-4. **Preenche e mostra o que faltou.** O aviso diz o que entrou e o que não veio, campo por campo.
+
+   **O item é procurado só DENTRO da tabela de itens**, entre o cabeçalho (`Descrição … Vl.Tot`) e
+   o fecho (`QTDE. TOTAL DE ITENS` ou o primeiro `VALOR TOTAL`). O fecho vale mesmo sem cabeçalho
+   reconhecido — depois dos totais nunca há item. Só sem nenhum dos dois marcos é que varre o cupom
+   inteiro. Depender de uma lista de padrões de ruído para excluir o rodapé é apostar contra o OCR
+   toda vez: numa leitura real, `DEBITO CONSUM RJ 23,52` veio como `LL CONSUM RJ` e entrou como
+   item sem subsídio numa nota de R$ 23,32.
+
+   **O valor vem do total IMPRESSO, não da soma das linhas.** É um número rotulado, contra uma soma
+   que depende de o OCR ter acertado todas as linhas. A escolha entre os totais candidatos, nesta
+   ordem: o que **bate com a soma dos itens** (duas contas independentes no mesmo número); senão o
+   que **se repete** em mais de uma linha rotulada; senão a cascata `A PAGAR` → `TOTAL` → `SUBTOTAL`.
+   Sem total legível, cai na soma dos itens; sem os dois, o campo fica **vazio** — melhor pedir para
+   digitar que inventar dinheiro. Divergindo soma e total, o app diz os dois números.
+
+   Nas linhas já identificadas como total, o separador decimal **comido pelo OCR** é aceito:
+   `VALOR TOTAL R$ 23 32` vale 23,32. Frouxo só ali — solto no texto isso casaria com número de
+   caixa, CEP e endereço.
+4. **Separa o que tem subsídio do que não tem.** Percorre as linhas que têm valor e decide nesta
+   ordem: casou em `SEM_SUBSIDIO` (geladeira, freezer) → não tem; casou em `COM_SUBSIDIO` (o balcão
+   das comidas, sobremesa elaborada inclusive) → tem; **não casou em nada → NÃO TEM**.
+   De cada linha vale o **último** valor, que é a coluna `Vl.Tot` — o maior é o preço unitário, e
+   pegar o maior foi o que gravou R$ 69,00 (preço por quilo) num almoço de R$ 23,32. A soma é
+   limitada ao total do cupom, senão valor duplicado pelo OCR daria subsídio negativo.
+   O que o total impresso tem e os itens não explicam é consumo que o OCR não leu, e vai para o lado
+   **sem** subsídio: é a mesma regra do "na dúvida não entra", e é o erro que não machuca.
+   O resultado é **sugestão, não decisão**: entra no campo `valorSemSubsidio`, com o selo `CONFIRA`
+   e a lista do que foi reconhecido escrita ao lado. Quando **nenhum** item subsidiável é
+   reconhecido — que quase sempre é falha de leitura, não refeição inteira sem subsídio — a nota
+   diz isso, em vez de apresentar o número como conclusão.
+5. **Preenche e mostra o que faltou.** O aviso diz o que entrou e o que não veio, campo por campo.
    Confiança baixa ou valor não encontrado marca a data com `CONFIRA`.
 
 Durante a leitura existe um **passo visual próprio**: a foto grande com uma linha varrendo, barra
@@ -79,7 +112,18 @@ preenchendo os campos), cada uma com giro, tique verde ou traço quando não deu
 **A imagem é processada na memória e descartada** com `revokeObjectURL`. Nada de foto no banco.
 
 O painel **"Ver o que o leitor entendeu"** mostra o conteúdo do QR e o texto cru do OCR, com CPF
-mascarado. Serve de diagnóstico quando algum campo não vem.
+mascarado. Serve de diagnóstico quando algum campo não vem, e a leitura mais recente fica guardada
+**no aparelho** (`localStorage`), acessível pelo Perfil em *Última leitura de cupom* — o painel da
+tela do lançamento some quando ela fecha, que é justamente quando se percebe o número errado.
+Nunca vai para o Firestore: o cupom traz nome e CPF.
+
+A máscara de CPF exige o hífen e os dois dígitos finais. O padrão frouxo de antes casava com
+qualquer corrida de 11 dígitos e **comia a chave de acesso de 44** dentro da URL do QR — quem
+copiava a URL e abria na SEFAZ recebia "chave de acesso inválida". Mascarar demais também é defeito.
+
+Quando o QR trouxe a URL, a tela oferece **abrir a nota na SEFAZ**. O app não consegue *buscar* a
+nota de lá: sem servidor, quem faz o pedido é o navegador, e um site só lê a resposta de outro se o
+outro autorizar. Abrir o link não precisa disso, e lá a nota aparece item por item, na fonte.
 
 **O app aprende:** ao salvar, guarda o par CNPJ → local (e o nome, quando é `Outro`) em
 `prefs.cnpjLocal`. O cupom seguinte do mesmo CNPJ já vem identificado.
@@ -88,25 +132,31 @@ mascarado. Serve de diagnóstico quando algum campo não vem.
 
 A regra é do DRH, para funcionários da **Sede Botafogo** em sistema de consumo direto. Está
 implementada em funções puras — `baseSubsidiavel`, `calcularRateio`, `descontoDe`, `subsidioDe`,
-`foraDaFolhaDe`, `participacaoDe`, `resumo`:
+`foraDaFolhaDe`, `participacaoDoDia`, `resumo`:
 
 ```
 POR DIA d com consumo na Sapore
   base(d)      = Σ (valor − valorSemSubsidio) das notas Sapore do dia
   extras(d)    = Σ valorSemSubsidio
-  subsídio(d)  = min( base(d), teto )            teto = R$ 35,00/DIA (tabela 2026/2027)
-  excedente(d) = max( 0, base(d) − teto ) + extras(d)
+  subBruto(d)  = min( base(d), teto )               teto = R$ 35,00/DIA (2026/2027)
+  participação(d) = min( 0,15% do salário base, subBruto(d) )   ← é ATÉ 0,15%
+  subsídio(d)  = subBruto(d) − participação(d)                  ← LÍQUIDO
+  excedente(d) = base(d) + extras(d) − subsídio(d)
 
 NO PERÍODO
   gasto          = soma de tudo que foi registrado
   subsídio FGV   = Σ subsídio(d)
-  participação   = 0,15% do salário base × nº de dias com consumo na Sapore
-  desconto folha = participação + Σ excedente(d) + Σ Rei do Mate integral
+  desconto folha = Σ excedente(d) + Σ Rei do Mate integral
   pago por fora  = Σ Outro valor integral
 
-e valem as identidades:
-  gasto = subsídio FGV + Σ excedente + Rei do Mate + pago por fora
-  gasto = subsídio FGV + (desconto folha − participação) + pago por fora
+e vale a identidade:
+  gasto = subsídio FGV + desconto folha + pago por fora
+
+A participação não se soma ao desconto: ela já saiu do subsídio no rateio, e por
+isso está dentro do excedente. Somar de novo contaria duas vezes.
+A identidade fecha SEMPRE, sem exceção, porque a participação é limitada ao
+subsídio bruto do dia: é "até 0,15%", nunca 0,15% cheio. Prato de R$ 5,00 com
+0,15% em R$ 22,50 paga R$ 5,00.
 ```
 
 * **O teto é DIÁRIO, não por nota.** Duas refeições no mesmo dia dividem um único R$ 35,00. Isso
@@ -114,11 +164,16 @@ e valem as identidades:
   o teto em **ordem cronológica** — a primeira nota do dia consome o teto, a seguinte pega o que
   sobrou. O rateio é sempre calculado sobre a lista inteira, nunca sobre a lista filtrada da tela,
   senão o mesmo lançamento mostraria subsídios diferentes em telas diferentes.
-* **Nem tudo no cupom tem subsídio.** Item de geladeira (refrigerante, garrafa) e sobremesa
-  elaborada (bolo, salada de frutas) vão integrais para a folha. Kilo, prato básico, suco de
-  máquina, fruta e gelatina entram. O valor da parcela sem subsídio é **marcado no lançamento**
-  (`valorSemSubsidio`), não inferido do texto do cupom: dois cupons de mesmo total e composição
-  diferente produzem descontos diferentes, então adivinhar seria errar dinheiro em silêncio.
+* **Nem tudo no cupom tem subsídio, e na dúvida não tem.** Entra o que vem do **balcão das
+  comidas**: prato (kilo ou básico), suco de máquina, fruta, gelatina e sobremesa — **elaborada
+  inclusive**, desde 21/08/2026. Vão integrais para a folha a bebida de geladeira, o sorvete, o que
+  não é do balcão (café, salgado) e também o que o leitor não conseguiu reconhecer. O padrão
+  restritivo é deliberado, porque o app **prevê** desconto: errar prevendo mais é susto que não
+  acontece, errar prevendo menos é susto no contracheque.
+  O valor final é **marcado no lançamento** (`valorSemSubsidio`), nunca decidido pelo leitor: dois
+  cupons de mesmo total e composição diferente produzem descontos diferentes. O leitor do cupom
+  **sugere** o valor, escreve ao lado o que reconheceu e marca o campo com `CONFIRA`; quando não
+  reconhece nenhum item subsidiável, diz isso em vez de apresentar o número como conclusão.
 * **A participação não é comida.** É encargo por dia de uso, então `desconto + subsídio` passa do
   gasto exatamente nela. A tela mostra as parcelas separadas no rodapé do número da folha; nunca
   apresente os três valores como se somassem o gasto.
@@ -136,7 +191,7 @@ e valem as identidades:
 * **Subsídio e participação são política, não constante.** Ficam em `politicas/vigentes`, com
   **data de vigência**: o administrador cadastra a nova regra e os lançamentos antigos continuam
   calculados pela regra que valia na data deles. O padrão, quando não há nada cadastrado, é
-  subsídio de R$ 35,00 por dia e participação de 0,15%.
+  subsídio de R$ 35,00 por dia e participação de até 0,15%.
 * **O salário entra, e não sai do aparelho.** Fica em `privado.salarioBase`, informado no Perfil,
   gravado só no `localStorage` por `gravarPrivado()` — que **não chama `salvarPerfil`**. Nunca vai
   para o Firestore: `prefs` sincroniza e é lido pelo administrador, `privado` não existe no
@@ -199,13 +254,29 @@ nenhum documento sigiloso transita no app.
 
 ### 5.5 Perfil
 
-Conta Google (nome, e-mail, foto), matrícula, teto mensal, alerta de limite, exportação do
-período e sair. Para administrador, mais: **Gerenciar acessos** e **Políticas de desconto**.
+Conta Google (nome, e-mail, foto), **salário-base**, matrícula, teto mensal, alerta de limite,
+exportação do período e sair. Para administrador, mais: **Gerenciar acessos** e **Políticas de
+desconto**.
+
+O salário-base é o único campo que **não sincroniza** — fica em `privado`, no `localStorage`, e a
+linha mostra a participação já calculada (`0,15% = R$ 15,00 POR DIA`) junto do aviso de que o valor
+não sai do aparelho. Vazio é o padrão.
 
 ### 5.6 Dúvidas
 
-Memória de cálculo linha por linha e FAQ, incluindo o que o número grande mostra, de onde vem o
-teto, por que aparecem duas linhas no contracheque e como tratar gasto fora da FGV.
+Memória de cálculo linha por linha e FAQ. A memória lista, nesta ordem: consumo bruto, subsídio da
+Sapore (R$ 35,00 **por dia**, e não é de graça abaixo do teto), o que tem subsídio, o que não tem,
+participação, Rei do Mate, fora
+da FGV, quinzenas e o resultado. **A ordem importa:** o que entra vem antes do que não entra,
+porque começar pela lista de exclusão faz parecer que todo o resto entra — foi assim que a tela
+passou a contradizer o cálculo uma vez.
+
+O FAQ cobre o que o número grande mostra, de onde vem o subsídio de R$ 35,00 por dia, **o que entra
+e o que não entra no subsídio**, por que a rubrica do mês pode não bater com o consumo do mês, quem
+consegue ver o salário, como o app lê o cupom e como tratar gasto fora da FGV.
+
+> Esta tela é a explicação do que o cálculo faz. **Mudou a regra, mude as duas juntas** — app
+> cobrando de um jeito e explicando de outro é pior do que app sem explicação.
 
 ## 6. Dados
 

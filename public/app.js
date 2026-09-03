@@ -122,14 +122,15 @@ function paraBR(dataHora){
   const [a, m, dia] = d.split("-");
   return `${dia}/${m}/${a}` + (h ? ` ${h.slice(0, 5)}` : "");
 }
-/** "19/08/2026 12:34" -> "2026-08-19T12:34" (vazio se inválido) */
-function paraIso(texto){
-  const t = String(texto || "").trim();
-  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?/);
-  if (!m) return "";
-  const [, dia, mes, ano, hh, mm] = m;
-  if (+mes < 1 || +mes > 12 || +dia < 1 || +dia > 31) return "";
-  return `${ano}-${pad2(mes)}-${pad2(dia)}` + (hh ? `T${pad2(hh)}:${mm}` : "T12:00");
+/**
+ * O que vem de um <input type="datetime-local"> -> "AAAA-MM-DDTHH:MM".
+ * O navegador já entrega no formato interno do app, então aqui não se
+ * interpreta texto: só corta segundos (que alguns navegadores acrescentam) e
+ * valida. Vazio quando o campo está vazio ou fora de faixa.
+ */
+function normalizaDataHora(valor){
+  const t = String(valor || "").slice(0, 16);
+  return /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : "";
 }
 /** "1.234,56" ou "28,90" ou "28.90" -> Number */
 function paraValor(texto){
@@ -157,14 +158,23 @@ function politicaEm(dataIso){
 }
 
 /**
- * O que o subsídio cobre neste lançamento. Nem tudo no cupom entra: item de
- * geladeira (refrigerante em lata ou garrafa) e sobremesa elaborada (bolo,
- * salada de frutas) vão integrais para a folha. Kilo, prato básico, suco de
- * máquina, fruta e gelatina entram.
+ * O que o subsídio cobre neste lançamento. Nem tudo no cupom entra: o critério
+ * do DRH é "somente o que está no balcão das comidas". Kilo, prato básico, suco
+ * de máquina, fruta, gelatina e sobremesa — elaborada inclusive, desde agosto de
+ * 2026. Bebida de geladeira, sorvete, café e salgado vão integrais para a folha.
  */
 function baseSubsidiavel(l){
   if (l.local !== "Sapore") return 0;
-  return Math.max(0, num(l.valor) - num(l.valorSemSubsidio));
+  return Math.max(0, num(l.valor) - semSubsidioDe(l));
+}
+
+/**
+ * A parte do lançamento que não tem subsídio. Limitada ao valor da nota porque
+ * `baseSubsidiavel` já trunca em zero: sem o mesmo teto aqui, um "sem subsídio"
+ * maior que o valor faria as parcelas da folha somarem mais que o excedente.
+ */
+function semSubsidioDe(l){
+  return Math.min(num(l.valorSemSubsidio), num(l.valor));
 }
 
 /* ---------- rateio do teto diário ----------
@@ -200,15 +210,53 @@ function calcularRateio(lista){
     if (!dias.has(d)) dias.set(d, []);
     dias.get(d).push(l);
   }
+  const c = v => Math.round(v * 100) / 100;
   const mapa = new Map();
   for (const [d, doDia] of dias){
     let resta = num(politicaEm(d).teto);
-    for (const l of doDia.sort(cronologico)){
+    const notas = doDia.sort(cronologico);
+
+    // 1) o teto do dia, em ordem cronológica: a primeira nota consome primeiro
+    const bruto = notas.map(l => {
       const sub = Math.min(baseSubsidiavel(l), Math.max(0, resta));
       resta -= sub;
-      // excedente = tudo o que a FGV não cobriu, inclusive os itens sem subsídio
-      mapa.set(l.id, { subsidio: sub, excedente: num(l.valor) - sub });
-    }
+      return sub;
+    });
+
+    /* 2) a participação do dia SAI do subsídio, porque subsídio da FGV é o que
+       ela bancou de fato — não o que ela paga à Sapore e depois cobra de você.
+       Sai na mesma ordem cronológica.
+
+       É ATÉ 0,15%, não 0,15% cheio. Resposta do DRH em 24/08/2026, textual:
+       "não 0,15% cheio para toda vez que for comer — se seu prato deu 5 reais,
+       você vai pagar 5 reais na folha, mesmo seu 0,15% for 22,50". Ou seja, a
+       participação é um TETO do que você paga, não um piso: ela nunca passa do
+       subsídio que a FGV daria naquele dia. Por isso o corte é limitado à soma
+       de `bruto`, e não ao percentual solto — e por isso a soma sempre fecha
+       com o gasto, sem exceção. */
+    let falta = Math.min(participacaoDoDia(d), bruto.reduce((a, v) => a + v, 0));
+    notas.forEach((l, i) => {
+      const corte = Math.min(bruto[i], falta);
+      falta = c(falta - corte);
+      const sub = c(bruto[i] - corte);
+      /* O excedente sai aberto nas três parcelas que o compõem, e não é
+         decoração: a tela precisa mostrar de onde vem cada real da folha, e
+         recalcular isso lá fora foi exatamente o que fez o card da Home somar
+         a participação duas vezes. Aqui ela é subtraída do subsídio no mesmo
+         lugar em que é atribuída, então as parcelas não têm como divergir do
+         total. Vale a identidade, por lançamento:
+             excedente = participacao + acimaDoTeto + semSub          */
+      mapa.set(l.id, {
+        subsidio: sub,
+        excedente: c(num(l.valor) - sub),
+        parte: { participacao: corte,
+                 acimaDoTeto: c(baseSubsidiavel(l) - bruto[i]),
+                 semSub: semSubsidioDe(l) },
+      });
+    });
+    /* Não há sobra de participação a distribuir: `falta` foi limitada à soma de
+       `bruto`, então os cortes a consomem inteira. Se algum dia aparecer sobra
+       aqui, a regra mudou de volta para piso e este é o ponto a rever. */
   }
   return mapa;
 }
@@ -221,7 +269,10 @@ function rateioDe(l){
   const r = rateio().get(l.id);
   if (r) return r;
   const sub = Math.min(baseSubsidiavel(l), num(politicaEm(dataDe(l)).teto));
-  return { subsidio: sub, excedente: num(l.valor) - sub };
+  return { subsidio: sub, excedente: num(l.valor) - sub,
+           parte: { participacao: 0,
+                    acimaDoTeto: baseSubsidiavel(l) - sub,
+                    semSub: semSubsidioDe(l) } };
 }
 
 /**
@@ -248,9 +299,13 @@ function foraDaFolhaDe(l){
 }
 
 /**
- * A participação de UM dia: o percentual da política vigente naquela data,
- * aplicado ao salário base que está guardado só neste aparelho, arredondado ao
- * centavo. Zero enquanto ninguém informar o salário — o app não inventa número.
+ * O TETO da participação de um dia: o percentual da política vigente naquela
+ * data, aplicado ao salário base que está guardado só neste aparelho,
+ * arredondado ao centavo. Zero enquanto ninguém informar o salário — o app não
+ * inventa número.
+ * É um teto, não o valor cobrado: quem cobra menos que isso num dia de prato
+ * barato é `calcularRateio`, que limita o corte ao subsídio do dia. Para saber
+ * quanto saiu de fato, use `rateioDe(l).parte.participacao`.
  */
 function participacaoDoDia(dataIso){
   const s = num(privado.salarioBase);
@@ -260,31 +315,19 @@ function participacaoDoDia(dataIso){
 }
 
 /**
- * A participação do período: uma incidência por DIA com consumo na Sapore.
- * Dia em que você só passou no Rei do Mate não conta — o benefício subsidiado é
- * o do refeitório. Soma dia a dia em vez de multiplicar pela contagem, porque o
- * percentual tem vigência e pode ser diferente em dias diferentes.
- */
-function participacaoDe(diasSapore){
-  let total = 0;
-  for (const d of diasSapore) total += participacaoDoDia(d);
-  return total;
-}
-
-/**
  * Consolidado do período. A soma fecha assim, por construção:
- *   bruto = subsidio (FGV) + excedente + rei + fora
- *   desconto (folha) = excedente + rei + participacao
- * Ou seja: desconto + subsidio = bruto + participacao. A participação NÃO é
- * parcela do consumo — é encargo por dia de uso, e não paga comida. Por isso
- * ela sobra na conta, e é isso que a tela precisa deixar claro.
+ *   bruto = subsidio (FGV, LÍQUIDO) + desconto (folha) + fora
+ * O subsídio é o que a FGV bancou de fato: o teto do dia menos a sua
+ * participação, que sai dele no rateio. Por isso a soma fecha em três termos —
+ * e fecha SEMPRE, sem exceção, porque a participação é "até 0,15%" e nunca
+ * passa do subsídio do dia.
  * Calcular o subsídio como "bruto − desconto" daria errado por dois motivos: o
  * gasto fora da FGV entraria como coisa subsidiada, e a participação viraria
  * subsídio negativo.
  */
 function resumo(lista){
   const r = { n: lista.length, bruto: 0, desconto: 0, subsidio: 0, fora: 0,
-              excedente: 0, rei: 0, participacao: 0, diasSapore: new Set(),
+              excedente: 0, rei: 0, participacao: 0, acimaDoTeto: 0, semSub: 0,
               nFora: 0, revisar: 0, porLocal: {} };
   for (const nome of LOCAIS) r.porLocal[nome] = { n: 0, bruto: 0, desconto: 0 };
 
@@ -297,7 +340,14 @@ function resumo(lista){
     r.fora     += fora;
     if (l.local === "Sapore"){
       r.excedente += desc;
-      if (dataDe(l)) r.diasSapore.add(dataDe(l));
+      /* As parcelas vêm do rateio, não de um cálculo próprio daqui: é o rateio
+         que sabe quanto da participação coube a este lançamento. Somadas, elas
+         dão exatamente r.excedente — inclusive na lista filtrada, porque cada
+         parcela viaja junto do lançamento a que pertence. */
+      const p = rateioDe(l).parte;
+      r.participacao += p.participacao;
+      r.acimaDoTeto  += p.acimaDoTeto;
+      r.semSub       += p.semSub;
     } else if (l.local === "Rei do Mate"){
       r.rei += desc;
     }
@@ -306,8 +356,12 @@ function resumo(lista){
     const alvo = r.porLocal[l.local] || (r.porLocal[l.local] = { n: 0, bruto: 0, desconto: 0 });
     alvo.n++; alvo.bruto += bruto; alvo.desconto += desc;
   }
-  r.participacao = participacaoDe(r.diasSapore);
-  r.desconto = r.excedente + r.rei + r.participacao;
+  /* A participação NÃO entra aqui: ela já saiu do subsídio no rateio e por isso
+     está DENTRO de r.excedente. Somá-la de novo contaria duas vezes — foi o que
+     o card da Home fez, mostrando "participação + excedente + Rei" numa soma que
+     não batia com o próprio total ao lado. Por isso r.participacao é parcela de
+     r.excedente, nunca uma quarta parcela ao lado dele. */
+  r.desconto = r.excedente + r.rei;
   return r;
 }
 
@@ -352,8 +406,7 @@ function porDia(lista){
     if (l.local === "Sapore") atual.sapore = true;
     mapa.set(d, atual);
   }
-  // a participação é por dia com consumo na Sapore, uma vez em cada
-  for (const d of mapa.values()) if (d.sapore) d.desconto += participacaoDoDia(d.data);
+  // a participação já está dentro do desconto de cada lançamento, via rateio
   return [...mapa.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
 
@@ -367,8 +420,7 @@ function porMes(lista){
     if (l.local === "Sapore" && dataDe(l)) atual.dias.add(dataDe(l));
     mapa.set(m, atual);
   }
-  // tantas participações quantos dias com consumo na Sapore o mês tiver
-  for (const m of mapa.values()) m.desconto += participacaoDe(m.dias);
+  // a participação já está dentro do desconto de cada lançamento, via rateio
   return [...mapa.values()].sort((a, b) => a.data.localeCompare(b.data));
 }
 
@@ -659,6 +711,7 @@ function pintar(){
   pintarEstatisticas(doPeriodo, ini, fim, rotulo);
   pintarConciliar();
   pintarPerfil();
+  pintarExemplos();
   pintarPoliticas();
   pintarGraficos(doPeriodo);
 }
@@ -719,15 +772,26 @@ function pintarHome(lista, ini, fim){
   /* A composição da folha, escrita por extenso. Com a participação valendo, os
      números do card deixam de somar o gasto — a participação é encargo por dia
      de uso, não comida — e a única forma de isso não parecer defeito é mostrar
-     de onde vem cada parcela. */
+     de onde vem cada parcela.
+     As parcelas são as do rateio e somam EXATAMENTE o número ao lado. Não é
+     detalhe de estilo: a versão anterior listava "participação + excedente",
+     e o excedente já contém a participação — o card exibia R$ 41,65 e uma
+     conta que dava R$ 63,40 logo abaixo. Ao mexer aqui, confira que as
+     parcelas ainda somam r.desconto. */
   const partes = [];
   if (r.participacao) partes.push(`PARTICIPAÇÃO R$ ${brl(r.participacao)}`);
-  if (r.excedente)    partes.push(`EXCEDENTE R$ ${brl(r.excedente)}`);
+  if (r.acimaDoTeto)  partes.push(`PASSOU DO TETO R$ ${brl(r.acimaDoTeto)}`);
+  if (r.semSub)       partes.push(`SEM SUBSÍDIO R$ ${brl(r.semSub)}`);
   if (r.rei)          partes.push(`REI DO MATE R$ ${brl(r.rei)}`);
   põeDestaque("vFolha", "hFolha", r.desconto,
     partes.length ? partes.join(" + ") : "NADA PASSOU DO TETO DIÁRIO");
+  /* "A FGV COBRE ATÉ R$ 35,00" sozinho lê como refeição de graça abaixo do teto,
+     e não é: você paga a sua parte em todo dia de uso. Correção do DRH, e vale
+     para todo texto do app que fale do subsídio. A parte é ATÉ o percentual —
+     em dia de prato barato sai o valor do prato, e nunca mais que ele. */
   põeDestaque("vSubsidio", "hSubsidio", r.subsidio,
-    `A FGV COBRE ATÉ R$ ${brl(pol.teto)} POR DIA NA SAPORE`);
+    `ATÉ R$ ${brl(pol.teto)} POR DIA NA SAPORE · VOCÊ PAGA ATÉ `
+    + `${String(pol.taxaPct).replace(".", ",")}% DO SALÁRIO`);
 
   /* O aviso de estimativa tem redação fixa e diz que a participação está fora
      da conta. Informado o valor, ela entra — e o aviso passaria a mentir. Em
@@ -951,6 +1015,48 @@ function poe(id, texto, pendente){
   if (arguments.length > 2) x.classList.toggle("stat__val--pending", !!pendente);
 }
 
+/**
+ * Os quatro casos da regra, calculados com o salário de quem está lendo. Uma
+ * tabela genérica não convence ninguém: "até 0,15%" só fica claro quando a
+ * pessoa vê o próprio número parando no valor do prato. Sem salário informado,
+ * usa um exemplo declarado como exemplo — nunca um número do usuário inventado.
+ *
+ * Os casos "abaixo" e "exatamente" são relativos ao salário, porque os 0,15%
+ * mudam; os dois de cima são fixos (R$ 30,00 e R$ 42,00) para dar comparação.
+ */
+function pintarExemplos(){
+  const alvo = el("exemplosRegra");
+  if (!alvo) return;
+  const pol = politicaEm(hojeIso());
+  const teto = num(pol.teto), refri = 6.90;
+  const meu = num(privado.salarioBase);
+  const salario = meu > 0 ? meu : 5500;
+  const part = Math.round(salario * num(pol.taxaPct)) / 100;
+
+  poe("exemplosHint", (meu > 0 ? "COM O SEU SALÁRIO" : "EXEMPLO COM SALÁRIO DE R$ 5.500")
+    + ` · 0,15% = R$ ${brl(part)} POR DIA · SEMPRE COM UM REFRIGERANTE DE R$ ${brl(refri)}`);
+
+  /* A regra inteira, em duas linhas — as mesmas do rateio, sem o teto do dia
+     dividido entre notas, porque aqui é sempre uma refeição só. */
+  const folha = p => Math.round((Math.min(p, part) + Math.max(0, p - teto) + refri) * 100) / 100;
+  const fgv   = p => Math.round((Math.min(p, teto) - Math.min(p, part)) * 100) / 100;
+
+  /* O prato do caso "abaixo" é derivado, não escolhido: 80% dos 0,15%, em reais
+     inteiros. Assim o app e o infográfico de docs/ mostram o mesmo exemplo para
+     o mesmo salário — número de exemplo divergente entre dois documentos da
+     mesma regra é exatamente o que faz alguém desconfiar dos dois. */
+  const abaixo = Math.max(1, Math.floor(part * 0.8));
+  const casos = [
+    ["Prato abaixo dos 0,15%", abaixo],
+    ["Prato exatamente nos 0,15%", part],
+    ["Prato acima dos 0,15%, dentro do teto", 30],
+    [`Prato acima do teto de R$ ${brl(teto)}`, 42],
+  ];
+  alvo.innerHTML = casos.map(([nome, p]) =>
+    `<div class="formula__line"><span>${esc(nome)} · prato R$ ${brl(p)}`
+    + ` · FGV paga R$ ${brl(fgv(p))}</span><b>R$ ${brl(folha(p))}</b></div>`).join("");
+}
+
 function pintarConciliar(){
   const corpo = el("quinzCorpo");
   if (!corpo) return;
@@ -987,13 +1093,18 @@ function pintarPerfil(){
     teto.classList.toggle("stat__val--pending", !prefs.tetoMensal);
   }
 
+  const u = lerUltimaLeitura();
+  poe("pUltimaLeitura", u
+    ? `${paraBR(u.quando.slice(0, 10))} ÀS ${u.quando.slice(11, 16)} · SÓ NESTE APARELHO`
+    : "NENHUMA LEITURA NESTE APARELHO");
+
   const hPart = el("hParticipacao");
   if (hPart){
     const s = num(privado.salarioBase);
     const pct = String(politicaEm(hojeIso()).taxaPct).replace(".", ",");
     hPart.textContent = s > 0
       ? `${pct}% = R$ ${brl(participacaoDoDia())} POR DIA · SÓ NESTE APARELHO, NUNCA VAI PARA A NUVEM`
-      : `A INFORMAR · SEM ELE A PARTICIPAÇÃO DE ${pct}% FICA FORA DA CONTA`;
+      : `O BRUTO DO CONTRACHEQUE · SEM ELE A PARTICIPAÇÃO DE ${pct}% FICA FORA DA CONTA`;
   }
   const vPart = el("pSalario");
   if (vPart){
@@ -1348,6 +1459,7 @@ function abrirLancamento(modo, id){
   if (ocrBar) ocrBar.hidden = revisao;
   if (thumb)  thumb.hidden  = revisao;
   mostrarDiagnostico("", "");
+  mostrarLinkSefaz("");
 
   const wrap = el("campoDataWrap");
   if (wrap){
@@ -1374,7 +1486,7 @@ function preencherFormulario(l, manual){
   const põe = (id, v) => { const x = el(id); if (x) x.value = v ?? ""; };
   põe("campoValor",     l ? brl(l.valor) : "");
   põe("campoSemSubsidio", l && num(l.valorSemSubsidio) ? brl(l.valorSemSubsidio) : "");
-  põe("campoData",      l ? paraBR(l.dataHora) : (manual ? paraBR(agoraIso()) : ""));
+  põe("campoData",      l ? l.dataHora : (manual ? agoraIso() : ""));
   põe("campoItens",     l ? l.itens : "");
   põe("campoMatricula", l ? l.matricula : prefs.matricula);
   põe("campoCupom",     l ? l.numeroCupom : "");
@@ -1387,12 +1499,24 @@ function preencherFormulario(l, manual){
 
   marcarLocal((l && l.local) || "Sapore");
 
+  /* Zera o palpite do leitor anterior: nota e selo de CONFIRA são de UMA leitura,
+     e ficar na tela do lançamento seguinte apontaria para item que não existe. */
+  const notaSS = el("notaSemSubsidioOCR");
+  if (notaSS){ notaSS.hidden = true; notaSS.textContent = ""; }
+  const wrapSS = el("campoSemSubsidioWrap");
+  if (wrapSS){
+    wrapSS.classList.remove("field--check");
+    const emSS = wrapSS.querySelector("em"); if (emSS) emSS.hidden = true;
+  }
+
   const img = el("thumbImg");
   if (img){ img.hidden = true; img.removeAttribute("src"); }
   const icone = el("thumbIcone");
   if (icone) icone.hidden = false;
   poe("thumbNome", l ? "lançamento salvo" : "nenhum arquivo");
   poe("thumbMeta", l ? `ORIGEM ${String(l.origem || "manual").toUpperCase()}` : "");
+
+  pintarContaLanc();
 }
 
 function marcarLocal(local){
@@ -1407,15 +1531,110 @@ function marcarLocal(local){
   const aviso0 = el("avisoSemSubsidio");
   if (aviso0) aviso0.hidden = local !== "Outro";
   /* Item sem subsídio só existe na Sapore: no Rei do Mate tudo é integral e o
-     "Outro" nem passa pela folha. */
+     "Outro" nem passa pela folha. Na Sapore ele ganha destaque, porque é o
+     único número da tela que o app não tem como deduzir e que muda o dinheiro:
+     sem isso ele lê como campo opcional e fica em branco. */
   const semSub = el("campoSemSubsidioWrap");
-  if (semSub) semSub.hidden = local !== "Sapore";
+  if (semSub){
+    semSub.hidden = local !== "Sapore";
+    semSub.classList.toggle("field--sapore", local === "Sapore");
+  }
+  pintarContaLanc();   // trocou de lugar, a conta muda
+}
+
+/**
+ * A conta deste lançamento, na tela, enquanto a pessoa digita. Existe porque o
+ * app pode classificar certo e ainda assim parecer errado: sem ver a conta, um
+ * subsídio de R$ 1,42 num almoço de R$ 23,32 parece defeito, e é a regra.
+ *
+ * Usa o salário que JÁ ESTÁ no aparelho — não pede de novo e não supõe valor.
+ * Considera o teto do dia já consumido pelas OUTRAS notas do mesmo dia, senão
+ * a segunda refeição do dia mostraria um teto inteiro que já foi gasto.
+ */
+function pintarContaLanc(){
+  const alvo = el("contaLanc");
+  if (!alvo) return;
+  const ativo = qs("#grupoLocal button.is-active");
+  const local = ativo ? ativo.dataset.local : "Sapore";
+  const valor = paraValor(el("campoValor")?.value);
+  const dataIso = normalizaDataHora(el("campoData")?.value);
+
+  if (!isFinite(valor) || valor <= 0){
+    alvo.hidden = true;
+    return;
+  }
+  const dizer = (r, v) =>
+    `<div class="formula__line"><span>${esc(r)}</span><b>${v}</b></div>`;
+
+  /* Os três casos têm regra de dinheiro DIFERENTE, e a tela do lançamento é
+     onde isso fica visível. Sem estas duas mensagens, quem lança no Rei do Mate
+     ou fora da FGV não vê conta nenhuma e fica sem saber por quê. */
+  if (local === "Rei do Mate"){
+    alvo.innerHTML = dizer("Rei do Mate", "sem subsídio")
+      + dizer("Não usa o teto de R$ " + brl(num(politicaEm(dataIso.slice(0, 10) || hojeIso()).teto)) + " do dia", "é da Sapore")
+      + `<div class="formula__line formula__line--result"><span>Vai para a sua folha</span><b>R$ ${brl(valor)} integral</b></div>`;
+    alvo.hidden = false;
+    return;
+  }
+  if (local === "Outro"){
+    alvo.innerHTML = dizer("Fora da FGV", "0% de subsídio")
+      + dizer("Você pagou na hora, do seu bolso", "não passa pela folha")
+      + `<div class="formula__line formula__line--result"><span>Entra só no seu gasto do período</span><b>R$ ${brl(valor)}</b></div>`;
+    alvo.hidden = false;
+    return;
+  }
+  if (!dataIso){ alvo.hidden = true; return; }   // Sapore precisa da data: o teto é do dia
+  const dia = dataIso.slice(0, 10);
+  const pol = politicaEm(dia);
+  const teto = num(pol.teto);
+  const semSub = Math.min(Math.max(0, paraValor(el("campoSemSubsidio")?.value) || 0), valor);
+  const base = Math.round((valor - semSub) * 100) / 100;
+
+  /* Teto que as outras notas Sapore do mesmo dia já consumiram. Exclui a que
+     está sendo editada, senão ela contaria duas vezes. */
+  const usado = lancamentos
+    .filter(l => l.local === "Sapore" && dataDe(l) === dia && l.id !== editandoId)
+    .reduce((a, l) => a + baseSubsidiavel(l), 0);
+  const resta = Math.max(0, Math.round((teto - usado) * 100) / 100);
+
+  const subBruto = Math.min(base, resta);
+  const excedente = Math.round((base - subBruto) * 100) / 100;
+  /* `part` é o TETO da participação — é "até 0,15%", não 0,15% cheio. No dia de
+     prato mais barato que ela, sai o valor do prato. Sem esse limite a tela
+     mostraria desconto maior que o consumo, que foi o que o DRH desmentiu. */
+  const part = participacaoDoDia(dia);
+  const jaTemNoDia = usado > 0;   // a participação do dia já foi cobrada na 1ª nota
+  const partAqui = jaTemNoDia ? 0 : Math.min(part, subBruto);
+  const partLimitada = !jaTemNoDia && part > 0 && partAqui < part;
+  const folha = Math.round((partAqui + excedente + semSub) * 100) / 100;
+  const linha = (r, v, cls) =>
+    `<div class="formula__line${cls ? " " + cls : ""}"><span>${esc(r)}</span><b>R$ ${brl(v)}</b></div>`;
+
+  let html = linha("Com subsídio (balcão)", base)
+           + (semSub ? linha("Sem subsídio (geladeira, fora do balcão)", semSub) : "")
+           + `<div class="formula__line"><span>Teto do dia</span><b>R$ ${brl(teto)}${
+               jaTemNoDia ? ` · resta ${brl(resta)}` : ""}</b></div>`;
+  if (excedente) html += linha("Passou do teto", excedente);
+  const pct = String(pol.taxaPct).replace(".", ",");
+  html += part > 0
+    ? (jaTemNoDia
+        ? `<div class="formula__line"><span>Participação de ${pct}%</span><b>já cobrada hoje</b></div>`
+        : linha(partLimitada
+                  ? `Participação · limitada ao prato (${pct}% daria R$ ${brl(part)})`
+                  : `Participação de ${pct}% do salário`, partAqui))
+    : `<div class="formula__line"><span>Participação de ${pct}%</span><b>informe o salário no Perfil</b></div>`;
+  const subLiq = Math.max(0, Math.round((subBruto - partAqui) * 100) / 100);
+  html += linha("Subsídio da FGV", subLiq)
+        + linha("Vai para a sua folha", folha, "formula__line--result");
+
+  alvo.innerHTML = html;
+  alvo.hidden = false;
 }
 
 function lerFormulario(){
-  const dataIso = paraIso(el("campoData")?.value);
+  const dataIso = normalizaDataHora(el("campoData")?.value);
   const valor = paraValor(el("campoValor")?.value);
-  if (!dataIso) return { erro: "Data inválida. Use dd/mm/aaaa." };
+  if (!dataIso) return { erro: "Escolha a data e a hora." };
   if (!isFinite(valor) || valor <= 0) return { erro: "Informe um valor maior que zero." };
 
   const ativo = qs("#grupoLocal button.is-active");
@@ -1659,6 +1878,7 @@ async function lerCupom(file){
   if (ocrBar) ocrBar.hidden = false;
   if (thumb)  thumb.hidden  = false;
   mostrarDiagnostico("", "");
+  mostrarLinkSefaz("");   // link da leitura anterior apontaria para outra nota
 
   const t0 = Date.now();
   let worker = null, fonteQR = "", textoOCR = "", conf = 0;
@@ -1678,6 +1898,7 @@ async function lerCupom(file){
     leituraPasso("pQR", fonteQR ? "done" : "fail",
       fonteQR ? "QR code lido — dados exatos da nota" : "Sem QR legível nesta foto");
     leituraProgresso(30, fonteQR ? "QR code lido" : "Vamos pelo texto");
+    mostrarLinkSefaz(fonteQR);
 
     // ---- 2. OCR: preenche o que o QR não deu ----
     const faltaAlgo = campos.valor == null || !campos.dataHora || !campos.itens
@@ -1731,9 +1952,38 @@ async function lerCupom(file){
 
     const põe = (id, v) => { const x = el(id); if (x && v) x.value = v; };
     põe("campoValor", campos.valor != null ? brl(campos.valor) : "");
-    põe("campoData", paraBR(campos.dataHora || agoraIso()));
+    põe("campoData", campos.dataHora || agoraIso());
     põe("campoItens", campos.itens);
     põe("campoMatricula", campos.matricula || prefs.matricula);
+
+    /* O que o leitor achou de geladeira e sobremesa elaborada. Vai como
+       SUGESTÃO: o valor entra no campo e os itens reconhecidos aparecem escritos
+       do lado, para você conferir antes de salvar. Se ele errou, é só corrigir o
+       número — a lista de palavras não decide dinheiro sozinha. */
+    const notaSS = el("notaSemSubsidioOCR");
+    const wrapSS = el("campoSemSubsidioWrap");
+    const achouSS = campos.semSubsidio > 0;
+    if (achouSS){
+      põe("campoSemSubsidio", brl(campos.semSubsidio));
+      if (notaSS){
+        notaSS.hidden = false;
+        /* Cupom em que nada foi reconhecido como subsidiável quase sempre é
+           falha de leitura, não refeição inteira sem subsídio. Dizer isso é
+           mais honesto que apresentar o número como se fosse conclusão. */
+        notaSS.textContent = campos.achouSubsidiavel
+          ? `O leitor achou ${brl(campos.semSubsidio)} sem subsídio: `
+            + campos.itensSemSubsidio.join(", ").toLowerCase() + ". Confira."
+          : `O leitor não reconheceu nenhum item com subsídio neste cupom e jogou `
+            + `${brl(campos.semSubsidio)} para a folha. Pode ser falha de leitura — confira.`;
+      }
+    } else if (notaSS){
+      notaSS.hidden = true;
+      notaSS.textContent = "";
+    }
+    if (wrapSS){
+      wrapSS.classList.toggle("field--check", achouSS);
+      const emSS = wrapSS.querySelector("em"); if (emSS) emSS.hidden = !achouSS;
+    }
     põe("campoCupom", campos.numeroCupom);
     põe("campoCnpj", campos.cnpj);
     if (campos.local) marcarLocal(campos.local);
@@ -1745,7 +1995,18 @@ async function lerCupom(file){
     const chaves = Object.keys(rotulos);
     const achou = chaves.filter(k => campos[k] !== "" && campos[k] != null);
     const faltou = chaves.filter(k => achou.indexOf(k) < 0);
-    const baixa = campos.valor == null || (!fonteQR && conf < 75);
+    /* Soma dos itens contra o total impresso: divergiu, alguma linha o OCR leu
+       errado. O app fica com o TOTAL IMPRESSO, que é um número rotulado, e diz
+       o outro em vez de escolher calado — foi escolhendo sozinho que ele gravou
+       69,00 num almoço de 23,32. Como a divergência mora numa linha de item, a
+       divisão entre com e sem subsídio pode estar torta mesmo com o total
+       certo: por isso o aviso manda conferir os dois campos. */
+    if (campos.conflitoTotal != null){
+      aviso(`Ficamos com o total impresso, R$ ${brl(campos.valor)}, mas os itens `
+          + `somam R$ ${brl(campos.conflitoTotal)}. Confira o valor e o que ficou sem subsídio.`);
+    }
+    const baixa = campos.valor == null || campos.conflitoTotal != null
+               || (!fonteQR && conf < 75);
 
     poe("thumbMeta", `${((Date.now() - t0) / 1000).toFixed(1).replace(".", ",")} S · `
       + (fonteQR ? "QR CODE LIDO" : `OCR ${conf}%`) + ` · ${achou.length} DE 7 CAMPOS`);
@@ -1756,6 +2017,7 @@ async function lerCupom(file){
       const em = wrap.querySelector("em"); if (em) em.hidden = !baixa;
     }
 
+    pintarContaLanc();   // com os campos preenchidos, mostra a conta já feita
     leituraPasso("pCampos", "done", `${achou.length} de 7 campos preenchidos`);
     leituraProgresso(100, faltou.length ? "Confira o que faltou" : "Cupom lido inteiro");
     await espera(650);            // deixa o 100% aparecer antes de trocar de tela
@@ -1774,11 +2036,54 @@ async function lerCupom(file){
     mostrarPasso("review");
     aviso("Não deu para ler o cupom (" + (err.message || "erro no leitor") + "). Preencha à mão.");
     const d = el("campoData");
-    if (d && !d.value) d.value = paraBR(agoraIso());
+    if (d && !d.value) d.value = agoraIso();
   } finally {
     if (worker){ try { await worker.terminate(); } catch(e){} }
     URL.revokeObjectURL(url);   // a imagem morre aqui
   }
+}
+
+/**
+ * O QR da NFC-e É a URL da consulta na SEFAZ. O app não consegue BUSCAR a nota
+ * de lá — sem servidor, quem faz o pedido é o navegador, e um site só lê a
+ * resposta de outro se o outro autorizar; portal de fazenda não autoriza. Mas
+ * abrir o link não precisa de nada disso, e lá a nota aparece item por item,
+ * na fonte. É o melhor que dá para fazer dentro da arquitetura, e resolve o
+ * caso em que o OCR errou um número e você precisa do valor certo.
+ */
+function mostrarLinkSefaz(qr){
+  const linha = el("linhaSefaz");
+  const link = el("linkSefaz");
+  if (!linha || !link) return;
+  const m = String(qr || "").match(/https?:\/\/\S+/i);
+  linha.hidden = !m;
+  if (m) link.href = m[0];
+}
+
+/**
+ * A leitura mais recente, guardada NO APARELHO. O bloco de diagnóstico vive na
+ * tela do lançamento e some quando ela fecha — que é justamente quando a pessoa
+ * percebe que um campo veio errado e já não tem mais como mostrar o texto.
+ * Fica no localStorage, nunca no Firestore: o cupom traz nome e CPF, e a regra
+ * do projeto é que dado sensível não sobe. Uma leitura só, sempre a última.
+ */
+function guardarUltimaLeitura(texto){
+  try {
+    if (texto && texto.trim()){
+      localStorage.setItem(NS + "_ultimaLeitura",
+        JSON.stringify({ quando: new Date().toISOString(), texto }));
+    } else {
+      localStorage.removeItem(NS + "_ultimaLeitura");
+    }
+  } catch(e){}
+  /* Mudou estado, repinta: a navegação entre abas não repinta o Perfil, e sem
+     isto a linha ficava dizendo "nenhuma leitura" até recarregar a página. */
+  pintarPerfil();
+}
+
+function lerUltimaLeitura(){
+  try { return JSON.parse(localStorage.getItem(NS + "_ultimaLeitura") || "null"); }
+  catch(e){ return null; }
 }
 
 /** O que veio de cada fonte, na tela. Sem isto, "não reconheceu nada" é palpite. */
@@ -1790,11 +2095,20 @@ function mostrarDiagnostico(qr, ocr){
   if (qr)  partes.push("=== QR CODE ===\n" + qr);
   if (ocr) partes.push("=== TEXTO LIDO PELO OCR ===\n" + ocr);
   if (!qr && !ocr) partes.push("");
-  // CPF do cupom não interessa a ninguém, muito menos numa tela que você copia
-  const texto = partes.join("\n\n").replace(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g, "***.***.***-**");
+  /* CPF do cupom não interessa a ninguém, muito menos numa tela que você copia.
+     O padrão EXIGE o hífen e os dois dígitos finais: a versão frouxa de antes
+     casava com qualquer corrida de 11 dígitos e **comia a chave de acesso de 44
+     dígitos dentro da URL do QR** — quem copiava a URL e abria na SEFAZ recebia
+     "chave de acesso inválida". Mascarar demais também é defeito. */
+  const texto = partes.join("\n\n")
+    .replace(/\d{3}[.\s]\d{3}[.\s]\d{3}\s*-\s*\d{2}(?!\d)/g, "***.***.***-**");
   bloco.hidden = !texto.trim();
   pre.textContent = texto;
   if (!texto.trim()) bloco.removeAttribute("open");
+  /* Só grava leitura de verdade. As duas chamadas de reset passam vazio, e
+     apagar a leitura anterior ao abrir o formulário seguinte devolveria o
+     problema que esta função existe para resolver. */
+  if (texto.trim()) guardarUltimaLeitura(texto);
 }
 
 /** Junta duas leituras: o que já existe em `base` só é sobrescrito por `extra`. */
@@ -1816,13 +2130,49 @@ function normalizarOCR(t){
   return String(t)
     .replace(/[   ]/g, " ")
     .replace(/[|¦]/g, " ")
-    .replace(/R\s*[$Ss5]\s*(?=[\d.,])/gi, "R$ ")           // R$, RS, R5 -> R$
-    .replace(/(\d)\s+([.,])\s*(\d{2})(?!\d)/g, "$1$2$3")   // "44 ,40" -> "44,40"
-    .replace(/(\d)[oO](?=\d)/g, "$10")                     // "1o,50" -> "10,50"
-    .replace(/(\d)\s+(\d{3})(?!\d)/g, "$1$2");             // "1 234,00" -> "1234,00"
+    /* ATENÇÃO ao [ \t] em vez de \s nas regras numéricas: \s casa QUEBRA DE
+       LINHA, e aí "6,90" no fim de uma linha de item colava no "002" do começo
+       da seguinte. As duas linhas viravam uma, o item de baixo emprestava o
+       valor para o de cima e a classificação de subsídio ia junto — foi o que
+       fez um almoço de 23,32 ser gravado como 69,00. Consertar espaçamento
+       nunca pode juntar linhas. */
+    .replace(/R[ \t]*[$Ss5][ \t]*(?=[\d.,])/gi, "R$ ")        // R$, RS, R5 -> R$
+    .replace(/(\d)[ \t]+([.,])[ \t]*(\d{2})(?!\d)/g, "$1$2$3")// "44 ,40" -> "44,40"
+    .replace(/(\d)([.,])[ \t]+(\d{2})(?!\d)/g, "$1$2$3")      // "62, 00" -> "62,00"
+    .replace(/(\d)[oO](?=\d)/g, "$10")                        // "1o,50" -> "10,50"
+    .replace(/(\d)[ \t]+(\d{3})(?!\d)/g, "$1$2");             // "1 234,00" -> "1234,00"
 }
 
-const RE_APAGAR    = /a\s*p\s*a\s*g\s*a\s*r/i;
+/**
+ * Como `valoresDe`, mas aceitando o separador decimal que o OCR COMEU:
+ * "23 32" vale 23,32. Numa nota real da Sapore o Tesseract devolveu
+ *
+ *     VALOR TOTAL R$      23 32
+ *     VALOR A PAGAR R$    23 32
+ *     DEBITO CONSUM RJ    23 52
+ *
+ * — os três totais sem vírgula. Com `valoresDe` puro nenhum deles vira número,
+ * e a defesa do "total impresso ganha da soma das linhas" fica sem total para
+ * usar, justamente na hora em que ela mais importa.
+ *
+ * Só para linhas JÁ identificadas como total do cupom pelo rótulo. Solto no
+ * texto isso casaria com número de caixa, CEP e endereço; ali é dinheiro.
+ * A maioria continua sendo quem decide, e é ela que descarta o "23 52" acima.
+ */
+function valoresDeFrouxo(s){
+  const out = valoresDe(s);
+  if (out.length) return out;
+  const re = /(\d{1,4})[ \t]+(\d{2})(?!\d)/g;
+  let m;
+  while ((m = re.exec(String(s)))){
+    const v = parseFloat(m[1] + "." + m[2]);
+    if (isFinite(v) && v > 0 && v < 5000) out.push(v);
+  }
+  return out;
+}
+
+// o "À" de "VALOR À PAGAR" não é o "a" ASCII, e /a/i não casa com ele
+const RE_APAGAR    = /[aà]\s*p\s*a\s*g\s*a\s*r/i;
 const RE_TOTAL     = /t\s*[o0]\s*t\s*[a4]\s*[li1]/i;          // TOTAL, T0TAL, TOTAI
 const RE_SUBTOTAL  = /s\s*u\s*b\s*-?\s*t\s*[o0]/i;
 const RE_PAGAMENTO = /troco|dinheiro|cart[ãa]o|cr[eé]dito|d[eé]bito|\bpix\b|recebido|valor\s*pago|entregue|forma\s*(de\s*)?pag/i;
@@ -1830,6 +2180,68 @@ const RE_PAGAMENTO = /troco|dinheiro|cart[ãa]o|cr[eé]dito|d[eé]bito|\bpix\b|r
 const RE_RUIDO = /trib|aprox|federal|estadual|\blei\b\s*\d|procon|fone|icms|pis|cofins|\bcep\b|chave|acesso|aut\s*[:.]|consulte|nfc\s*-?\s*e|cpf|cnpj|\bqtde\b|aliq/i;
 
 /** Todos os valores monetários de um texto. */
+/* ---------- o que do cupom tem subsídio, e o que não tem ----------
+   A ordem da decisão é DELIBERADA e o padrão é restritivo:
+
+     1. casou em SEM_SUBSIDIO  -> não tem subsídio
+     2. casou em COM_SUBSIDIO  -> tem subsídio
+     3. não casou em nada      -> NÃO TEM SUBSÍDIO
+
+   O critério do DRH é o BALCÃO DAS COMIDAS: o que é servido ali entra. Sobremesa
+   elaborada — bolo, torta, pudim, salada de frutas — **passou a entrar** em
+   21/08/2026, por pedido do Fernando; antes disso ficava fora. O que continua
+   fora é bebida embalada de geladeira e o que vem do freezer.
+
+   O passo 3 é a escolha que importa: o DRH não disse o que fazer com o que não
+   está no balcão das comidas (café, salgado). Duas razões para ficar de fora:
+   — a instituição lê benefício pelo lado que gasta menos, e é essa leitura que
+     aparece no contracheque;
+   — este app PREVÊ desconto. Prever desconto maior do que vem é susto que não
+     acontece; prever menor é susto no contracheque.
+   Os padrões são sem acento e em minúsculas porque a comparação passa por
+   chave(), que normaliza. */
+const SEM_SUBSIDIO = [
+  // bebida embalada, de geladeira
+  /refrig/, /coca/, /guaran/, /fanta/, /sprite/, /pepsi/, /schwepp/, /tonica/,
+  /agua com gas/, /agua c\/ gas/, /agua mineral/, /agua sem gas/, /agua s\/ gas/,
+  /suco.*(lata|garrafa|cx|caixa|long neck)/, /del valle/, /cha gelado/, /mate leao/,
+  /cerveja/, /energetic/, /red bull/, /gatorade/, /isoton/, /h2oh/,
+  /iogurte/, /danone/, /leite ferment/, /yakult/, /chocolate ao leite/,
+  // do freezer, que não é o balcão das comidas
+  /sorvete/, /picole/, /acai/,
+];
+
+/* O que tem subsídio: o balcão das comidas. Prato — com as variações de escrita
+   que o cupom e o OCR produzem para a MESMA coisa (self-service, por peso,
+   refeição, quilo com q) — mais fruta, gelatina, suco de máquina e a sobremesa
+   do balcão, elaborada inclusive.
+   Não acrescente item aqui sem o DRH ter dito que entra: cada palavra a mais é
+   dinheiro que o app deixa de prever como desconto. */
+const COM_SUBSIDIO = [
+  // o prato
+  /\bkilo\b/, /\bquilo\b/, /\bkg\b/, /self.?serv/, /por peso/, /a peso/,
+  /\bbasic/, /prato basic/, /refeic/, /\bbufe\b/, /buffet/,
+  // o resto do balcão
+  /suco/, /\bfruta/, /gelatina/, /sobremesa/,
+  /\bbolo/, /torta/, /pudim/, /mousse/, /salada de frut/, /brigadeir/,
+  /beijinho/, /doce de leite/, /pave/, /cheesecake/, /brownie/, /petit gateau/,
+  /churros/, /cannoli/, /tiramisu/, /banoffee/, /flan/, /manjar/,
+];
+
+/**
+ * Uma linha do cupom tem subsídio? A ordem decide, e o padrão é NÃO.
+ * O que não está no balcão das comidas fica de fora: na dúvida, vai integral
+ * para a folha. Ver o comentário de SEM_SUBSIDIO para o porquê.
+ */
+function temSubsidio(linha){
+  const t = chave(linha);
+  if (SEM_SUBSIDIO.some(re => re.test(t))) return false;   // geladeira e freezer
+  return COM_SUBSIDIO.some(re => re.test(t));              // fora do balcão = não entra
+}
+
+/** O contrário, que é o que o formulário precisa somar. */
+const naoTemSubsidio = linha => !temSubsidio(linha);
+
 function valoresDe(s){
   const out = [];
   const re = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+|\d+)\s*[.,](\d{2})(?!\d)/g;
@@ -1854,7 +2266,9 @@ function extrairCampos(texto){
   const linhas = t.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const plano = chave(t);
   const out = { valor: null, dataHora: "", local: "", itens: "",
-                matricula: "", numeroCupom: "", cnpj: "" };
+                matricula: "", numeroCupom: "", cnpj: "",
+                semSubsidio: 0, itensSemSubsidio: [], achouSubsidiavel: false,
+                conflitoTotal: null };
 
   /* --- a chave de acesso impressa vale mais que tudo: 44 dígitos em grupos
          de 4, que o OCR acerta bem. Dela saem CNPJ e nº do cupom.
@@ -1872,16 +2286,105 @@ function extrairCampos(texto){
     }
   }
 
-  /* --- valor: "A PAGAR" manda, depois "TOTAL", depois o maior valor limpo --- */
+  /* --- valor ---
+     A regra antiga pegava o MAIOR valor da linha e, em último recurso, o maior
+     valor do cupom inteiro. Os dois erram no cupom da Sapore:
+
+       002 BUFFET KILO - KG   0,24 KG   69,00   16,42
+                                          ↑        ↑
+                                  preço por kg   Vl.Tot
+
+     O maior é o preço unitário. Numa linha de item o que vale é o ÚLTIMO valor,
+     que é a coluna Vl.Tot. E "o maior do cupom" fez o app gravar 69,00 num
+     almoço de 23,32 — chute que passa por leitura.
+
+     Depois disso o valor passou a vir da SOMA DOS ITENS, e essa também caiu: a
+     soma só vale se o OCR acertou TODAS as linhas do cupom, e ele não acerta.
+     Na mesma nota de 23,32 o Tesseract leu o código do produto como texto
+     ("7894900700015" virou "Saad00TOD015"), linhas do rodapé entraram como item
+     e a soma deu R$ 51,84 — num cupom que traz 23,32 impresso em TRÊS lugares
+     (VALOR TOTAL, VALOR A PAGAR e a linha do débito).
+
+     Daí as duas defesas de agora, as duas estruturais:
+
+     1) O item só é procurado DENTRO da tabela de itens, entre o cabeçalho
+        ("Descrição ... Vl.Tot") e o fecho ("QTDE. TOTAL DE ITENS"). Confiar numa
+        lista de padrões de ruído para excluir o rodapé é apostar contra o OCR
+        toda vez; o delimitador não depende de adivinhar como o lixo se parece.
+     2) O total IMPRESSO ganha da soma. É um número rotulado, e quando o mesmo
+        valor aparece em mais de uma linha rotulada ele ganha por maioria — três
+        linhas dizendo 23,32 não é coincidência de OCR.
+
+     A soma dos itens continua servindo para separar o que tem subsídio do que
+     não tem, e para acusar divergência. Sem total e sem itens, o campo fica
+     VAZIO: melhor pedir para digitar que inventar dinheiro. */
   const util = l => !RE_PAGAMENTO.test(l) && !RE_RUIDO.test(l);
-  const primeiro = (filtro) => {
-    const cands = linhas.filter(l => filtro(l) && util(l)).flatMap(valoresDe);
+  const ehResumo = l => RE_TOTAL.test(l) || RE_SUBTOTAL.test(l) || RE_APAGAR.test(l);
+  const ehItem = l => util(l) && !ehResumo(l) && valoresDe(l).length > 0;
+
+  /** O total de uma linha de item: o último valor, que é a coluna Vl.Tot. */
+  const totalDaLinha = l => { const v = valoresDe(l); return v[v.length - 1]; };
+
+  /* A tabela de itens, quando o cupom a delimita. Sem os dois marcos, varre o
+     cupom inteiro como antes — melhor o comportamento antigo que nenhum item. */
+  /* O "l" de "Vl.Tot" volta do OCR como I, 1 ou |, e "Qtde" já veio "otde" —
+     por isso as classes de caractere. Vale para o cabeçalho da Sapore em
+     qualquer uma das formas que ele apareceu até aqui. */
+  const ehCabecalho = l => /v[li1|]\s*\.?\s*t[o0]t/i.test(l)
+                        || (/descri/i.test(l) && /[oq0]tde|unit|c[oó]d/i.test(l));
+  const ehFechoDaTabela = l => /total\s*de\s*itens/i.test(l)
+                            || /valor\s*(total|a\s*pagar)/i.test(l);
+  const iCab = linhas.findIndex(ehCabecalho);
+  /* O fecho vale MESMO sem cabeçalho reconhecido: depois do bloco de totais
+     nunca há item, então cortar ali é sempre melhor que varrer o cupom
+     inteiro. Foi essa varredura que fez "DEBITO CONSUM RJ 23,52" — lido como
+     "LL CONSUM RJ" — entrar como item de R$ 23,52 sem subsídio numa nota de
+     R$ 23,32. Sem nenhum dos dois marcos, aí sim varre tudo. */
+  const iFim = linhas.findIndex((l, i) => i > iCab && ehFechoDaTabela(l));
+  const bloco = iFim > iCab ? linhas.slice(iCab + 1, iFim) : linhas;
+
+  const itens = bloco.filter(ehItem);
+  const somaItens = itens.length
+    ? Math.round(itens.reduce((a, l) => a + totalDaLinha(l), 0) * 100) / 100
+    : null;
+
+  const doRotulo = (filtro) => {
+    const cands = linhas.filter(l => filtro(l) && util(l)).flatMap(valoresDeFrouxo);
     return cands.length ? Math.max(...cands) : null;
   };
-  out.valor = primeiro(l => RE_APAGAR.test(l));
-  if (out.valor == null) out.valor = primeiro(l => RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l));
-  if (out.valor == null) out.valor = primeiro(l => RE_SUBTOTAL.test(l));
-  if (out.valor == null) out.valor = primeiro(() => true);
+  /* "TOTAL DE ITENS 2" é contagem, não dinheiro, e "Saldo Total" é o saldo do
+     cartão — os dois casam com RE_TOTAL e nenhum é o valor da compra. */
+  const ehRotuloDeTotal = l => !/total\s*de\s*itens|saldo/i.test(l)
+    && (RE_APAGAR.test(l) || /valor\s*(total|pago)/i.test(l)
+        || (RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l)) || RE_PAGAMENTO.test(l));
+  const repetido = (() => {
+    const n = new Map();
+    for (const v of linhas.filter(l => ehRotuloDeTotal(l) && !RE_RUIDO.test(l)).flatMap(valoresDeFrouxo)){
+      n.set(v, (n.get(v) || 0) + 1);
+    }
+    let melhor = null, vezes = 1;
+    for (const [v, q] of n) if (q > vezes){ vezes = q; melhor = v; }
+    return melhor;   // null quando nenhum valor se repete
+  })();
+  /* Um total impresso que BATE com a soma dos itens ganha de tudo: são duas
+     contas independentes chegando no mesmo número, e OCR não erra igual duas
+     vezes. É o que salva a nota em que o "VALOR TOTAL" veio 28,32 (o 3 lido
+     como 8) enquanto o "VALOR A PAGAR" veio 23,32, igual à soma dos itens. */
+  const bateComItens = somaItens == null ? null
+    : (linhas.filter(l => ehRotuloDeTotal(l) && !RE_RUIDO.test(l)).flatMap(valoresDeFrouxo)
+             .find(v => Math.abs(v - somaItens) <= 0.01) ?? null);
+
+  const totalLido = bateComItens
+                 ?? repetido
+                 ?? doRotulo(l => RE_APAGAR.test(l))
+                 ?? doRotulo(l => RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l) && !/total\s*de\s*itens|saldo/i.test(l))
+                 ?? doRotulo(l => RE_SUBTOTAL.test(l));
+
+  out.valor = totalLido ?? somaItens;      // pode ficar null, e é de propósito
+  // divergiu: o app fica com o total impresso e diz o outro número, sem escolher calado
+  if (somaItens != null && totalLido != null && Math.abs(somaItens - totalLido) > 0.01){
+    out.conflitoTotal = somaItens;
+  }
 
   /* --- data e hora --- */
   const md = t.match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})(?:[^\d\n]{0,8}(\d{1,2})\s*[:.h]\s*(\d{2}))?/);
@@ -1928,8 +2431,32 @@ function extrairCampos(texto){
     }
   }
 
-  /* --- itens: linhas com valor que não são total, pagamento nem ruído --- */
-  out.itens = linhas
+  /* --- a parte do cupom sem subsídio, para o formulário já abrir sugerindo ---
+     Percorre as linhas da tabela de itens e soma as que NÃO têm subsídio —
+     incluindo as que o leitor não reconheceu, porque na dúvida não entra. De
+     cada linha vale o ÚLTIMO valor, que é a coluna Vl.Tot: numa linha
+     "0,24 KG 69,00 16,42" o 69,00 é o preço por quilo, não o que você pagou. */
+  for (const l of itens){
+    if (temSubsidio(l)){ out.achouSubsidiavel = true; continue; }
+    out.semSubsidio += totalDaLinha(l);
+    const nome = l.replace(/(?:R\$\s*)?\b[\d.]*\d[.,]\d{2,}\b/g, "")
+                  .replace(/^\s*\d{1,3}\s*[-.)]?\s+/, "").replace(/^\s*\d{5,}\s*/, "")
+                  .replace(/\s{2,}/g, " ").trim();
+    if (nome) out.itensSemSubsidio.push(nome.slice(0, 24));
+  }
+  /* O que o total impresso tem e os itens não explicam é consumo que o OCR não
+     conseguiu ler. Ele vai para o lado SEM subsídio: é a regra do projeto — o
+     que o leitor não reconheceu não entra — e é o erro que não machuca, porque
+     prevê desconto maior do que vem em vez de susto no contracheque. */
+  if (somaItens != null && totalLido != null && totalLido - somaItens > 0.01){
+    out.semSubsidio += totalLido - somaItens;
+  }
+  /* Nunca pode passar do total do cupom: a soma por linha erra para cima quando
+     o OCR duplica um valor, e semSubsidio maior que valor daria subsídio
+     negativo. O formulário já recusa, mas melhor não sugerir o impossível. */
+  out.semSubsidio = Math.min(Math.round(out.semSubsidio * 100) / 100, num(out.valor) || Infinity);
+
+  out.itens = bloco
     .filter(l => valoresDe(l).length)
     .filter(l => !RE_TOTAL.test(l) && !RE_SUBTOTAL.test(l) && !RE_APAGAR.test(l))
     .filter(util)
@@ -2091,7 +2618,7 @@ document.addEventListener("click", e => {
   }
 
   if (achar("data-salario")){
-    return pedirCampo("Meu salário-base", "FICA SÓ NESTE APARELHO — NUNCA VAI PARA A NUVEM",
+    return pedirCampo("Meu salário-base", "O BRUTO DO CONTRACHEQUE · SÓ NESTE APARELHO",
       privado.salarioBase ? brl(privado.salarioBase) : "", "numero", v => {
         const n = paraValor(v);
         privado.salarioBase = isFinite(n) && n > 0 ? n : null;
@@ -2114,8 +2641,9 @@ document.addEventListener("click", e => {
   if (achar("data-exportar")) return exportarCSV();
   if (achar("data-sair")) return sair();
 
-  if (achar("data-copiar-ocr")){
-    const txt = el("ocrTexto")?.textContent || "";
+  if (achar("data-copiar-ocr") || achar("data-copiar-leitura")){
+    const alvo = achar("data-copiar-leitura") ? "leiTexto" : "ocrTexto";
+    const txt = el(alvo)?.textContent || "";
     if (!txt) return aviso("Nada lido ainda.");
     if (navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(txt)
@@ -2124,6 +2652,24 @@ document.addEventListener("click", e => {
     } else {
       aviso("Seu navegador não deixa copiar daqui. Selecione o texto à mão.");
     }
+    return;
+  }
+
+  if (achar("data-ultima-leitura")){
+    const u = lerUltimaLeitura();
+    if (!u) return aviso("Nenhum cupom foi escaneado neste aparelho ainda.");
+    poe("leiTexto", u.texto);
+    poe("leiSub", `Lida em ${paraBR(u.quando.slice(0, 10))} às ${u.quando.slice(11, 16)}. `
+      + "É o texto cru que o leitor extraiu — serve para entender por que um campo veio errado.");
+    abrirSheet("sheetLeitura");
+    return;
+  }
+
+  if (achar("data-apagar-leitura")){
+    guardarUltimaLeitura("");
+    pintarPerfil();
+    fecharSheet("sheetLeitura");
+    aviso("Leitura apagada deste aparelho.");
     return;
   }
 
@@ -2212,6 +2758,12 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") fecharSheet(
 el("q-ac")?.addEventListener("input", e => { qAc = e.target.value; pintarAc(); });
 
 /* filtro da tela de transações: digitar já filtra, sem botão de "buscar" */
+/* A conta do lançamento se refaz enquanto a pessoa digita: valor, parte sem
+   subsídio e data mudam o resultado, e ver a conta mudar é o que faz a regra
+   parecer regra em vez de defeito. */
+["campoValor", "campoSemSubsidio"].forEach(id => el(id)?.addEventListener("input", pintarContaLanc));
+el("campoData")?.addEventListener("change", pintarContaLanc);
+
 ["fTexto", "fMin", "fMax"].forEach(id => el(id)?.addEventListener("input", lerFiltroDaTela));
 ["fCategoria", "fSituacao", "fIni", "fFim"].forEach(id => el(id)?.addEventListener("change", lerFiltroDaTela));
 

@@ -6,9 +6,12 @@ No ar em **https://meu-bandejao.web.app**. Leia `README.md` para a visão geral 
 
 **A regra do desconto mora em `docs/Regra_DRH_Sapore.md`** — é o documento único, com a
 procedência de cada afirmação marcada ([DRH] = norma, [APP] = decisão de implementação,
-[?] = não confirmado) e a lista do que ainda falta perguntar ao DRH. Antes de mexer em qualquer
-cálculo de dinheiro, leia esse arquivo. Se você descobrir algo novo sobre a regra, ele é o lugar
-de registrar — não o comentário do código.
+[?] = não confirmado). Antes de mexer em qualquer cálculo de dinheiro, leia esse arquivo. Se você
+descobrir algo novo sobre a regra, ele é o lugar de registrar — não o comentário do código.
+
+`docs/Bot_DRH_Refeitorio.md` é a mesma regra em linguagem de colaborador, para o bot do DRH. Ele
+tem outro dono e outro público: **mudou a regra, mude os dois**, e mantenha os blocos dele
+autossuficientes, porque um bot recupera um trecho por vez.
 
 ## Arquitetura: o que não se negocia
 
@@ -41,12 +44,14 @@ Cada uma destas já quebrou o app aqui. Estão detalhadas em
    tela: dá `PERMISSION_DENIED` silencioso, e o sintoma chega como "não salva". Mexeu em
    `COL_LANC`/`COL_POL`, mexa no `firestore.rules` no mesmo commit, e publique os dois juntos.
 3. **Nunca calcule parcela por subtração.** `subsidio = bruto − desconto` passou a atribuir à FGV
-   um dinheiro que ela não pagou no dia em que entrou gasto fora da instituição, e hoje ainda
-   produziria subsídio negativo por causa da participação de 0,15%. Some cada parcela pela sua
-   regra e, ao mexer no cálculo, confira no navegador a identidade
-   `bruto = subsídio + (desconto − participação) + fora`. A participação é encargo por dia de uso,
-   **não é comida**: `desconto + subsídio` passa do gasto exatamente nela, e isso é o certo. Não
-   existe suíte automatizada neste projeto: a verificação é rodar o app (abaixo).
+   um dinheiro que ela não pagou no dia em que entrou gasto fora da instituição. Some cada parcela
+   pela sua regra e, ao mexer no cálculo, confira no navegador a identidade
+   `bruto = subsídio + desconto + fora`, que fecha **sempre**, sem exceção. **O subsídio é
+   LÍQUIDO:** a participação sai dele no rateio, porque subsídio da FGV é o que ela bancou de fato,
+   não o que ela paga à Sapore e depois cobra de você. E a participação é **ATÉ 0,15%, não 0,15%
+   cheio** — no dia de prato mais barato que ela, sai o valor do prato. Se a soma parar de fechar,
+   provavelmente esse limite foi removido de `calcularRateio`.
+   Não existe suíte automatizada neste projeto: a verificação é rodar o app (abaixo).
 4. **Versione as duas coisas ao publicar:** `?v=N` dos assets no `index.html` **e** `VERSAO` no
    `sw.js`. O workflow do Actions falha o deploy se os assets mudaram e um dos dois ficou para
    trás.
@@ -65,10 +70,15 @@ Cada uma destas já quebrou o app aqui. Estão detalhadas em
    lugar, pare e repense: cache de dinheiro com invalidação espalhada erra na tela sem erro no
    console. E o rateio é sempre sobre a lista inteira, nunca sobre a filtrada, senão o mesmo
    lançamento mostra subsídios diferentes em telas diferentes.
-8. **Nem todo item do cupom tem subsídio.** Geladeira e sobremesa elaborada vão integrais para a
-   folha; kilo, básico, suco de máquina, fruta e gelatina entram. Quem marca isso é o campo
-   `valorSemSubsidio` do lançamento — **não adivinhe pelo texto do cupom.** Dois cupons de mesmo
-   total e composição diferente dão descontos diferentes, e chutar erraria dinheiro em silêncio.
+8. **Nem todo item do cupom tem subsídio, e na dúvida NÃO tem.** Entra o que vem do balcão das
+   comidas: prato, suco de máquina, fruta, gelatina e sobremesa — **elaborada inclusive**, desde
+   agosto de 2026. Bebida de geladeira, sorvete e o que não é do balcão vão integrais para a folha,
+   inclusive o que o leitor não reconheceu. O padrão restritivo é deliberado: o app **prevê**
+   desconto, e prever desconto maior do que vem é susto que não acontece, enquanto prever menor é
+   susto no contracheque. Está em `COM_SUBSIDIO` / `SEM_SUBSIDIO` / `temSubsidio()`, com a ordem da
+   decisão comentada. O valor final é do campo `valorSemSubsidio` do lançamento: o leitor **sugere
+   e avisa**, a pessoa confirma. Dois cupons de mesmo total e composição diferente dão descontos
+   diferentes, e decidir sozinho erraria dinheiro em silêncio.
 9. **`prefs` sincroniza; `privado` não.** `prefs` vai para `users/{uid}.prefs` no Firestore, e a
    regra é `allow get: if eu(uid) || ehAdmin()` — o administrador lê. **O salário mora em
    `privado`**, um objeto separado que só existe no `localStorage`, gravado por `gravarPrivado()`,

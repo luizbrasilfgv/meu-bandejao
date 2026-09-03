@@ -42,17 +42,53 @@ de 21/08/2026, é a fonte normativa e vence:
 |---|---|---|
 | "teto mensal (valor fixo por mês). **O valor não foi informado**" | subsídio de **R$ 35,00 por dia** de consumo, tabela 2026/2027 | o DRH |
 | taxa de 0,15% "por **ida** ao refeitório" numa página, "por **refeição**" no aviso literal da outra | 0,15% do salário base **por dia com consumo** | o DRH |
-| nada sobre composição do cupom | **geladeira e sobremesa elaborada não têm subsídio**; kilo, básico, suco de máquina, fruta e gelatina têm | o DRH |
+| nada sobre composição do cupom | **só o basicão tem subsídio** — kilo, básico, suco de máquina, fruta e gelatina. Todo o resto vai integral, inclusive café e salgado | o DRH, na leitura restritiva |
+| a taxa "**nunca entra no cálculo**" e o valor é sempre estimativa | a participação é a **maior parcela** do desconto | o DRH: ela entra, quando o usuário informa o salário |
+
+## O salário, que o handoff proibia
+
+A regra 3 do handoff é categórica: *"O app não pede nem armazena salário (LGPD). Por isso a taxa de
+0,15% por refeição nunca entra no cálculo."* **O app hoje pede.**
+
+O que mudou: com a regra do DRH confirmada, a participação deixou de ser detalhe e passou a ser a
+maior parcela do desconto — com salário de R$ 10.000 e 20 dias de consumo são R$ 300,00 no mês,
+contra R$ 37,00 de excedente do teto num mês típico. Um app que se propõe a prever o desconto e
+ignora 89% dele não cumpre o que promete.
+
+O que **não** mudou é o motivo da regra 3, e é por isso que ela foi contornada em vez de revogada:
+o salário fica em `privado`, só no `localStorage`, gravado por uma função que de propósito não
+chama `salvarPerfil`. Não vai para o Firestore, não sincroniza, e o administrador não tem como ver
+o de ninguém. Regra de banco não protegeria — ela vale para o SDK do cliente, não para quem abre o
+console do projeto. A única garantia é o dado não estar lá.
+
+Consequências aceitas: **não sincroniza entre aparelhos** (trocou de celular, digita de novo), e o
+campo é **opcional** — vazio, o app calcula como antes e o aviso de estimativa continua em tela.
+Informado, o aviso é escondido, porque ele afirma que os 0,15% estão fora da conta e passaria a
+mentir. O texto em si não foi tocado: é de redação fixa.
 
 O `README.md` desta pasta continua como foi recebido, contradição interna inclusive — é handoff, não
 documentação viva. A regra em vigor está em `docs/Especificacao.md`, seção 4.
 
-Duas consequências de tela que divergem do handoff:
+Três consequências de tela que divergem do handoff:
+
+* **O campo "deste valor, sem subsídio" tem tratamento próprio na Sapore.** O handoff dá a todos os
+  campos do formulário o mesmo vidro neutro. Este é o único da tela cujo valor o app **não tem como
+  deduzir** e que muda dinheiro — dois cupons de mesmo total e composição diferente dão descontos
+  diferentes — e com aparência de campo opcional ele passou em branco numa nota real. Ganhou borda e
+  fundo azuis (`.field--sapore`, ligada em `marcarLocal`) e uma instrução curta entre o rótulo e o
+  campo. Nos outros dois estabelecimentos ele nem existe, então o destaque não polui. O âmbar do
+  `.field--check`, que é o estado momentâneo de "confira o que o leitor achou", vence este destaque
+  permanente — por isso está declarado depois dele no CSS.
 
 * **O card herói ganhou a composição da folha escrita por extenso.** O handoff prevê dois números e
   ponto. Com a participação valendo, os números do card deixam de somar o gasto — a participação é
   encargo por dia de uso, não comida — e três valores que aparentam somar e não somam leem como
-  defeito. O rodapé do número da folha passou a mostrar `PARTICIPAÇÃO + EXCEDENTE + REI DO MATE`.
+  defeito. O rodapé do número da folha mostra
+  `PARTICIPAÇÃO + PASSOU DO TETO + SEM SUBSÍDIO + REI DO MATE`, e as parcelas somam exatamente o
+  número acima delas. A primeira versão listava `PARTICIPAÇÃO + EXCEDENTE`, o que **contava a
+  participação duas vezes** — o excedente já a contém desde que o subsídio passou a ser líquido — e
+  a legenda exibia R$ 63,40 embaixo de um total de R$ 41,65. As parcelas vêm do rateio, e não de
+  uma conta própria da tela, justamente para não poderem divergir do total outra vez.
 * **O aviso de estimativa é escondido quando a participação está informada.** O texto é de redação
   fixa e afirma que os 0,15% estão fora da conta; informado o valor, ele passaria a mentir.
   Esconder respeita as duas regras do handoff ao mesmo tempo: não reescrever o texto do usuário e

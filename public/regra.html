@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refeitório da FGV — como o desconto é calculado</title>
+<style>
+  .viz-root{
+    color-scheme: light;
+    --surface-1:#fcfcfb; --plane:#f7f7f4;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+    --fgv:#2a78d6;  --voce:#eb6834;
+    --fgv-fraco:#cde2fb; --voce-fraco:#fbdccf; --campo:#fff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])) .viz-root{
+      color-scheme: dark;
+      --surface-1:#1a1a19; --plane:#0d0d0d;
+      --text-primary:#fff; --text-secondary:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+      --fgv:#3987e5; --voce:#d95926; --fgv-fraco:#184f95; --voce-fraco:#7a3218;
+      --campo:#111110;
+    }
+  }
+  :root[data-theme="dark"] .viz-root{
+    color-scheme: dark;
+    --surface-1:#1a1a19; --plane:#0d0d0d;
+    --text-primary:#fff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+    --fgv:#3987e5; --voce:#d95926; --fgv-fraco:#184f95; --voce-fraco:#7a3218;
+    --campo:#111110;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--text-primary);
+       font:400 15px/1.62 system-ui,-apple-system,"Segoe UI",sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .viz-root{max-width:860px;margin:0 auto;padding:56px 28px 80px}
+
+  /* ---------- editorial ---------- */
+  header{border-bottom:2px solid var(--text-primary);padding-bottom:22px;margin-bottom:44px}
+  .selo{font:700 10.5px/1 system-ui;letter-spacing:.18em;text-transform:uppercase;
+        color:var(--muted);margin:0 0 16px}
+  h1{font:700 38px/1.14 system-ui;margin:0 0 14px;letter-spacing:-.028em;max-width:20ch}
+  .lede{margin:0;font-size:17.5px;line-height:1.55;color:var(--text-secondary);max-width:58ch}
+
+  section{margin-bottom:52px}
+  .eyebrow{font:700 10.5px/1 system-ui;letter-spacing:.17em;text-transform:uppercase;
+           color:var(--muted);margin:0 0 16px;padding-bottom:9px;
+           border-bottom:1px solid var(--grid)}
+  .cx{background:var(--surface-1);border:1px solid var(--border);border-radius:14px}
+
+  .regra{padding:24px 28px}
+  .regra p{margin:0;font-size:18px;line-height:1.55}
+  .regra b{font-weight:700}
+
+  .tres{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .bloco{padding:20px 22px}
+  .bloco .n{font:700 11px/1 system-ui;letter-spacing:.1em;color:var(--muted);margin-bottom:14px}
+  .bloco h3{font:700 16.5px/1.3 system-ui;margin:0 0 8px;letter-spacing:-.01em}
+  .bloco p{margin:0;font-size:14px;color:var(--text-secondary);line-height:1.55}
+  .bloco b{color:var(--text-primary)}
+
+  .chave-box{border-left:3px solid var(--fgv);padding:22px 26px}
+  .chave-box h3{font:700 20px/1.35 system-ui;margin:0 0 12px;letter-spacing:-.015em}
+  .chave-box p{margin:0 0 12px;color:var(--text-secondary)}
+  .chave-box p:last-child{margin-bottom:0}
+  blockquote{margin:18px 0 0;padding:14px 0 0;border-top:1px solid var(--grid);
+             font-size:15px;line-height:1.55;font-style:italic;color:var(--text-secondary)}
+  cite{display:block;margin-top:8px;font-style:normal;font-size:12.5px;color:var(--muted)}
+
+  /* ---------- simulador ---------- */
+  .sim{padding:26px 28px 24px}
+  .campos{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:26px}
+  label{display:block}
+  .rot{display:block;font:600 10.5px/1.3 system-ui;letter-spacing:.11em;text-transform:uppercase;
+       color:var(--muted);margin-bottom:7px}
+  .campo{display:flex;align-items:baseline;gap:6px;background:var(--campo);
+         border:1px solid var(--axis);border-radius:10px;padding:11px 13px;
+         transition:border-color .12s}
+  .campo:focus-within{border-color:var(--fgv)}
+  .campo span{font:600 14px/1 system-ui;color:var(--muted)}
+  .campo input{width:100%;border:0;outline:0;background:none;color:var(--text-primary);
+               font:700 21px/1.15 ui-monospace,SFMono-Regular,Menlo,monospace;
+               font-variant-numeric:tabular-nums;min-width:0}
+  .dica{margin:6px 0 0;font-size:11.5px;color:var(--muted);line-height:1.4}
+
+  .resultado{display:grid;grid-template-columns:1fr auto;gap:26px;align-items:end;
+             padding-top:22px;border-top:1px solid var(--grid)}
+  .heroi .rot{margin-bottom:5px}
+  .heroi .val{font:700 46px/1 system-ui;letter-spacing:-.03em;color:var(--voce)}
+  .heroi .sub{margin:7px 0 0;font-size:13px;color:var(--text-secondary)}
+  .lado{text-align:right;white-space:nowrap}
+  .lado div{margin-bottom:11px}
+  .lado div:last-child{margin-bottom:0}
+  .lado .k{font:600 10.5px/1 system-ui;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .lado .v{font:700 19px/1.2 system-ui;font-variant-numeric:tabular-nums;margin-top:3px}
+  .lado .v.azul{color:var(--fgv)}
+
+  .porque{margin:20px 0 0;padding:13px 16px;background:var(--plane);
+          border-radius:10px;font-size:13.5px;line-height:1.55;color:var(--text-secondary)}
+  .porque b{color:var(--text-primary)}
+
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .barras-sim{margin-top:22px}
+
+  /* ---------- tabela ---------- */
+  table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;
+        background:var(--surface-1)}
+  caption{text-align:left;font:600 14px/1.5 system-ui;color:var(--text-secondary);
+          margin-bottom:12px}
+  th,td{padding:11px 10px;text-align:right;border-bottom:1px solid var(--grid)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font:700 11px/1.3 system-ui;letter-spacing:.08em;text-transform:uppercase;
+           color:var(--muted);border-bottom:1px solid var(--axis)}
+  thead th small{display:block;font:400 10.5px/1.3 system-ui;text-transform:none;
+                 letter-spacing:0;margin-top:3px}
+  tbody th{font:600 13.5px/1.35 system-ui}
+  tbody th small{display:block;font:400 11.5px/1.35 system-ui;color:var(--muted)}
+  td b{font-weight:700}
+  tr.trava td,tr.trava th{background:rgba(42,120,214,.05)}
+  tr:last-child td,tr:last-child th{border-bottom:0}
+  .nota-tab{margin:12px 0 0;font-size:12.5px;color:var(--muted);line-height:1.5}
+
+  .duas{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .lista{padding:20px 22px}
+  .lista h3{font:700 14px/1.3 system-ui;margin:0 0 10px;display:flex;align-items:center;gap:9px}
+  .marca{width:20px;height:20px;border-radius:7px;display:grid;place-items:center;
+         font:700 12px/1 system-ui;color:#fff;flex:none}
+  .lista p{margin:0;font-size:13.5px;line-height:1.6;color:var(--text-secondary)}
+  .lista b{color:var(--text-primary)}
+
+  footer{border-top:1px solid var(--border);padding-top:24px;font-size:12.5px;
+         line-height:1.7;color:var(--muted)}
+  footer b{color:var(--text-secondary)}
+  footer p{margin:0 0 9px}
+
+  @media (max-width:700px){
+    .viz-root{padding:36px 18px 56px}
+    h1{font-size:29px}
+    .tres,.campos,.duas{grid-template-columns:1fr}
+    .resultado{grid-template-columns:1fr;gap:20px;align-items:start}
+    .lado{text-align:left}
+    .heroi .val{font-size:40px}
+  }
+  @media print{
+    body{background:#fff}
+    .viz-root{max-width:none;padding:0}
+    section{break-inside:avoid}
+    .sim{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+
+<header>
+  <p class="selo">FGV · Sede Botafogo · Refeitório</p>
+  <h1>Como o desconto do refeitório é calculado</h1>
+  <p class="lede">A regra do DRH para consumo direto na Praça de Alimentação, com um simulador
+  e exemplos por faixa de salário. Valores da tabela 2026/2027.</p>
+</header>
+
+<section>
+  <p class="eyebrow">A regra</p>
+  <div class="cx regra">
+    <p>A FGV subsidia <b>até R$ 35,00 por dia</b> de consumo no refeitório. Do seu salário sai
+    <b>até 0,15% do salário-base</b> em cada dia que você consumir, mais o que passar dos R$ 35,00
+    naquele dia, mais o valor integral do que não vem do balcão das comidas.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">O que sai do seu salário</p>
+  <div class="tres">
+    <div class="cx bloco">
+      <div class="n">01</div>
+      <h3>Até 0,15% do salário-base</h3>
+      <p>Uma vez por dia com consumo. É um <b>limite</b>: se o prato custou menos que isso, você
+      paga o valor do prato.</p>
+    </div>
+    <div class="cx bloco">
+      <div class="n">02</div>
+      <h3>O que passou dos R$ 35,00</h3>
+      <p>O teto é do <b>dia</b>, não da refeição. Almoçar e jantar no mesmo dia dividem um teto só.</p>
+    </div>
+    <div class="cx bloco">
+      <div class="n">03</div>
+      <h3>O que não é do balcão</h3>
+      <p>Refrigerante, água, sorvete, café, salgado: <b>integral</b>, mesmo que o dia não tenha
+      chegado aos R$ 35,00.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">O ponto que mais confunde</p>
+  <div class="cx chave-box">
+    <h3>É <em>até</em> 0,15%, não 0,15% cheio.</h3>
+    <p>Os 0,15% são o <b>máximo</b> que você paga pela comida subsidiada do dia — não uma taxa fixa.
+    Num dia de prato mais barato que esse valor, sai o preço do prato e nada além.</p>
+    <p><b>Consequência prática: o desconto nunca passa do que você consumiu.</b></p>
+    <blockquote>Não. É até 0,15%. Não 0,15% cheio para toda vez que for comer. Se seu prato deu
+    5 reais, você vai pagar 5 reais na folha, mesmo seu 0,15% for 22,50.
+    <cite>DRH, 24 de agosto de 2026</cite></blockquote>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Simulador</p>
+  <div class="cx sim">
+    <div class="campos">
+      <label>
+        <span class="rot">Seu salário-base</span>
+        <span class="campo"><span>R$</span>
+          <input id="iSalario" type="text" inputmode="decimal" value="5.500"
+                 aria-label="Salário-base em reais"></span>
+        <p class="dica">O bruto do contracheque, antes dos descontos.</p>
+      </label>
+      <label>
+        <span class="rot">O prato (com desconto)</span>
+        <span class="campo"><span>R$</span>
+          <input id="iPrato" type="text" inputmode="decimal" value="30,00"
+                 aria-label="Valor do prato em reais"></span>
+        <p class="dica">Kilo, prato básico, suco de máquina, fruta, sobremesa.</p>
+      </label>
+      <label>
+        <span class="rot">Sem desconto</span>
+        <span class="campo"><span>R$</span>
+          <input id="iFora" type="text" inputmode="decimal" value="6,90"
+                 aria-label="Valor de itens sem desconto em reais"></span>
+        <p class="dica">Refrigerante, água, sorvete, café, salgado.</p>
+      </label>
+    </div>
+
+    <div class="barras-sim">
+      <svg id="gSim" viewBox="0 0 880 172" role="img" aria-labelledby="descSim"></svg>
+      <p id="descSim" hidden></p>
+    </div>
+
+    <div class="resultado">
+      <div class="heroi">
+        <span class="rot">Sai do seu contracheque</span>
+        <div class="val" id="rFolha">R$ 15,15</div>
+        <p class="sub" id="rConfere"></p>
+      </div>
+      <div class="lado">
+        <div><div class="k">Seu limite do dia</div><div class="v" id="rLimite">R$ 8,25</div></div>
+        <div><div class="k">A FGV bancou</div><div class="v azul" id="rFgv">R$ 21,75</div></div>
+      </div>
+    </div>
+
+    <p class="porque" id="rPorque"></p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Como o desconto se comporta</p>
+  <div class="cx sim" style="padding-top:22px">
+    <svg id="gLinha" viewBox="0 0 880 284" role="img"
+         aria-label="Gráfico: quanto sai do salário conforme o prato fica mais caro, para o salário informado."></svg>
+    <p class="nota-tab" id="legLinha"></p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Os exemplos</p>
+  <table id="tab">
+    <caption>Quatro situações por faixa de salário, sempre com um item sem desconto de R$ 6,90.
+    O número em destaque é o que sai do contracheque.</caption>
+    <thead><tr id="cabeca"></tr></thead>
+    <tbody id="corpo"></tbody>
+  </table>
+  <p class="nota-tab">Repare na terceira linha de cada faixa: o prato é muito mais caro que o da
+  segunda e <b>o desconto é o mesmo</b>. Entre o seu limite e os R$ 35,00, cada real a mais no prato
+  é pago pela FGV.</p>
+</section>
+
+<section>
+  <p class="eyebrow">O que entra e o que não entra</p>
+  <div class="duas">
+    <div class="cx lista">
+      <h3><span class="marca" style="background:var(--fgv)">✓</span> Entra no subsídio</h3>
+      <p>Prato do kilo · prato básico · suco de máquina · fruta · gelatina · sobremesa do balcão,
+      inclusive <b>bolo, torta, pudim e salada de frutas</b>.</p>
+    </div>
+    <div class="cx lista">
+      <h3><span class="marca" style="background:var(--voce)">✕</span> Não entra — cobrado integral</h3>
+      <p>Refrigerante · água · suco de garrafa ou caixinha · iogurte · sorvete · açaí · café ·
+      salgado · <b>todo o consumo no Rei do Mate</b>.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p><b>Na dúvida, não entra.</b> Sobra do dia não acumula para o dia seguinte e não existe teto
+  mensal — em dia sem consumo, não há cobrança. O consumo é identificado na entrada, pela matrícula,
+  e cai na rubrica de refeitório do contracheque.</p>
+  <p><b>Procedência:</b> documento do DRH de 21/08/2026 e respostas diretas do DRH em 24/08/2026.
+  Sobremesa elaborada passou a entrar no subsídio em agosto de 2026.</p>
+  <p>Dúvida sobre um valor específico do contracheque: procure o DRH com a sua matrícula e o mês.
+  Nada nesta página é enviado para lugar nenhum — a conta roda no seu próprio navegador.</p>
+</footer>
+
+</div>
+
+<script>
+/* ===========================================================
+   A REGRA, EM DUAS LINHAS
+   Tudo nesta página — simulador, gráfico e tabela — sai daqui.
+   É a mesma conta que roda dentro do aplicativo Meu Bandejão.
+   =========================================================== */
+const TETO = 35, PCT = 0.15;
+
+/** O limite do dia: ATÉ 0,15% do salário-base, nunca mais que isso. */
+const limiteDe = salario => Math.round(salario * PCT) / 100;
+
+/** O que sai do contracheque num dia. */
+const vocePaga = (prato, lim, fora) =>
+  cent(Math.min(prato, lim) + Math.max(0, prato - TETO) + fora);
+
+/** O que a FGV bancou de fato: o teto do dia menos a sua parte. */
+const fgvPaga = (prato, lim) => cent(Math.min(prato, TETO) - Math.min(prato, lim));
+
+const cent = v => Math.round(v * 100) / 100;
+
+/**
+ * Lê dinheiro como brasileiro escreve. Campo <input type="number"> recusa
+ * vírgula e devolve vazio — quem digitasse "6,90" perderia o valor sem aviso.
+ * Havendo vírgula, ela é o decimal e o ponto é milhar. Só com ponto, ele é
+ * decimal quando vem com uma ou duas casas no fim ("6.90"), e milhar quando
+ * vem com três ("5.500") — a ambiguidade existe e esta é a leitura que acerta
+ * nos dois casos que aparecem aqui: salário e preço de prato.
+ */
+function num(txt){
+  let s = String(txt ?? "").trim().replace(/[^\d.,]/g, "");
+  if (!s) return 0;
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (!/\.\d{1,2}$/.test(s)) s = s.replace(/\./g, "");
+  const v = parseFloat(s);
+  return isFinite(v) && v > 0 ? v : 0;
+}
+const brl  = v => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const rs   = v => "R$ " + brl(v);
+const mil  = v => "R$ " + v.toLocaleString("pt-BR");
+
+const ns = "http://www.w3.org/2000/svg";
+const cria = (t, a, txt) => { const e = document.createElementNS(ns, t);
+  for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; return e; };
+const el = id => document.getElementById(id);
+/* Rótulo dentro de barra colorida só quando cabe com folga: texto cortado pela
+   própria barra é pior que texto nenhum — não cabendo, o valor vai para fora. */
+const cabe = (w, texto, tam) => w > texto.length * tam * 0.6 + 14;
+
+/* ---------------- simulador ---------------- */
+function simular(){
+  const salario = num(el("iSalario").value);
+  const prato   = num(el("iPrato").value);
+  const fora    = num(el("iFora").value);
+  const lim     = limiteDe(salario);
+  const nota    = cent(prato + fora);
+  const suaParte = Math.min(prato, lim);          // o que você paga DO PRATO
+  const acima    = cent(Math.max(0, prato - TETO));
+  const fgv      = fgvPaga(prato, lim);
+  const folha    = vocePaga(prato, lim, fora);
+
+  /* Sem salário não há limite, e sem limite a conta daria "você paga só o que
+     não tem desconto" — R$ 6,90 num almoço de R$ 36,90, como se o prato fosse
+     de graça. Número inventado é pior que número nenhum: aqui a tela DECLARA
+     que está incompleta em vez de responder errado. */
+  const semSalario = salario <= 0;
+  el("rLimite").textContent = semSalario ? "—" : rs(lim);
+  el("rFgv").textContent    = semSalario ? "—" : rs(fgv);
+  el("rFolha").textContent  = semSalario ? "—" : rs(folha);
+  el("rFolha").style.color  = semSalario ? "var(--muted)" : "";
+  el("rConfere").textContent = semSalario
+    ? "Informe o salário-base acima: sem ele não dá para saber o seu limite do dia."
+    : nota > 0
+      ? `Da sua nota de ${rs(nota)}: a FGV bancou ${rs(fgv)} e você paga ${rs(folha)}.`
+      : "Preencha o valor do prato ou dos itens sem desconto.";
+
+  /* Dizer QUAL regra pegou é o que ensina — número sozinho não explica nada. */
+  const partes = [];
+  if (salario <= 0){
+    partes.push("Informe o salário-base para o simulador saber o seu limite do dia.");
+  } else if (prato === 0 && fora > 0){
+    partes.push(`Você não consumiu nada do balcão das comidas, então <b>não há limite a aplicar</b>: `
+      + `o que veio da geladeira é cobrado integral.`);
+  } else if (prato <= lim){
+    partes.push(`Seu prato (${rs(prato)}) custou <b>menos que o seu limite</b> de ${rs(lim)}, `
+      + `então você paga o valor do prato e a FGV não banca nada. `
+      + `<b>É a regra do “até”:</b> os 0,15% seriam ${rs(lim)}, mas o desconto para no que você comeu.`);
+  } else if (prato <= TETO){
+    partes.push(`Seu prato (${rs(prato)}) passou do seu limite de ${rs(lim)} e ficou abaixo do teto `
+      + `de ${rs(TETO)}, então <b>a FGV cobre a diferença</b> — ${rs(fgv)}. `
+      + `Enquanto o prato ficar nessa faixa, o seu desconto não muda.`);
+  } else {
+    partes.push(`Seu prato (${rs(prato)}) passou do teto de ${rs(TETO)}. A FGV para ali, e os `
+      + `${rs(acima)} que sobraram <b>são seus</b>, somados ao seu limite de ${rs(lim)}.`);
+  }
+  if (fora > 0 && prato > 0){
+    partes.push(`Os ${rs(fora)} sem desconto vão integrais para a folha, sempre.`);
+  }
+  el("rPorque").innerHTML = partes.join(" ");
+
+  desenharSim(nota, semSalario ? null : [
+    { v: fgv,      cor: "var(--fgv)",  nome: "a FGV bancou" },
+    { v: suaParte, cor: "var(--voce)", nome: prato <= lim ? "o prato inteiro" : "o seu limite do dia" },
+    { v: acima,    cor: "var(--voce)", nome: "passou do teto" },
+    { v: fora,     cor: "var(--voce)", nome: "sem desconto" },
+  ], prato, fora);
+
+  desenharLinha(lim, prato, fora, salario);
+}
+
+function desenharSim(nota, partes, prato, fora){
+  const g = el("gSim");
+  g.textContent = "";
+  const X0 = 2, X1 = 878, H = 44;
+  if (nota <= 0) return;
+  const larg = v => (v / nota) * (X1 - X0);
+
+  const barra = (y, itens, titulo) => {
+    g.appendChild(cria("text", { x: X0, y: y - 10, fill: "var(--muted)", "font-size": 10.5,
+      "font-weight": 700, "letter-spacing": ".14em" }, titulo));
+    let x = X0;
+    const vivos = itens.filter(p => p.v > 0.004);
+    vivos.forEach((p, i) => {
+      const w = larg(p.v) - (i < vivos.length - 1 ? 2 : 0);   // 2px de respiro entre blocos
+      g.appendChild(cria("rect", { x, y, width: Math.max(w, 1), height: H, rx: 5, fill: p.cor }));
+      const rot = rs(p.v);
+      if (cabe(w, rot, 13.5)){
+        g.appendChild(cria("text", { x: x + w / 2, y: y + 20, "text-anchor": "middle",
+          fill: p.tinta || "#fff", "font-size": 13.5, "font-weight": 700 }, rot));
+        if (cabe(w, p.nome, 10)) g.appendChild(cria("text", { x: x + w / 2, y: y + 34,
+          "text-anchor": "middle", fill: p.tinta || "#fff", "font-size": 10, opacity: .9 }, p.nome));
+      } else {
+        g.appendChild(cria("text", { x: x + w / 2, y: y + H + 14, "text-anchor": "middle",
+          fill: "var(--text-secondary)", "font-size": 10.5 }, rot));
+      }
+      x += larg(p.v);
+    });
+  };
+
+  barra(22, [
+    { v: prato, cor: "var(--fgv-fraco)",  tinta: "var(--text-primary)", nome: "entra no subsídio" },
+    { v: fora,  cor: "var(--voce-fraco)", tinta: "var(--text-primary)", nome: "não entra" },
+  ], "A SUA NOTA — " + rs(nota));
+
+  if (partes) g.appendChild(cria("path", { d: `M${(X0 + X1) / 2},${22 + H + 16} v14 m-6,-6 l6,6 l6,-6`,
+    stroke: "var(--axis)", "stroke-width": 2, fill: "none", "stroke-linecap": "round" }));
+
+  /* Sem salário, a barra de baixo mentiria: fica o aviso no lugar dela. */
+  if (partes){
+    barra(22 + H + 52, partes, "QUEM PAGA");
+  } else {
+    g.appendChild(cria("text", { x: X0, y: 22 + H + 62, fill: "var(--muted)",
+      "font-size": 13 }, "Informe o salário-base para ver quem paga o quê."));
+  }
+}
+
+/* ---------------- o gráfico, no salário informado ---------------- */
+function desenharLinha(lim, pratoAtual, fora, salario){
+  const g = el("gLinha");
+  g.textContent = "";
+  if (salario <= 0){
+    g.appendChild(cria("text", { x: 0, y: 26, fill: "var(--muted)", "font-size": 14 },
+      "Informe o salário-base no simulador para ver a sua curva."));
+    el("legLinha").textContent = "";
+    return;
+  }
+  const XMAX = 50;
+  const YMAX = Math.max(40, Math.ceil((lim + 15 + fora) / 10) * 10);
+  const X0 = 58, X1 = 858, Y0 = 66, Y1 = 232;
+  const sx = v => X0 + (v / XMAX) * (X1 - X0);
+  const sy = v => Y1 - (v / YMAX) * (Y1 - Y0);
+
+  [[0, lim, "ATÉ O SEU LIMITE", "você paga o prato"],
+   [lim, TETO, "DO SEU LIMITE ATÉ R$ 35", "a FGV paga a diferença"],
+   [TETO, XMAX, "PASSOU DE R$ 35", "a diferença é sua"]
+  ].forEach(([a, b, tit, txt], i) => {
+    if (b - a < 3) return;                       // faixa estreita demais para rotular
+    if (i === 1) g.appendChild(cria("rect", { x: sx(a), y: Y0, width: sx(b) - sx(a),
+      height: Y1 - Y0, fill: "var(--fgv)", opacity: .06 }));
+    const meio = (sx(a) + sx(b)) / 2;
+    g.appendChild(cria("text", { x: meio, y: 18, "text-anchor": "middle",
+      fill: "var(--text-primary)", "font-size": 11.5, "font-weight": 700,
+      "letter-spacing": ".05em" }, tit));
+    g.appendChild(cria("text", { x: meio, y: 35, "text-anchor": "middle",
+      fill: "var(--text-secondary)", "font-size": 11.5 }, txt));
+  });
+
+  const passo = YMAX / 4;
+  for (let v = 0; v <= YMAX + .01; v += passo){
+    g.appendChild(cria("line", { x1: X0, x2: X1, y1: sy(v), y2: sy(v),
+      stroke: v === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
+    g.appendChild(cria("text", { x: X0 - 10, y: sy(v) + 4, "text-anchor": "end",
+      fill: "var(--muted)", "font-size": 11 }, v === 0 ? "0" : "R$ " + Math.round(v)));
+  }
+  for (const v of [lim, TETO]) if (v > 0 && v < XMAX)
+    g.appendChild(cria("line", { x1: sx(v), x2: sx(v), y1: Y0, y2: Y1,
+      stroke: "var(--axis)", "stroke-width": 1 }));
+  for (const v of [0, 10, 20, 30, 40, 50])
+    g.appendChild(cria("text", { x: sx(v), y: Y1 + 19, "text-anchor": "middle",
+      fill: "var(--muted)", "font-size": 11 }, "R$ " + v));
+  g.appendChild(cria("text", { x: (X0 + X1) / 2, y: Y1 + 44, "text-anchor": "middle",
+    fill: "var(--text-secondary)", "font-size": 12 }, "preço do prato no dia"));
+  /* Abaixo dos rótulos de faixa, não ao lado deles: colado em Y0 este título
+     encostava no "você paga o prato" da primeira faixa, que é estreita. */
+  g.appendChild(cria("text", { x: 0, y: Y0 - 14,
+    fill: "var(--text-secondary)", "font-size": 12 }, "sai do seu contracheque"));
+
+  const y = p => sy(vocePaga(p, lim, fora));
+  const pts = [0, lim, TETO, XMAX].map(p => `${sx(p)},${y(p)}`).join(" ");
+  g.appendChild(cria("polyline", { points: pts, fill: "none", stroke: "var(--voce)",
+    "stroke-width": 2.5, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+  // onde você está hoje
+  if (pratoAtual >= 0 && pratoAtual <= XMAX){
+    g.appendChild(cria("circle", { cx: sx(pratoAtual), cy: y(pratoAtual), r: 6,
+      fill: "var(--voce)", stroke: "var(--surface-1)", "stroke-width": 2.5 }));
+    const dir = pratoAtual > XMAX * .72 ? -1 : 1;
+    g.appendChild(cria("text", { x: sx(pratoAtual) + 13 * dir, y: y(pratoAtual) - 12,
+      "text-anchor": dir > 0 ? "start" : "end", fill: "var(--voce)",
+      "font-size": 12.5, "font-weight": 700 }, "você: " + rs(vocePaga(pratoAtual, lim, fora))));
+  }
+
+  el("legLinha").innerHTML = salario > 0
+    ? `A linha é o <b>seu</b> salário-base de ${mil(salario)}, com o seu limite de `
+      + `<b>${rs(lim)} por dia</b> e ${rs(fora)} sem desconto na nota. O ponto marca o prato que `
+      + `você digitou acima — mexa nos campos e a curva acompanha.`
+    : "Informe o salário-base acima para ver a sua curva.";
+}
+
+/* ---------------- a tabela de exemplos ---------------- */
+(() => {
+  const REFRI = 6.90;
+  const FAIXAS = [3300, 5500, 7900, 12000].map(salario => {
+    const lim = limiteDe(salario);
+    /* Prato do caso "barato": 80% do limite, em reais inteiros. Derivado, não
+       escolhido a dedo, e a mesma conta roda dentro do aplicativo. */
+    return { salario, lim, barato: Math.max(1, Math.floor(lim * 0.8)) };
+  });
+  const CASOS = [
+    ["Prato abaixo do limite", f => f.barato, false],
+    ["Prato igual ao limite",  f => f.lim,    false],
+    ["Prato de R$ 30,00",      () => 30,      true ],
+    ["Prato de R$ 42,00",      () => 42,      false],
+  ];
+  el("cabeca").innerHTML = "<th>Seu prato no dia</th>"
+    + FAIXAS.map(f => `<th>${mil(f.salario)}<small>limite ${rs(f.lim)}</small></th>`).join("");
+  el("corpo").innerHTML = CASOS.map(([tit, prato, trava]) =>
+    `<tr class="${trava ? "trava" : ""}"><th>${tit}</th>`
+    + FAIXAS.map(f => {
+        const p = prato(f);
+        return `<td><b>${rs(vocePaga(p, f.lim, REFRI))}</b>`
+             + `<small style="display:block;color:var(--muted);font-weight:400">prato ${rs(p)}</small></td>`;
+      }).join("") + "</tr>").join("");
+})();
+
+for (const id of ["iSalario", "iPrato", "iFora"]) el(id).addEventListener("input", simular);
+simular();
+</script>
+</body>
+</html>

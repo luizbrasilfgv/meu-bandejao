@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=33">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -454,7 +454,7 @@
       <li class="glass row" data-salario>
         <span class="row__body">
           <span class="row__label">Meu salário-base <span id="pSalario" class="stat__val--pending">a informar</span></span>
-          <span class="row__hint" id="hParticipacao">A INFORMAR · SEM ELE A PARTICIPAÇÃO DE 0,15% FICA FORA DA CONTA</span>
+          <span class="row__hint" id="hParticipacao">O BRUTO DO CONTRACHEQUE · SEM ELE A PARTICIPAÇÃO DE 0,15% FICA FORA DA CONTA</span>
         </span>
         <button class="link-btn" type="button" data-salario>Editar</button>
       </li>
@@ -471,6 +471,13 @@
           <span class="row__hint">CSV DO PERÍODO SELECIONADO, COM A MEMÓRIA DE CÁLCULO</span>
         </span>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C9CB2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20h14M12 4v11M7.5 10.5 12 15l4.5-4.5"></path></svg>
+      </li>
+      <li class="glass row" data-ultima-leitura>
+        <span class="row__body">
+          <span class="row__label">Última leitura de cupom</span>
+          <span class="row__hint" id="pUltimaLeitura">NENHUMA LEITURA NESTE APARELHO</span>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C9CB2" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>
       </li>
       <li class="glass row" data-sair>
         <span class="row__body">
@@ -515,16 +522,26 @@
       </div>
       <div class="formula">
         <div class="formula__line"><span>Consumo bruto</span><b>soma de tudo que você registrou no período</b></div>
-        <div class="formula__line"><span>Subsídio da Sapore</span><b>R$ 35,00 por DIA, não por nota: duas refeições no mesmo dia dividem um teto só</b></div>
-        <div class="formula__line"><span>Sem subsídio</span><b>geladeira e sobremesa elaborada (coca, bolo, salada de frutas) vão integrais para a folha</b></div>
-        <div class="formula__line"><span>Com subsídio</span><b>kilo, prato básico, suco de máquina, fruta e gelatina</b></div>
-        <div class="formula__line"><span>Participação</span><b>0,15% do salário base por dia com consumo na Sapore</b></div>
+        <div class="formula__line"><span>Subsídio da Sapore</span><b>R$ 35,00 por DIA, não por nota: duas refeições no mesmo dia dividem um teto só. Atenção: não é refeição de graça abaixo do teto — você paga a sua parte em todo dia de uso</b></div>
+        <div class="formula__line"><span>Com subsídio</span><b>o balcão das comidas: prato (kilo ou básico), suco de máquina, fruta, gelatina e sobremesa, elaborada inclusive</b></div>
+        <div class="formula__line"><span>Sem subsídio</span><b>bebida de geladeira, sorvete, açaí e o que não é do balcão (café, salgado) vão integrais para a folha. Na dúvida, não entra</b></div>
+        <div class="formula__line"><span>Participação</span><b>ATÉ 0,15% do salário base por dia com consumo na Sapore — em dia de prato mais barato que isso, você paga só o valor do prato</b></div>
         <div class="formula__line"><span>Rei do Mate</span><b>valor integral, descontado no contracheque, sem subsídio</b></div>
         <div class="formula__line"><span>Fora da FGV</span><b>0% de subsídio e fora da folha: você pagou na hora</b></div>
-        <div class="formula__line"><span>Quinzenas</span><b>01–15 e 16 ao último dia, como as lanchonetes enviam</b></div>
+        <div class="formula__line"><span>Quinzenas</span><b>01–15 e 16 ao último dia, mostradas separadas: a data de corte que a Sapore usa para enviar não é confirmada</b></div>
         <div class="formula__line formula__line--result"><span>Desconto em folha</span><b>participação + excedente do teto diário + integral no Rei do Mate</b></div>
       </div>
       <p class="wip__text" style="margin-top:14px">Este valor é uma estimativa e não inclui o desconto fixo de 0,15% do seu salário base por refeição, omitido por privacidade</p>
+    </section>
+
+    <section class="glass card">
+      <div class="card__head">
+        <h3 class="card__title">Quatro exemplos, com o seu salário</h3>
+        <span class="card__hint" id="exemplosHint">SEMPRE COM UM REFRIGERANTE DE R$ 6,90</span>
+      </div>
+      <div class="formula" id="exemplosRegra"></div>
+      <p class="wip__text" style="margin-top:14px">Repare no que acontece entre o segundo e o terceiro caso: o desconto <b>não muda</b>. Passando dos 0,15%, cada real a mais no prato é pago pela FGV — até o teto de R$ 35,00, quando volta a ser seu.</p>
+      <p class="wip__text" style="margin-top:10px"><a href="/regra" target="_blank" rel="noopener">Abrir a regra completa, com simulador</a> — página para ler e mandar para colegas.</p>
     </section>
 
     <section class="glass wip">
@@ -545,7 +562,7 @@
       </details>
       <details class="glass faq__item">
         <summary>O que o número grande da Home mostra?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>Tudo que você registrou no período — o seu gasto de comida, sem separar quem paga o quê. Logo abaixo ele se desdobra em <b>desconto em folha</b> (o que vai cair no contracheque), <b>subsídio da FGV</b> (o que a instituição cobriu na Sapore) e, quando houver, <b>pago por fora</b> (bar, padaria, restaurante da rua). Atenção a uma coisa: se você informou a participação de 0,15%, ela está dentro do desconto em folha mas <b>não é comida</b> — é encargo por dia de uso. Então o gasto é igual a subsídio + (desconto − participação) + pago por fora. O rodapé do número mostra as parcelas separadas.</p>
+        <p>Tudo que você registrou no período — o seu gasto de comida, sem separar quem paga o quê. Logo abaixo ele se desdobra em <b>desconto em folha</b> (o que vai cair no contracheque), <b>subsídio da FGV</b> (o que a instituição cobriu na Sapore) e, quando houver, <b>pago por fora</b> (bar, padaria, restaurante da rua). Se você informou o salário, a sua participação está dentro do desconto em folha e o rodapé do número mostra as parcelas separadas. A soma fecha: <b>gasto = subsídio + desconto em folha + pago por fora</b>.</p>
       </details>
       <details class="glass faq__item">
         <summary>Almocei num lugar que não é Sapore nem Rei do Mate. Lanço?<span class="faq__chev" aria-hidden="true"></span></summary>
@@ -554,14 +571,22 @@
       <details class="glass faq__item">
         <summary>De onde vem o subsídio de R$ 35,00 por dia?<span class="faq__chev" aria-hidden="true"></span></summary>
         <p>É a regra do DRH para a Sede Botafogo, tabela 2026/2027, cadastrada no app com data de vigência. Quando ela muda, o administrador cadastra a nova e os lançamentos antigos continuam calculados pela regra que valia na data deles. Repare que o subsídio é <b>do dia</b>: se você almoça e janta na Sapore no mesmo dia, as duas notas dividem um único R$ 35,00.</p>
+        <p><b>Cuidado com a leitura fácil:</b> R$ 35,00 de subsídio não significa refeição de graça abaixo de R$ 35,00. Você paga <b>até 0,15%</b> do salário-base e a FGV cobre o restante do prato, até o teto. Passando de R$ 35,00, a diferença também é sua.</p>
+        <p><b>É <i>até</i> 0,15%, não 0,15% cheio.</b> Se o seu prato custar menos que os 0,15%, você paga só o valor do prato. Nas palavras do DRH: <i>"se seu prato deu 5 reais, você vai pagar 5 reais na folha, mesmo seu 0,15% for 22,50"</i>. Ou seja, o desconto nunca passa do que você consumiu.</p>
       </details>
       <details class="glass faq__item">
-        <summary>Por que aparecem duas linhas no meu contracheque?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>As lanchonetes enviam o consumo à FGV por quinzena. No fechamento da folha, a rubrica de refeitório soma a quinzena anterior com a atual. O app mostra as duas separadas.</p>
+        <summary>O que entra e o que não entra no subsídio?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p><b>Entra o que vem do balcão das comidas:</b> o prato (kilo ou básico), suco de máquina, fruta, gelatina e a sobremesa do balcão — <b>elaborada inclusive</b>: bolo, torta, pudim e salada de frutas passaram a entrar em agosto de 2026.</p>
+        <p><b>Fica de fora e vai integral para a folha</b>, mesmo que o seu dia não tenha chegado a R$ 35,00: bebida de geladeira (refrigerante, água de garrafa, suco de caixinha, iogurte), sorvete, açaí — e o que não é do balcão das comidas, como café e salgado.</p>
+        <p>A diferença que confunde: <b>suco de máquina entra, suco de garrafa não</b> — o de garrafa vem da geladeira. E a regra de bolso é <b>na dúvida, não entra</b>: o app prevê desconto, e é melhor prever um pouco mais do que levar susto no contracheque.</p>
+      </details>
+      <details class="glass faq__item">
+        <summary>Por que a rubrica do mês não bate com o que eu consumi no mês?<span class="faq__chev" aria-hidden="true"></span></summary>
+        <p>Porque a <b>data de corte do envio</b> não é necessariamente o mês do calendário: o período que a Sapore fecha e manda para a folha pode pegar parte de um mês e parte do outro. Por isso o app mostra as duas quinzenas separadas, em vez de somar de um jeito que pode não ser o da folha. Para conferir dia a dia, procure o DRH com a sua matrícula e o mês.</p>
       </details>
       <details class="glass faq__item">
         <summary>O app precisa do meu salário? Quem consegue ver?<span class="faq__chev" aria-hidden="true"></span></summary>
-        <p>Precisa, para calcular os 0,15% — e <b>só você consegue ver</b>. O salário é gravado no armazenamento do seu próprio navegador e nunca é enviado: não passa pela internet, não fica no banco de dados, não aparece para o administrador do app. Cada pessoa informa o seu no seu aparelho, e o cálculo de cada um sai certo sem ninguém saber o valor de ninguém.</p>
+        <p>Precisa, para calcular os 0,15%. É o <b>salário-base</b>, que é o bruto do contracheque, antes dos descontos — e <b>só você consegue ver</b>. O salário é gravado no armazenamento do seu próprio navegador e nunca é enviado: não passa pela internet, não fica no banco de dados, não aparece para o administrador do app. Cada pessoa informa o seu no seu aparelho, e o cálculo de cada um sai certo sem ninguém saber o valor de ninguém.</p>
         <p>Por que não guardar criptografado na nuvem, para sincronizar entre aparelhos? Porque salário é um número curto e previsível: com o texto cifrado em mãos, quem tenta adivinhar uma senha simples testa tudo offline até acertar. Ficar seguro exigiria uma senha forte, digitada em cada aparelho e perdida para sempre se esquecida — muito trabalho para proteger um número que você redigita em cinco segundos. Preferimos não ter o dado a ter o dado protegido pela metade.</p>
         <p>O campo é opcional. Vazio, o app funciona como antes e avisa que o desconto está incompleto.</p>
       </details>
@@ -685,7 +710,7 @@
           </label>
           <label class="field field--check" id="campoDataWrap">
             <span class="field__label">DATA E HORA <em>CONFIRA</em></span>
-            <input type="text" id="campoData" placeholder="dd/mm/aaaa hh:mm" aria-label="Data e hora">
+            <input type="datetime-local" id="campoData" aria-label="Data e hora">
           </label>
         </div>
 
@@ -700,9 +725,12 @@
         </div>
 
         <div class="field" id="campoSemSubsidioWrap">
-          <span class="field__label">DESTE VALOR, SEM SUBSÍDIO</span>
+          <span class="field__label">DESTE VALOR, SEM SUBSÍDIO <em hidden>CONFIRA</em></span>
+          <p class="field__guia">Quanto da nota <b>não</b> é do balcão das comidas: refrigerante, água, suco de garrafa, sorvete, café, salgado. Comeu só do balcão? Deixe <b>0,00</b>.</p>
           <input type="text" inputmode="decimal" id="campoSemSubsidio" placeholder="0,00" aria-label="Valor de itens sem subsídio">
-          <p class="field__nota">Coca, refrigerante, bolo e salada de frutas vão integrais para a folha. Kilo, básico, suco de máquina, fruta e gelatina entram no subsídio.</p>
+          <p class="field__nota" id="notaSemSubsidioOCR" hidden></p>
+          <div class="formula" id="contaLanc" hidden style="margin-top:12px"></div>
+          <p class="field__nota">Entra no subsídio o que vem do balcão das comidas: prato (kilo ou básico), suco de máquina, fruta, gelatina e sobremesa, elaborada inclusive. Fica de fora bebida de geladeira, sorvete e o que não é do balcão, como café e salgado. Na dúvida, não entra.</p>
         </div>
 
         <label class="field" id="campoLocalNomeWrap" hidden>
@@ -746,6 +774,11 @@
           <input type="text" id="campoObs" placeholder="ex: almoço com o time" aria-label="Observação">
         </label>
       </form>
+
+      <!-- a nota oficial, quando o QR trouxe a URL da SEFAZ -->
+      <p class="field__nota" id="linhaSefaz" hidden>
+        Conferindo um valor? <a id="linkSefaz" href="#" target="_blank" rel="noopener noreferrer">Abrir esta nota na SEFAZ</a> — lá ela aparece item por item, do jeito que foi emitida.
+      </p>
 
       <!-- o que o leitor entendeu, para quando algum campo não vier -->
       <details class="glass faq__item ocr-diag" id="ocrDiag" hidden>
@@ -951,10 +984,34 @@
   </div>
 </div>
 
+<!-- ============================================ MODAL: ÚLTIMA LEITURA -->
+<div class="sheet" id="sheetLeitura" role="dialog" aria-modal="true" aria-labelledby="leiTit">
+  <div class="sheet__panel">
+    <div class="sheet__grip"></div>
+    <div class="sheet__head">
+      <div>
+        <div class="sheet__title" id="leiTit">Última leitura de cupom</div>
+        <p class="sheet__sub" id="leiSub">O texto cru que o leitor extraiu. Serve para entender por que um campo veio errado.</p>
+      </div>
+      <button class="icon-btn icon-btn--square" type="button" data-close aria-label="Fechar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </button>
+    </div>
+    <div class="fields">
+      <pre class="ocr-cru" id="leiTexto"></pre>
+      <p class="wip__text">Fica <b>só neste aparelho</b>: não é salvo com o lançamento, não vai para a nuvem e some quando você limpa o navegador. Guarda apenas a leitura mais recente.</p>
+    </div>
+    <div class="sheet__footer">
+      <button class="btn btn--ghost" type="button" data-apagar-leitura>Apagar</button>
+      <button class="btn" type="button" data-copiar-leitura>Copiar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======================================================= TOAST -->
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>

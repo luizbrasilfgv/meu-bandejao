@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-v2.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192-v2.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css?v=32">
+<link rel="stylesheet" href="styles.css?v=33">
 <script>
   /* PWA: sem este registro o sw.js nunca roda — nada de offline nem de "Instalar". */
   if ("serviceWorker" in navigator) {
@@ -262,11 +262,15 @@
       <span class="page-title__meta" id="periodoLabel">—</span>
     </div>
 
-    <!-- período: mês civil por padrão, com intervalo livre -->
+    <!-- período: mês civil por padrão, o histórico inteiro, ou intervalo livre.
+         "Mês anterior" saiu: quem quer o mês passado escolhe as datas, e o que
+         faltava de verdade era ver tudo sem precisar saber de cabeça a data do
+         primeiro lançamento. O rótulo ao lado do título mostra o intervalo
+         que o preset resolveu. -->
     <div class="period">
       <div class="period__row" id="periodChips">
         <button class="chip is-active" type="button" data-period="atual">Mês atual</button>
-        <button class="chip" type="button" data-period="anterior">Mês anterior</button>
+        <button class="chip" type="button" data-period="tudo">Período completo</button>
         <button class="chip" type="button" data-period="custom">
           <svg class="chip__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect><path d="M3.5 10h17M8 3.5v3M16 3.5v3"></path></svg>
           Escolher datas
@@ -1008,6 +1012,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=32"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>

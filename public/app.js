@@ -467,7 +467,22 @@ function limitesPeriodo(){
       ? [periodo.inicio, periodo.fim] : [periodo.fim, periodo.inicio];
     return { ini: a, fim: b, rotulo: `${paraBR(a).slice(0, 5)} – ${paraBR(b).slice(0, 5)}` };
   }
-  if (periodo.preset === "anterior"){ mes--; if (mes === 0){ mes = 12; ano--; } }
+
+  /* Período completo: do primeiro lançamento ao último. Sem isto, ver o
+     histórico inteiro exigia escolher datas E saber de cabeça a data do
+     primeiro lançamento.
+
+     Com a lista vazia, cai no mês atual de propósito: intervalo vazio
+     deixaria o rótulo e os gráficos sem referência nenhuma, e o estado
+     "sem lançamentos" já é dito pelo vazio de cada card. */
+  if (periodo.preset === "tudo" && lancamentos.length){
+    const datas = lancamentos.map(dataDe).filter(Boolean).sort();
+    const a = datas[0], b = datas[datas.length - 1];
+    return {
+      ini: a, fim: b,
+      rotulo: `${paraBR(a).slice(0, 5)} – ${paraBR(b).slice(0, 5)} · período completo`
+    };
+  }
 
   const fim = ultimoDia(ano, mes);
   return {
@@ -707,8 +722,15 @@ function pintarHome(lista, ini, fim){
 
   const meta = qs(".brand__meta");
   if (meta){
+    /* O cabeçalho tem de dizer o mesmo período que o resto da tela. Imprimir
+       só o mês do FIM dava "SETEMBRO 2026" para um intervalo que começa em
+       junho — a contagem certa embaixo de um rótulo errado. Aparecia em
+       "Escolher datas" e virou rotina com "Período completo". */
     const mes = Number(fim.slice(5, 7)), ano = fim.slice(0, 4);
-    meta.textContent = `${MESES[mes - 1]} ${ano} · ${r.n} LANÇAMENTO${r.n === 1 ? "" : "S"}`;
+    const quando = ini.slice(0, 7) === fim.slice(0, 7)
+      ? `${MESES[mes - 1]} ${ano}`
+      : `${paraBR(ini).slice(0, 5)} – ${paraBR(fim).slice(0, 5)}`;
+    meta.textContent = `${quando} · ${r.n} LANÇAMENTO${r.n === 1 ? "" : "S"}`;
   }
 
   // O número grande é o SEU gasto. O resto do card diz para onde ele foi.
@@ -777,14 +799,19 @@ function pintarHome(lista, ini, fim){
   const avisoEst = el("avisoEstimativa");
   if (avisoEst) avisoEst.hidden = participacaoDoDia(fim) > 0;
 
-  // quinzenas do mês em tela
+  /* Quinzenas do mês que FECHA o período: a folha é mensal, então este bloco
+     não acompanha um intervalo de vários meses. Quando o período cruza meses
+     — o caso comum de "Período completo" — o rótulo passa a dizer de que mês
+     ele fala, senão ficaria uma quinzena sem mês embaixo de um cabeçalho que
+     mostra meio ano. Em mês fechado o mês já está no cabeçalho e não repete. */
   const ano = Number(fim.slice(0, 4)), mes = Number(fim.slice(5, 7));
+  const mesNoRotulo = ini.slice(0, 7) === fim.slice(0, 7) ? "" : ` ${MES_CURTO[mes - 1]}`;
   [1, 2].forEach(q => {
     const lim = limitesQuinzena(ano, mes, q);
     const rq = resumo(noPeriodo(lancamentos, lim.ini, lim.fim));
     const alvo = el("vQuinz" + q);
     const rot  = el("rQuinz" + q);
-    if (rot) rot.textContent = `${q}ª QUINZENA · ${q === 1 ? "01–15" : "16–" + ultimoDia(ano, mes)}`;
+    if (rot) rot.textContent = `${q}ª QUINZENA${mesNoRotulo} · ${q === 1 ? "01–15" : "16–" + ultimoDia(ano, mes)}`;
     if (alvo){
       alvo.textContent = rq.n ? `R$ ${brl(rq.desconto)}` : "—";
       alvo.classList.toggle("split__val--pending", !rq.n);

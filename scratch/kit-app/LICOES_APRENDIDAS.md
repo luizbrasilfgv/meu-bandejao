@@ -66,6 +66,36 @@ body {
 - Para a Janela de Baixo (Bottom Sheet), sempre transite o `transform: translateY()`:
   `transform: translateY(102%)` (escondido) para `transform: translateY(0)` (aberto).
 
+### `display:flex` no `<summary>` mata o triângulo do `<details>`
+O `<details>` nativo é a escolha certa para texto longo que abre e fecha — não depende de JS nem de
+classe de estado, e por isso não cai na armadilha do elemento invisível sem erro no console. Mas o
+marcador padrão do Chrome só existe enquanto o `summary` é `display: list-item`. Qualquer outro
+valor — e `flex` é o que todo mundo usa para alinhar ícone e texto — apaga a setinha **sem avisar**.
+No celular, que não tem cursor nem `:hover`, aí não sobra nada indicando que o texto abre: a pessoa
+lê o título como se fosse um subtítulo qualquer. Se você mudar o `display`, desenhe a seta:
+
+```css
+.topicos > summary{display:flex;align-items:center;gap:8px;list-style:none;min-height:44px}
+.topicos > summary::-webkit-details-marker{display:none}
+.topicos > summary::after{content:"";width:7px;height:7px;
+  border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+  transform:rotate(45deg);transition:transform var(--t-2) var(--ease)}
+.topicos[open] > summary::after{transform:rotate(-135deg)}
+```
+
+`currentColor` no lugar de uma cor literal faz a seta acompanhar o tema sozinha.
+
+### Token que não existe apaga a declaração inteira, calado
+`border-top: 1px solid var(--linha)` num app cujo design system chama aquele token de `--stroke`
+não desenha borda nenhuma — e não é que ele caia para uma cor padrão: a declaração toda fica
+inválida no momento do cálculo e volta ao valor inicial, que para `border` é *nenhuma borda*. Sem
+erro no console, sem aviso, sem nada. É o defeito clássico de copiar marcação de um app para outro,
+e some da revisão de código porque a linha **parece** certa.
+
+Duas defesas: mantenha as cores em CSS, não em `style=` inline no HTML (uma classe usa os tokens
+que existem naquele arquivo), e quando copiar marcação de outro app, procure `var(--` no que você
+trouxe e confirme cada nome contra o `:root` do destino.
+
 ---
 
 ## 4. Comportamentos do "Vanilla JS" no Mobile
@@ -202,3 +232,33 @@ cupom e data, exatos, sem OCR. Buscar a nota de lá, num app sem servidor, não 
 é o navegador, e um site só lê a resposta de outro se o outro autorizar. Mas **abrir** o link não
 precisa de nada disso, e resolve o caso em que o OCR errou um número. Só a versão 1 do QR carrega
 valor e data; a versão 2, que é a corrente, carrega só chave, versão, ambiente e token.
+
+---
+
+## 8. Filosofia de Refatoração e Manutenção
+
+### Código que roda vs. Código que funciona
+Focar em apagar incêndios e silenciar erros no console (ex: encher o código de `?.` e `if (el)`) não
+resolve problemas estruturais. É a prova cabal de que "código que roda sem dar erro na tela" não
+significa de forma alguma "código que funciona".
+
+### A Metodologia Padrão de Engenharia
+Ao refatorar um projeto, não faça remendos caóticos. Siga a abordagem cirúrgica:
+
+1. **Destravar o Ferramental:** Garanta que git, configs de CLI e permissões base estão corretos.
+2. **Reconciliar UI:** Amarre o Javascript ao novo contrato visual do Handoff (o DOM manda).
+3. **Mapear Domínio:** Garanta que os dados salvos respeitem a especificação real do projeto, sem
+   descartar informações úteis do banco.
+4. **Segurança:** O modelo de dados (Rules) e as variáveis no código devem estar rigorosamente
+   alinhadas.
+5. **Infraestrutura:** Garanta os padrões de PWA, cache-busting rigoroso e integração contínua.
+
+### Duas cópias do mesmo documento divergem, e ninguém percebe
+Este arquivo viveu meses em duas versões: a do `kit-app` e a que cada app carrega em
+`scratch/kit-app/`. Em 03/09/2026 a cópia dentro do Meu Bandejão tinha **onze lições de leitura de
+cupom** que o kit não tinha, e o kit tinha esta seção de filosofia que a cópia havia perdido. Ou
+seja: o app novo que lesse o kit — o motivo de o kit existir — receberia menos do que já se sabia.
+
+Ao aprender algo, escreva **no kit** e só depois espelhe nas cópias. E quando for espelhar, compare
+os títulos das seções dos dois arquivos antes de sobrescrever: `git diff --no-index a b` funciona
+fora de repositório e mostra em dez segundos o que cada lado sabe que o outro não.

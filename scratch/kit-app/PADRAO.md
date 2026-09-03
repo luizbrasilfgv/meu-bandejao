@@ -33,6 +33,23 @@ Se você precisou de um servidor, ou o problema mudou, ou a solução está erra
 **Firebase como plataforma inteira.** Auth (Google), Firestore (dados), Hosting (o site).
 Nada de banco próprio, nada de outra hospedagem.
 
+**Identidade só pelo Google.** O login é exclusivamente OAuth Google. O app **não cria senha
+própria**, não guarda senha e não pede CPF, documento, cartão ou endereço para entrar. Quem
+confere quem a pessoa é é o Google; o app recebe nome, e-mail e foto, e nada mais.
+
+Isto não é só conveniência. Senha própria significa recuperação de senha, senha provisória,
+força bruta e vazamento — quatro problemas que o app não tem obrigação de resolver. E significa
+e-mail **não verificado**: regra que identifica administrador por e-mail passa a poder ser
+enganada por quem se cadastra com o e-mail do dono. Se um dia um segundo provedor for
+inevitável, a regra de dono tem de exigir o provedor verificado
+(`request.auth.token.firebase.sign_in_provider == 'google.com'`) — ver `PRIVACIDADE-LGPD.md`,
+armadilha ARM-08.
+
+**Privacidade não é opcional.** Todo app deste padrão nasce com as três coisas: aviso na tela de
+entrada, aceite registrado no primeiro acesso e botão de saída com pedido de remoção. O que cada
+uma exige está na seção 12, e o detalhe em `PRIVACIDADE-LGPD.md`. App sem elas está fora do
+padrão, mesmo que funcione.
+
 **Mobile-first de verdade.** Alvo 320px (iPhone SE) a 430px (Pro Max). O container tem largura
 máxima e fica centralizado. Zero scroll horizontal. Alvos de toque de no mínimo 44px.
 
@@ -401,13 +418,145 @@ desenvolvimento.
 
 ---
 
-## 11. Como usar este documento como prompt
+## 11. Privacidade e LGPD
+
+Isto é parte do padrão, não um extra. O documento completo é o **`PRIVACIDADE-LGPD.md`** desta
+pasta: triagem de 10 minutos, requisitos com ID, critérios de aceite, 13 armadilhas reais e os
+textos prontos para copiar. Aqui fica só o que não se negocia.
+
+### O princípio
+
+**O texto só promete o que o código faz.** Promessa que não bate com o fluxo é pior do que
+promessa nenhuma. Três frases que já foram escritas em apps deste padrão e eram falsas:
+
+| Frase | Por que era falsa |
+|---|---|
+| *"Não guardamos nenhum dado seu"* | o app gravava nome, e-mail, foto e o conteúdo do usuário |
+| *"Um botão apaga tudo. Sem burocracia"* | o botão abria um **pedido**, processado à mão |
+| *"Só quem o administrador aprova vê"* | havia uma segunda porta de entrada sem aprovação |
+
+Escreva o **inventário** antes do texto: uma tabela com cada lugar onde dado pessoal encosta e
+quais campos. O texto é uma leitura do inventário, nunca o contrário. Jeito mais confiável de
+levantar: ler os **nomes dos campos** de um backup do Firestore, não o que o código sugere.
+
+E olhe o que o campo **pode conter**, não só o nome dele: num app, a chave PIX guardada em
+`dados_sigilosos` é, muitas vezes, o próprio CPF — mesmo sem existir campo `cpf` em lugar nenhum.
+
+### As três coisas, na ordem em que a pessoa encontra
+
+**1 · Aviso na tela de entrada**, antes de qualquer botão de login — não um link para "termos".
+Diga que a identidade é conferida pelo Google, que a senha nunca passa pelo app, e o que chega
+do login (nome, e-mail e foto). Um expansível com "o que fica salvo, exatamente" em três blocos:
+no app, no aparelho, e **nunca** (a lista do que não é pedido, que é o que tranquiliza).
+
+**2 · Aceite bloqueante no primeiro acesso**, depois da portaria e antes de qualquer tela com
+dado dentro. Quatro declarações: para que serve o login; o que o app guarda; o que o app não faz
+e quem vê; como sair, com o prazo. **Duas saídas, sem terceira** — "Ciente, vamos lá" grava, e
+"Prefiro não entrar" desloga. Sem aceite não há acesso, e não há "depois".
+
+O registro tem **três campos, não um**:
+
+| Campo | Valor | Por que |
+|---|---|---|
+| `lgpdCiente` | `true` | só se grava como verdadeiro; não existe "des-consentir" por engano |
+| `lgpdCienteEm` | hora do **servidor** | data de aparelho errado não provaria nada |
+| `lgpdVersao` | inteiro | **booleano sozinho não prova qual texto a pessoa leu** |
+
+Texto novo ⇒ versão nova ⇒ o aviso volta uma vez. **Não precisa derrubar sessão**: a checagem
+roda a cada abertura, lendo o documento da pessoa.
+
+**3 · Botão de saída no Perfil**, alcançável sem suporte e sem mensagem privada. Decida e
+**escreva na tela** qual dos dois é:
+
+| | Pedido para o administrador | Apagamento imediato |
+|---|---|---|
+| Quando | cascata manual, risco de toque acidental | dado isolado, cascata automática viável |
+| Exige | fila visível + prazo | transação que apaga tudo de uma vez |
+| Texto diz | *"abre um pedido; o admin executa em até N dias"* | *"apaga agora e não dá para desfazer"* |
+
+Neste padrão, sem servidor, a cascata é manual — então é **pedido**. E aí:
+
+* confirmação em **dois passos na própria tela**, nunca `confirm()` do sistema;
+* o pedido é **imutável para o titular**: ele cria o próprio, obrigatoriamente com status
+  inicial e carimbo do servidor, e nunca altera nem apaga;
+* **`delete` é `false` para todos, inclusive o administrador** — é a trilha que prova o pedido;
+* quem decide só pode escrever o **desfecho**. `allow update: if ehAdmin()` **não basta**: sem
+  lista branca de campos o admin reescreve `uid`, `email` e a data, ou seja, apaga a identidade
+  do pedido sem apagar o documento;
+* **fila visível** para quem decide, com contagem. Sem tela, o pedido só existe no console do
+  Firebase e fica parado sem ninguém saber;
+* **prazo declarado**, de uma constante única (LGPD art. 18, §3º: 15 dias);
+* diga o que **sobra**: nome em registro de auditoria, em histórico fechado, em lista de
+  presença. Apagar aquilo mudaria conta que já aconteceu — então não prometa;
+* diga o que acontece **se a pessoa voltar**: o login recria um cadastro novo, do zero.
+
+### As Rules
+
+Campos do consentimento no documento do usuário, e a coleção do pedido:
+
+```
+match /users/{uid} {
+  allow update: if ehAdmin()
+                || (eu(uid)
+                    && diff(resource.data).affectedKeys()
+                         .hasOnly(['nome','foto','tema','lgpdCiente','lgpdCienteEm','lgpdVersao'])
+                    && (!('lgpdCiente' in diff(resource.data).affectedKeys())
+                        || request.resource.data.lgpdCiente == true));
+}
+
+match /solicitacoesExclusao/{uid} {
+  allow get:    if eu(uid) || ehAdmin();
+  allow list:   if ehAdmin();
+  allow create: if eu(uid)
+                && keys().hasOnly(['uid','email','nome','status','pedidoEm'])
+                && request.resource.data.status == 'aberta'
+                && request.resource.data.email == request.auth.token.get('email','')
+                && request.resource.data.pedidoEm == request.time;
+  allow update: if ehAdmin()
+                && diff(resource.data).affectedKeys()
+                     .hasOnly(['status','resolvidoEm','resolvidoPor'])
+                && request.resource.data.status in ['atendida','recusada'];
+  allow delete: if false;
+}
+```
+
+### As três armadilhas que mais custaram
+
+**Campo novo exige mexer nas duas listas.** `create` valida por `keys().hasOnly`, `update` por
+`affectedKeys().hasOnly`. Campo fora delas é recusado **em silêncio** — e se o campo é o do
+consentimento, a pessoa fica **presa na tela do aviso**. Quem acrescenta campo mexe na regra no
+mesmo commit.
+
+**Testar com a sua conta não prova nada.** A regra é `if ehAdmin() || (o caminho de quem não é
+admin)`, e você passa pelo primeiro ramo — o segundo nunca é avaliado. Num app deste padrão isso
+deixou o botão de excluir conta quebrado para **23 de 26 pessoas**, e em outro deixou uma
+preferência sendo recusada calada por semanas. Teste com identidade simulada: `PRIVACIDADE-LGPD.md`,
+anexo A.7.
+
+**A ordem dos `ou` decide se a tela abre vazia.** Função que faz `get()` **erra** quando o
+documento não existe, e regra que erra **nega**. Condição que não depende de documento vem
+primeiro.
+
+### Antes de publicar
+
+* **Regras e código sobem juntos.** O workflow que o Firebase CLI gera publica **só o Hosting** —
+  as Rules são um comando manual, e vêm **primeiro**, porque a regra nova é mais permissiva e o
+  código antigo sobrevive à janela entre os dois deploys.
+* **Confira lendo do servidor**, não pelo navegador.
+* Rode a bateria de Rules com identidade simulada, inclusive contra o que está **publicado**.
+
+---
+
+## 12. Como usar este documento como prompt
 
 Cole o texto acima e acrescente algo assim:
 
 > Siga estritamente o padrão acima. Vou construir `<APP>`, que serve para `<propósito>`.
 > As telas são: `<lista>`. Os dados que cada usuário guarda são: `<descrição>`.
 > Use o esqueleto em `template/` como ponto de partida: não recrie o gate de login, a
-> portaria, a navegação, os sheets, o tema nem o service worker — eles já estão prontos e
-> testados. Escreva apenas a seção 1 (domínio) e as telas.
-> Antes de escrever qualquer código, confirme comigo o modelo de dados e as telas.
+> portaria, a navegação, os sheets, o tema, o service worker **nem as três telas de
+> privacidade** — eles já estão prontos e testados. Escreva apenas a seção 1 (domínio) e as
+> telas.
+> Antes de escrever qualquer código, confirme comigo o modelo de dados e as telas — e monte o
+> **inventário de dados** da seção 11, porque é dele que sai o texto do aviso.
+

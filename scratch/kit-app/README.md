@@ -6,15 +6,21 @@ o mesmo formato.
 ```
 kit-app/
 ├── PADRAO.md               ← o documento de arquitetura (serve de prompt)
+├── PRIVACIDADE-LGPD.md     ← aviso, aceite e pedido de saída: o padrão completo
 ├── ADAPTAR-EXISTENTE.md    ← como trazer um app que já existe
-├── LICOES_APRENDIDAS.md    ← aprendizados sobre UI, formulários e CSS
+├── LICOES_APRENDIDAS.md    ← o caderno de erros: UI, CSS, número na tela, OCR de cupom
 ├── README.md               ← este arquivo: como usar o esqueleto
 └── template/               ← o esqueleto, rodando de verdade
 ```
 
 O `template/` não é pseudocódigo. É um app que abre, faz login, tem portaria de aprovação,
-duas telas mais Perfil, busca, janela de baixo, dois temas, painel de administrador com ação
-em lote, e funciona offline. Ele só não sabe **o que** o seu app faz.
+aviso de privacidade, aceite registrado, pedido de saída com fila para o administrador, duas
+telas mais Perfil, busca, janela de baixo, dois temas, painel de administrador com ação em
+lote, e funciona offline. Ele só não sabe **o que** o seu app faz.
+
+> **Duas regras do padrão que valem repetir aqui**, porque são as que mais se esquece ao
+> começar um app: o login é **só pelo Google** — sem senha própria, nunca — e as três telas de
+> privacidade **não são opcionais**. Detalhe na seção 2 e na 11 do `PADRAO.md`.
 
 ---
 
@@ -34,10 +40,18 @@ em lote, e funciona offline. Ele só não sabe **o que** o seu app faz.
 | Sincronização em tempo real entre aparelhos | `onSnapshot` com guard de eco |
 | Instalável e offline | `manifest.json`, `sw.js`, registro no `<head>` |
 | Rules com o modelo "não pode se promover" | `firestore.rules` |
+| Aviso de privacidade na tela de entrada | o cartão do gate e o expansível |
+| Aceite bloqueante no 1º acesso, com versão | `mostrarLgpd()`, `registrarCiencia()` |
+| Pedido de saída + fila para o administrador | `pedirExclusao()`, `listarExclusoes()` |
+| Rules do consentimento e da trilha imutável | `firestore.rules` |
 | Deploy com dois cliques | `PUBLICAR.bat` |
 
 **Você escreve**: a seção 1 do `app.js` (a lógica do seu domínio, sem DOM) e as funções
 `pintarX()` que desenham as telas.
+
+**E você adapta um texto**: o do aviso de privacidade. Ele vem preenchido com o que o esqueleto
+guarda, e o seu app guarda outra coisa — trocar aquele texto é obrigatório, não cosmético. Ver o
+passo 5b.
 
 ---
 
@@ -57,9 +71,14 @@ assim e só ligar a nuvem no fim.
 
 > Precisa de servidor. `file://` não permite módulos ES6 nem service worker.
 
-**3 · Crie o projeto no Firebase.** Ative Authentication com provedor Google e crie o
-Firestore. Copie o `firebaseConfig` do app Web para o topo do `app.js`, renomeie
-`.firebaserc.exemplo` para `.firebaserc` e ponha o id do projeto.
+**3 · Crie o projeto no Firebase.** Ative Authentication com provedor Google — **só o Google**,
+não habilite Email/Password — e crie o Firestore. Copie o `firebaseConfig` do app Web para o topo
+do `app.js`, renomeie `.firebaserc.exemplo` para `.firebaserc` e ponha o id do projeto.
+
+> Habilitar um segundo provedor abre **auto-cadastro** no projeto e traz e-mail **não
+> verificado** — e aí a regra que identifica o dono pelo e-mail pode ser enganada por quem se
+> cadastrar com o e-mail dele. Se um dia for inevitável, leia a ARM-08 do `PRIVACIDADE-LGPD.md`
+> antes.
 
 **4 · Ajuste as constantes** no topo do `app.js`: `NS` (prefixo do localStorage — troque,
 senão dois apps seus no mesmo domínio brigam) e `COLECAO` (nome da sua coleção de dados).
@@ -67,6 +86,22 @@ Se mudar `COLECAO`, mude também o `match /dados/{uid}` nas Rules.
 
 **5 · Escreva o app.** Seção 1 do `app.js` para a lógica, `pintarX()` para as telas, e o
 HTML das telas no `index.html`. Renomeie as abas na `<nav>` e no mapa de `ctxLabel`.
+
+**5b · Troque o texto do aviso de privacidade.** Isto é obrigatório. O esqueleto vem com um
+texto que descreve **o que o esqueleto guarda**; o seu app guarda outra coisa, e aí o texto passa
+a ser mentira. A ordem é sempre esta:
+
+1. Levante o **inventário**: uma linha por lugar onde dado pessoal encosta, com os campos. Se o
+   app já tem dado, o jeito confiável é ler os **nomes dos campos** de um backup do Firestore.
+2. Marque o que é **sensível** (saúde, biometria, origem, religião, política, sindicato, vida
+   sexual — LGPD art. 5º, II) e o que é dado de **criança ou adolescente** (art. 14, pede aviso
+   próprio no ponto do cadastro).
+3. Marque o que o app **não pede** — essa lista é a que tranquiliza quem lê.
+4. Só então escreva. Os textos base estão no anexo B do `PRIVACIDADE-LGPD.md`.
+
+Onde mexer: o cartão `#avisoEntrada` no gate, as quatro declarações do `#gateLgpd`, e os tópicos
+da tela de exclusão. Se o texto do aceite mudar depois de o app estar no ar, **suba o
+`LGPD_VERSAO`** — senão quem já aceitou não vê o texto novo.
 
 **6 · Marca visual.** No `styles.css`, troque `--acento` e `--acento-2` nos dois temas.
 Regenere os ícones a partir do `icon.svg` — o Chrome no Android precisa dos PNG de 192 e 512.
@@ -152,3 +187,4 @@ por domínio, não por tipo.
 **Como faço o app ir para a tela inicial do celular?** No iPhone, Compartilhar → Adicionar à
 Tela de Início. No Android, o Chrome oferece "Instalar" sozinho, desde que os PNG de 192 e
 512 estejam declarados no manifest. Explicado no item 8 do `PADRAO.md`.
+

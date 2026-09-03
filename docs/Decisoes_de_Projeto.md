@@ -55,6 +55,14 @@ uma ideia foi abandonada vale tanto quanto a ideia que ficou.
   para ser copiada e colada.
 * **Isolamento por usuário.** Um documento por `uid` em cada coleção, e as Rules só deixam cada
   pessoa ler o próprio. Coleção separada por tipo de dado, não campo dentro do mesmo documento.
+* **Falta aqui o que o padrão passou a exigir.** *(registrado em 03/09/2026)* O
+  `scratch/kit-app/PRIVACIDADE-LGPD.md` virou parte do padrão e pede três coisas que **este app
+  ainda não tem**: o aviso de privacidade na tela de entrada, o aceite bloqueante e versionado no
+  primeiro acesso, e o pedido de saída com fila para o administrador. O que existe hoje é a
+  substância — imagem descartada, salário fora do banco, CPF ignorado, isolamento por `uid` — sem a
+  parte que a pessoa vê e sem o caminho para ela pedir para sair. Não é urgente como era nos apps
+  de grupo (aqui cada um só vê o próprio dado), mas está em aberto de propósito, e não por
+  esquecimento: fica registrado para não parecer decisão.
 
 ## 3. Acesso
 
@@ -156,6 +164,21 @@ uma ideia foi abandonada vale tanto quanto a ideia que ficou.
   herda a cor clara do app.
 * **Um switch que não faz nada é mentira.** O lembrete de recibo guarda a preferência, mas a tela
   declara que a notificação ainda não existe.
+* **"Período completo" no lugar de "Mês anterior".** *(decisão de 03/09/2026)* Os dois presets
+  custam o mesmo espaço na tela e não valem o mesmo: o mês passado se resolve em "Escolher datas"
+  com dois toques, enquanto ver o histórico inteiro exigia escolher datas **e** saber de cabeça a
+  data do primeiro lançamento — que é justamente o que ninguém sabe. O preset novo resolve isso
+  lendo o primeiro e o último lançamento que existem.
+  Duas consequências foram consertadas junto, porque o preset fez virar rotina um caso que antes
+  só aparecia em intervalo escolhido à mão:
+  1. **O cabeçalho passou a acompanhar o período.** Ele imprimia o mês do fim do intervalo, e
+     dizia "SETEMBRO 2026 · 8 LANÇAMENTOS" para lançamentos que começavam em junho — contagem
+     certa, rótulo errado, contradizendo a nota do próprio card de Início.
+  2. **O bloco das quinzenas passou a dizer de que mês fala.** Ele continua sendo o do mês que
+     fecha o período, porque a folha é mensal e não acompanha intervalo de vários meses; o que
+     faltava era o rótulo admitir isso (`1ª QUINZENA SET · 01–15`).
+  A variação percentual **sai de tela** neste preset: não existe período anterior de igual tamanho
+  antes do primeiro lançamento, e "+100%" só diria que antes não havia registro.
 
 ## 7. Publicação e PWA
 

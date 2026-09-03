@@ -213,11 +213,16 @@ subsídio bruto do dia: é "até 0,15%", nunca 0,15% cheio. Prato de R$ 5,00 com
 Hierarquia deliberada, de cima para baixo:
 
 1. **O QUE VOCÊ GASTOU NO PERÍODO** — o número grande (42px), com a variação percentual contra o
-   período anterior de igual tamanho.
+   período anterior de igual tamanho. A variação **sai de tela** quando não há com o que comparar —
+   é o caso de "Período completo", que começa no primeiro lançamento e não tem nada antes dele.
+   Melhor nenhum número do que um "+100%" que só diz que antes não havia registro.
 2. **DESCONTO EM FOLHA** (âmbar) e **SUBSÍDIO DA FGV** (azul), em 24px, cada um com uma linha
    explicando de onde vem. Logo abaixo, o aviso dos 0,15%.
 3. **PAGO POR FORA** (cinza), só quando existe.
-4. Quinzenas 01–15 e 16–fim, como a folha recebe.
+4. Quinzenas 01–15 e 16–fim, como a folha recebe. São as do **mês que fecha o período** — a folha é
+   mensal e não acompanha intervalo de vários meses. Quando o período cruza meses, o rótulo diz de
+   que mês ele fala (`1ª QUINZENA SET · 01–15`); em mês fechado não repete, porque o mês já está no
+   cabeçalho.
 5. Barra e legenda por local: Sapore, Rei, e Fora quando houver.
 6. **+ Lançamento** e as transações recentes (6), com **VER TUDO**.
 
@@ -236,8 +241,18 @@ Lista tudo que já foi lançado, com filtro no topo:
 
 ### 5.3 Estatísticas
 
-* **Período:** mês civil por padrão, mês anterior, ou intervalo livre. Todo número respeita o
-  período selecionado.
+* **Período:** três opções, e todo número da tela respeita a escolhida.
+  * **Mês atual** — o mês civil corrente. É o padrão.
+  * **Período completo** — do primeiro ao último lançamento que existe. Entrou em 03/09/2026 no
+    lugar de "Mês anterior": ver o histórico inteiro exigia escolher datas **e** saber de cabeça a
+    data do primeiro lançamento, enquanto o mês passado se resolve com duas datas. Com a lista
+    vazia cai no mês atual de propósito — intervalo vazio deixaria rótulo e gráficos sem
+    referência, e o estado "sem lançamentos" já é dito por cada card.
+  * **Escolher datas** — intervalo livre; só vale quando as duas datas estão preenchidas.
+* **O cabeçalho do app acompanha o período.** Quando o intervalo cruza meses, ele mostra as datas
+  (`08/06 – 02/09`) em vez do nome de um mês; em mês fechado, mostra o mês e o ano. Imprimir só o
+  mês do fim dava "SETEMBRO 2026" para um intervalo começado em junho: a contagem certa embaixo de
+  um rótulo errado, contradizendo a própria nota do card de Início.
 * **Evolução do gasto:** **linha** por padrão (gasto e desconto em folha), com botão para ver em
   **coluna** empilhada (desconto + subsídio). Escala por dia ou por mês, independente do tipo.
 * **Onde o crédito foi:** rosca por local, com o total escrito no centro por um plugin inline e

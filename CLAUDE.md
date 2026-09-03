@@ -32,8 +32,9 @@ Vem de `scratch/kit-app/PADRAO.md`, e vale como regra:
 
 ## As armadilhas deste projeto
 
-Cada uma destas já quebrou o app aqui. Estão detalhadas em
-`scratch/kit-app/LICOES_APRENDIDAS.md` e em `scratch/kit-app/ADAPTAR-EXISTENTE.md`.
+Cada uma destas já custou caro aqui — a maioria quebrou o app, e uma travou a entrega. As de
+código estão detalhadas em `scratch/kit-app/LICOES_APRENDIDAS.md` e em
+`scratch/kit-app/ADAPTAR-EXISTENTE.md`.
 
 1. **O design manda.** `docs/design/` é o handoff do Claude Design. Se o HTML usa `.is-open` e o
    script espera `.on`, conserte o **script**. A versão em que "nada funcionava" era exatamente
@@ -79,7 +80,16 @@ Cada uma destas já quebrou o app aqui. Estão detalhadas em
    decisão comentada. O valor final é do campo `valorSemSubsidio` do lançamento: o leitor **sugere
    e avisa**, a pessoa confirma. Dois cupons de mesmo total e composição diferente dão descontos
    diferentes, e decidir sozinho erraria dinheiro em silêncio.
-9. **`prefs` sincroniza; `privado` não.** `prefs` vai para `users/{uid}.prefs` no Firestore, e a
+9. **`git fetch` antes de ramificar.** A pasta local pode estar muito atrás do GitHub: em
+   03/09/2026 estava **28 commits** atrás, e o `git log` parecia coerente — só olhando o histórico
+   local não dá para desconfiar. Ramificar de um `main` velho **garante** conflito, porque todo
+   commit publicável sobe os dois selos de versão (armadilha 4), e o `main` de verdade já subiu os
+   dele. Rotina: `git fetch origin` e ramifique de `origin/main`. Se o conflito já aconteceu,
+   `git merge origin/main` na branch (não `rebase`, não `--force`), resolva os selos para o maior
+   número **+ 1** nos dois arquivos juntos, e **rode o app de novo** — o `app.js` do `main` pode ter
+   mudado muito debaixo do seu código. Depois, `git branch -f main origin/main`, para o clone não
+   repetir amanhã.
+10. **`prefs` sincroniza; `privado` não.** `prefs` vai para `users/{uid}.prefs` no Firestore, e a
    regra é `allow get: if eu(uid) || ehAdmin()` — o administrador lê. **O salário mora em
    `privado`**, um objeto separado que só existe no `localStorage`, gravado por `gravarPrivado()`,
    que de propósito **não chama `salvarPerfil`**. Nunca ponha dado sensível em `prefs`, e nunca
